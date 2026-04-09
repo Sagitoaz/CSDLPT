@@ -1,20 +1,10 @@
-import express from "express";
-import donationRoutes from "./donation.routes";
-import { config } from "./config";
-import { connectMongo } from "./db";
-import { applySecurity } from "./security";
+import { createApp } from "./app/create-app";
+import { config } from "./config/env";
+import { connectMongo } from "./infrastructure/database/mongo";
 
 async function bootstrap(): Promise<void> {
   await connectMongo();
-
-  const app = express();
-  applySecurity(app);
-
-  app.get("/health", (_req, res) => {
-    res.json({ ok: true, service: "charity-backend" });
-  });
-
-  app.use("/api/donations", donationRoutes);
+  const app = createApp();
 
   app.listen(config.port, () => {
     console.log(`Backend listening on http://localhost:${config.port}`);
