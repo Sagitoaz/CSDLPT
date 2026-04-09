@@ -1,0 +1,13 @@
+.aidlc-rule-details/
+.github/
+aidlc-docs/
+AGENT.md
+
+# Node workspace
+node_modules/
+dist/
+coverage/
+.vite/
+.env
+.DS_Store
+*.tsbuildinfo
