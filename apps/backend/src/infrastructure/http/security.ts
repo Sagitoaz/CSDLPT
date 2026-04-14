@@ -1,7 +1,7 @@
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-import { config } from "./config";
+import { config } from "../../config/env";
 
 export function applySecurity(app: express.Express): void {
   app.use(helmet({
@@ -19,7 +19,7 @@ export function applySecurity(app: express.Express): void {
   app.use(
     cors({
       origin: config.corsOrigin,
-      methods: ["GET", "POST", "PATCH"],
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
       credentials: false
     })
   );
