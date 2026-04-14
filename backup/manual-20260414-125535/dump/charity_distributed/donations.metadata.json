@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"campaignCode":{"$numberInt":"1"},"createdAt":{"$numberInt":"-1"}},"name":"campaignCode_1_createdAt_-1","background":true}],"uuid":"f371592c1cd24e58a874712ec9ef1655","collectionName":"donations","type":"collection"}

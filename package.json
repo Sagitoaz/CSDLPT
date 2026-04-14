@@ -10,6 +10,8 @@
     "dev": "npm-run-all --parallel dev:backend dev:frontend",
     "dev:backend": "npm --prefix apps/backend run dev",
     "dev:frontend": "npm --prefix apps/frontend run dev",
+    "seed": "npm --prefix apps/backend run seed",
+    "seed:reset": "npm --prefix apps/backend run seed:reset",
     "build": "npm-run-all build:shared build:backend build:frontend",
     "build:shared": "npm --prefix packages/shared run build",
     "build:backend": "npm --prefix apps/backend run build",
