@@ -10,6 +10,12 @@ const initialDonationForm = {
   note: ""
 };
 
+const statusLabelMap: Record<DonationStatus, string> = {
+  pending: "Đang chờ",
+  verified: "Đã xác minh",
+  rejected: "Từ chối"
+};
+
 interface DonationSectionProps {
   campaigns: Campaign[];
   donations: Donation[];
@@ -68,10 +74,10 @@ export function DonationSection({
   return (
     <section className="panel-grid donations-layout">
       <article className="panel">
-        <h2>Tao donation</h2>
+        <h2>Ghi nhận quyên góp</h2>
         <form className="form-grid" onSubmit={(event) => void submitDonation(event)}>
           <label>
-            Ten nguoi quyen gop
+            Người quyên góp
             <input
               value={form.donorName}
               onChange={(event) => setForm((prev) => ({ ...prev, donorName: event.target.value }))}
@@ -91,7 +97,7 @@ export function DonationSection({
           </label>
 
           <label>
-            So tien (VND)
+            Số tiền (VND)
             <input
               type="number"
               min={1000}
@@ -102,14 +108,14 @@ export function DonationSection({
           </label>
 
           <label>
-            Campaign
+            Chiến dịch
             <select
               value={form.campaignCode}
               onChange={(event) => setForm((prev) => ({ ...prev, campaignCode: event.target.value }))}
               required
             >
               <option value="" disabled>
-                Chon campaign
+                -- Chọn chiến dịch --
               </option>
               {campaignOptions.map((code) => (
                 <option key={code} value={code}>
@@ -120,7 +126,7 @@ export function DonationSection({
           </label>
 
           <label>
-            Ghi chu
+            Ghi chú
             <textarea
               rows={4}
               value={form.note}
@@ -128,16 +134,16 @@ export function DonationSection({
             />
           </label>
 
-          <button type="submit">Gui donation</button>
+          <button type="submit">Gửi quyên góp</button>
         </form>
       </article>
 
       <article className="panel">
         <div className="panel-headline">
-          <h2>Danh sach donations</h2>
+          <h2>Danh sách quyên góp</h2>
           <form className="filters" onSubmit={(event) => void applyFilters(event)}>
             <input
-              placeholder="Search ten/ghi chu"
+              placeholder="Tìm tên hoặc ghi chú"
               value={donationFilters.search}
               onChange={(event) =>
                 setDonationFilters({
@@ -147,7 +153,7 @@ export function DonationSection({
               }
             />
             <input
-              placeholder="Campaign code"
+              placeholder="Mã chiến dịch"
               value={donationFilters.campaignCode}
               onChange={(event) =>
                 setDonationFilters({
@@ -165,12 +171,12 @@ export function DonationSection({
                 })
               }
             >
-              <option value="">Tat ca status</option>
-              <option value="pending">pending</option>
-              <option value="verified">verified</option>
-              <option value="rejected">rejected</option>
+              <option value="">Tất cả trạng thái</option>
+              <option value="pending">Đang chờ</option>
+              <option value="verified">Đã xác minh</option>
+              <option value="rejected">Từ chối</option>
             </select>
-            <button type="submit">Loc</button>
+            <button type="submit">Lọc</button>
           </form>
         </div>
 
@@ -187,17 +193,17 @@ export function DonationSection({
               </div>
 
               <div className="row-actions">
-                <span className={`pill ${donation.status}`}>{donation.status}</span>
+                <span className={`pill ${donation.status}`}>{statusLabelMap[donation.status]}</span>
                 <button type="button" onClick={() => void onUpdateStatus(donation._id, "verified")}>
-                  Duyet
+                  Duyệt
                 </button>
                 <button type="button" onClick={() => void onUpdateStatus(donation._id, "rejected")}>
-                  Tu choi
+                  Từ chối
                 </button>
               </div>
             </li>
           ))}
-          {donations.length === 0 ? <li>Khong co donation nao.</li> : null}
+          {donations.length === 0 ? <li>Chưa có quyên góp nào.</li> : null}
         </ul>
       </article>
     </section>

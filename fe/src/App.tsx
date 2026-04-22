@@ -46,18 +46,18 @@ export function App() {
       <div className="ambient ambient-right" aria-hidden="true" />
 
       <div className="topbar">
-        <div className="mode-switch" role="group" aria-label="Switch mode">
+        <div className="mode-switch" role="group" aria-label="Chuyển chế độ">
           <button
             className={mode === "public" ? "tab is-active" : "tab"}
             onClick={() => setMode("public")}
           >
-            Public FE
+            Giao diện công khai
           </button>
           <button
             className={mode === "admin" ? "tab is-active" : "tab"}
             onClick={() => setMode("admin")}
           >
-            Admin FE
+            Giao diện quản trị
           </button>
         </div>
       </div>
@@ -66,34 +66,34 @@ export function App() {
 
       <Hero overview={overview} statusTotals={statusTotals} mode={mode} />
 
-      <nav className="tabs" aria-label="Main sections">
+      <nav className="tabs" aria-label="Nhóm chức năng chính">
         {mode === "admin" ? (
           <>
             <button
               className={adminTab === "dashboard" ? "tab is-active" : "tab"}
               onClick={() => setAdminTab("dashboard")}
             >
-              Dashboard
+              Tổng quan
             </button>
             <button
               className={adminTab === "campaigns" ? "tab is-active" : "tab"}
               onClick={() => setAdminTab("campaigns")}
             >
-              Campaigns
+              Chiến dịch
             </button>
             <button
               className={adminTab === "donations" ? "tab is-active" : "tab"}
               onClick={() => setAdminTab("donations")}
             >
-              Donations
+              Quyên góp
             </button>
           </>
         ) : (
-          <span className="public-mode-caption">Che do public: chi hien thi luong ung ho, an thao tac quan tri.</span>
+          <span className="public-mode-caption">Chế độ công khai: chỉ hiển thị luồng ủng hộ, ẩn thao tác quản trị.</span>
         )}
 
         <button className="tab refresh" onClick={() => void refreshAll()} disabled={loading}>
-          {loading ? "Dang tai..." : "Lam moi"}
+          {loading ? "Đang tải..." : "Làm mới"}
         </button>
       </nav>
 

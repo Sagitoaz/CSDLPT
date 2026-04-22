@@ -88,7 +88,7 @@ export function useCharityData() {
     setMessage("");
     try {
       await createCampaign(payload);
-      setMessage("Da tao campaign moi.");
+      setMessage("Đã tạo chiến dịch mới.");
       await refreshAll();
       return true;
     } catch (submitError) {
@@ -108,7 +108,7 @@ export function useCharityData() {
     setMessage("");
     try {
       await createDonation(payload);
-      setMessage("Da ghi nhan giao dich quy gop.");
+      setMessage("Đã ghi nhận giao dịch quyên góp.");
       await refreshAll();
       return true;
     } catch (submitError) {
@@ -122,7 +122,7 @@ export function useCharityData() {
     setMessage("");
     try {
       await updateDonationStatus(id, status);
-      setMessage("Da cap nhat trang thai donation.");
+      setMessage("Đã cập nhật trạng thái quyên góp.");
       await refreshAll();
       return true;
     } catch (updateError) {

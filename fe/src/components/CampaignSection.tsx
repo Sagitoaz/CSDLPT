@@ -50,10 +50,10 @@ export function CampaignSection({
   return (
     <section className="panel-grid campaigns-layout">
       <article className="panel">
-        <h2>Tao campaign moi</h2>
+        <h2>Tạo chiến dịch mới</h2>
         <form className="form-grid" onSubmit={(event) => void submitCampaign(event)}>
           <label>
-            Ma campaign
+            Mã chiến dịch
             <input
               value={form.code}
               onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))}
@@ -63,7 +63,7 @@ export function CampaignSection({
           </label>
 
           <label>
-            Ten campaign
+            Tên chiến dịch
             <input
               value={form.name}
               onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
@@ -73,7 +73,7 @@ export function CampaignSection({
           </label>
 
           <label>
-            Muc tieu (VND)
+            Mục tiêu (VND)
             <input
               type="number"
               min={0}
@@ -84,7 +84,7 @@ export function CampaignSection({
           </label>
 
           <label>
-            Mo ta
+            Mô tả
             <textarea
               rows={4}
               value={form.description}
@@ -98,16 +98,16 @@ export function CampaignSection({
               checked={form.isActive}
               onChange={(event) => setForm((prev) => ({ ...prev, isActive: event.target.checked }))}
             />
-            Campaign dang hoat dong
+            Chiến dịch đang hoạt động
           </label>
 
-          <button type="submit">Tao campaign</button>
+          <button type="submit">Tạo chiến dịch</button>
         </form>
       </article>
 
       <article className="panel">
         <div className="panel-headline">
-          <h2>Danh sach campaigns</h2>
+          <h2>Danh sách chiến dịch</h2>
           <form
             className="inline-search"
             onSubmit={(event) => {
@@ -116,11 +116,11 @@ export function CampaignSection({
             }}
           >
             <input
-              placeholder="Tim theo ma hoac ten..."
+              placeholder="Tìm theo mã hoặc tên..."
               value={campaignSearch}
               onChange={(event) => setCampaignSearch(event.target.value)}
             />
-            <button type="submit">Tim</button>
+            <button type="submit">Tìm</button>
           </form>
         </div>
 
@@ -130,15 +130,15 @@ export function CampaignSection({
               <div>
                 <p className="item-title">{campaign.name}</p>
                 <p className="item-subtitle">
-                  {campaign.code} · Target {campaign.targetAmount.toLocaleString("vi-VN")} VND
+                  {campaign.code} · Mục tiêu {campaign.targetAmount.toLocaleString("vi-VN")} VND
                 </p>
               </div>
               <span className={campaign.isActive ? "pill ok" : "pill off"}>
-                {campaign.isActive ? "active" : "inactive"}
+                {campaign.isActive ? "đang mở" : "tạm dừng"}
               </span>
             </li>
           ))}
-          {campaigns.length === 0 ? <li>Chua tim thay campaign.</li> : null}
+          {campaigns.length === 0 ? <li>Chưa tìm thấy chiến dịch.</li> : null}
         </ul>
       </article>
     </section>

@@ -7,26 +7,33 @@ interface HeroProps {
 }
 
 export function Hero({ overview, statusTotals, mode }: HeroProps) {
+  function goToSection(sectionId: string) {
+    const target = document.getElementById(sectionId);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
   return (
     <header className="hero">
       <div className="hero-main">
         <div>
-          <p className="hero-kicker">NEN TANG THIEN NGUYEN SO</p>
+          <p className="hero-kicker">NỀN TẢNG THIỆN NGUYỆN SỐ</p>
           <h1>
             {mode === "public"
-              ? "Cung nhau lan toa dieu tot dep, tao tac dong ben vung"
-              : "Bang dieu khien van hanh quyen gop"}
+              ? "Cùng nhau lan tỏa điều tốt đẹp, tạo tác động bền vững"
+              : "Bảng điều khiển vận hành quyên góp"}
           </h1>
           <p className="hero-subtitle">
             {mode === "public"
-              ? "Ung ho chien dich ban quan tam trong vai giay. Moi giao dich duoc cap nhat ro rang de cong dong cung theo doi."
-              : "Che do quan tri cho phep theo doi tong quan, quan ly campaign va xu ly donation theo tung trang thai cu the."}
+              ? "Ủng hộ chiến dịch bạn quan tâm trong vài giây. Mọi giao dịch được cập nhật rõ ràng để cộng đồng cùng theo dõi."
+              : "Chế độ quản trị cho phép theo dõi tổng quan, quản lý chiến dịch và xử lý quyên góp theo từng trạng thái cụ thể."}
           </p>
 
           {mode === "public" ? (
             <div className="hero-actions">
-              <button type="button">Kham pha chien dich</button>
-              <button type="button" className="ghost-button">Bat dau gay quy</button>
+              <button type="button" onClick={() => goToSection("featured-campaigns")}>Khám phá chiến dịch</button>
+              <button type="button" className="ghost-button" onClick={() => goToSection("public-donate")}>Bắt đầu gây quỹ</button>
             </div>
           ) : null}
         </div>
@@ -50,21 +57,21 @@ export function Hero({ overview, statusTotals, mode }: HeroProps) {
 
       <div className="hero-grid">
         <article className="metric-card reveal-item">
-          <span>LUOT UNG HO</span>
+          <span>LƯỢT ỦNG HỘ</span>
           <strong>{overview.donations.totalDonations}</strong>
         </article>
         <article className="metric-card reveal-item">
-          <span>TONG SO TIEN</span>
+          <span>TỔNG SỐ TIỀN</span>
           <strong>{overview.donations.totalAmount.toLocaleString("vi-VN")} VND</strong>
         </article>
         <article className="metric-card reveal-item">
-          <span>CHIEN DICH HOAT DONG</span>
+          <span>CHIẾN DỊCH HOẠT ĐỘNG</span>
           <strong>
             {overview.campaigns.active}/{overview.campaigns.total}
           </strong>
         </article>
         <article className="metric-card reveal-item">
-          <span>VERIFIED / PENDING</span>
+          <span>ĐÃ XÁC MINH / ĐANG CHỜ</span>
           <strong>
             {statusTotals.verified} / {statusTotals.pending}
           </strong>

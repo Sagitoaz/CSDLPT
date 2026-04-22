@@ -11,7 +11,7 @@ export function DashboardSection({ campaigns, campaignRaised, statusTotals, over
   return (
     <section className="panel-grid">
       <article className="panel">
-        <h2>Campaign tien do</h2>
+        <h2>Tiến độ chiến dịch</h2>
         <ul className="campaign-progress-list">
           {campaigns.map((campaign) => {
             const raised = campaignRaised[campaign.code] || 0;
@@ -32,28 +32,28 @@ export function DashboardSection({ campaigns, campaignRaised, statusTotals, over
               </li>
             );
           })}
-          {campaigns.length === 0 ? <li>Chua co campaign nao.</li> : null}
+          {campaigns.length === 0 ? <li>Chưa có chiến dịch nào.</li> : null}
         </ul>
       </article>
 
       <article className="panel">
-        <h2>Trang thai donation</h2>
+        <h2>Trạng thái quyên góp</h2>
         <div className="status-cards">
           <div className="status-card pending">
-            <span>Pending</span>
+            <span>Đang chờ</span>
             <strong>{statusTotals.pending}</strong>
           </div>
           <div className="status-card verified">
-            <span>Verified</span>
+            <span>Đã xác minh</span>
             <strong>{statusTotals.verified}</strong>
           </div>
           <div className="status-card rejected">
-            <span>Rejected</span>
+            <span>Từ chối</span>
             <strong>{statusTotals.rejected}</strong>
           </div>
         </div>
         <p className="generated-at">
-          So lieu cap nhat luc {new Date(overview.generatedAt).toLocaleString("vi-VN")}
+          Số liệu cập nhật lúc {new Date(overview.generatedAt).toLocaleString("vi-VN")}
         </p>
       </article>
     </section>
