@@ -1,5 +1,7 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Campaign } from "../types";
+
+const CAMPAIGNS_PER_PAGE = 6;
 
 const initialCampaignForm = {
   code: "",
@@ -31,6 +33,24 @@ export function CampaignSection({
   onRefresh
 }: CampaignSectionProps) {
   const [form, setForm] = useState(initialCampaignForm);
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(campaigns.length / CAMPAIGNS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedCampaigns = useMemo(() => {
+    const start = (currentPage - 1) * CAMPAIGNS_PER_PAGE;
+    return campaigns.slice(start, start + CAMPAIGNS_PER_PAGE);
+  }, [campaigns, currentPage]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [campaignSearch]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   async function submitCampaign(event: FormEvent) {
     event.preventDefault();
@@ -125,7 +145,7 @@ export function CampaignSection({
         </div>
 
         <ul className="data-list">
-          {campaigns.map((campaign) => (
+          {pagedCampaigns.map((campaign) => (
             <li key={campaign._id} className="data-item">
               <div>
                 <p className="item-title">{campaign.name}</p>
@@ -140,6 +160,24 @@ export function CampaignSection({
           ))}
           {campaigns.length === 0 ? <li>Chưa tìm thấy chiến dịch.</li> : null}
         </ul>
+
+        {campaigns.length > CAMPAIGNS_PER_PAGE ? (
+          <div className="pagination" role="navigation" aria-label="Phân trang danh sách chiến dịch">
+            <button type="button" onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={currentPage === 1}>
+              Trang trước
+            </button>
+            <span>
+              Trang {currentPage}/{totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Trang sau
+            </button>
+          </div>
+        ) : null}
       </article>
     </section>
   );

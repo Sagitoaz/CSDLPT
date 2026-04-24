@@ -1,6 +1,8 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Campaign, Donation, DonationStatus } from "../types";
 import { DonationFilters } from "../hooks/useCharityData";
+
+const DONATIONS_PER_PAGE = 8;
 
 const initialDonationForm = {
   donorName: "",
@@ -42,8 +44,25 @@ export function DonationSection({
   onRefresh
 }: DonationSectionProps) {
   const [form, setForm] = useState(initialDonationForm);
+  const [page, setPage] = useState(1);
 
   const campaignOptions = useMemo(() => campaigns.map((campaign) => campaign.code), [campaigns]);
+  const totalPages = Math.max(1, Math.ceil(donations.length / DONATIONS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedDonations = useMemo(() => {
+    const start = (currentPage - 1) * DONATIONS_PER_PAGE;
+    return donations.slice(start, start + DONATIONS_PER_PAGE);
+  }, [currentPage, donations]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [donationFilters.search, donationFilters.campaignCode, donationFilters.status]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   async function submitDonation(event: FormEvent) {
     event.preventDefault();
@@ -181,7 +200,7 @@ export function DonationSection({
         </div>
 
         <ul className="data-list donation-list">
-          {donations.map((donation) => (
+          {pagedDonations.map((donation) => (
             <li key={donation._id} className="data-item donation-item">
               <div>
                 <p className="item-title">{donation.donorName}</p>
@@ -205,6 +224,24 @@ export function DonationSection({
           ))}
           {donations.length === 0 ? <li>Chưa có quyên góp nào.</li> : null}
         </ul>
+
+        {donations.length > DONATIONS_PER_PAGE ? (
+          <div className="pagination" role="navigation" aria-label="Phân trang danh sách quyên góp">
+            <button type="button" onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={currentPage === 1}>
+              Trang trước
+            </button>
+            <span>
+              Trang {currentPage}/{totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Trang sau
+            </button>
+          </div>
+        ) : null}
       </article>
     </section>
   );

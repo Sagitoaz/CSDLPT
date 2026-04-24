@@ -1124,6 +1124,41 @@ button:disabled {
   margin-top: 18px;
 }
 
+.public-panel-headline {
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.public-panel-tabs {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.public-panel-tabs .tab {
+  min-height: 38px;
+  padding: 8px 12px;
+}
+
+.pagination {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pagination button {
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.pagination span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
 @keyframes appear {
   from {
     opacity: 0;
@@ -1357,6 +1392,11 @@ button:disabled {
   .public-mode-caption {
     font-size: 13px;
     line-height: 1.6;
+  }
+
+  .pagination {
+    justify-content: space-between;
+    flex-wrap: wrap;
   }
 }
 

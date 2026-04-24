@@ -1,4 +1,7 @@
+import { useEffect, useMemo, useState } from "react";
 import { Campaign, DonationStatus, OverviewStats } from "../types";
+
+const DASHBOARD_CAMPAIGNS_PER_PAGE = 6;
 
 interface DashboardSectionProps {
   campaigns: Campaign[];
@@ -8,12 +11,26 @@ interface DashboardSectionProps {
 }
 
 export function DashboardSection({ campaigns, campaignRaised, statusTotals, overview }: DashboardSectionProps) {
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(campaigns.length / DASHBOARD_CAMPAIGNS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedCampaigns = useMemo(() => {
+    const start = (currentPage - 1) * DASHBOARD_CAMPAIGNS_PER_PAGE;
+    return campaigns.slice(start, start + DASHBOARD_CAMPAIGNS_PER_PAGE);
+  }, [campaigns, currentPage]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
   return (
     <section className="panel-grid">
       <article className="panel">
         <h2>Tiến độ chiến dịch</h2>
         <ul className="campaign-progress-list">
-          {campaigns.map((campaign) => {
+          {pagedCampaigns.map((campaign) => {
             const raised = campaignRaised[campaign.code] || 0;
             const ratio = campaign.targetAmount <= 0 ? 0 : Math.min(100, (raised / campaign.targetAmount) * 100);
 
@@ -34,6 +51,24 @@ export function DashboardSection({ campaigns, campaignRaised, statusTotals, over
           })}
           {campaigns.length === 0 ? <li>Chưa có chiến dịch nào.</li> : null}
         </ul>
+
+        {campaigns.length > DASHBOARD_CAMPAIGNS_PER_PAGE ? (
+          <div className="pagination" role="navigation" aria-label="Phân trang tiến độ chiến dịch">
+            <button type="button" onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={currentPage === 1}>
+              Trang trước
+            </button>
+            <span>
+              Trang {currentPage}/{totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Trang sau
+            </button>
+          </div>
+        ) : null}
       </article>
 
       <article className="panel">

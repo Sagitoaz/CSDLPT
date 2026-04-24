@@ -19,7 +19,13 @@ Frontend tach rieng cho he thong charity.
 
 ```env
 VITE_API_BASE=http://localhost:8080/api
+VITE_USE_MOCK=true
 ```
+
+## Chay FE voi mock data (khong can BE)
+- Dat `VITE_USE_MOCK=true` trong `.env`.
+- Khi bat mock mode, FE dung du lieu gia lap trong bo nho va khong goi API backend.
+- Cac thao tac tao campaign, tao donation, cap nhat status van hoat dong de test UI/flow.
 
 ## Chay local
 ```bash
