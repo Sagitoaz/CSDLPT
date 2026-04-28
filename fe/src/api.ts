@@ -11,6 +11,15 @@ import {
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080/api";
 const USE_MOCK = (import.meta.env.VITE_USE_MOCK || "false").toString().toLowerCase() === "true";
 
+export const runtimeConfig = {
+  apiBase: API_BASE,
+  useMock: USE_MOCK
+};
+
+if (USE_MOCK) {
+  console.warn("[FE] Dang chay MOCK mode. Dat VITE_USE_MOCK=false de su dung backend that.");
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {

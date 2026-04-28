@@ -6,6 +6,7 @@ import { Hero } from "./components/Hero";
 import { PublicHeader } from "./components/PublicHeader";
 import { PublicLandingSections } from "./components/PublicLandingSections";
 import { PublicDonateSection } from "./components/PublicDonateSection";
+import { runtimeConfig } from "./api";
 import { DonationFilters, useCharityData } from "./hooks/useCharityData";
 import { getCampaignRaised, getStatusTotals } from "./utils/metrics";
 
@@ -15,6 +16,7 @@ type AdminTab = "dashboard" | "campaigns" | "donations";
 export function App() {
   const [mode, setMode] = useState<Mode>("public");
   const [adminTab, setAdminTab] = useState<AdminTab>("dashboard");
+  const dataMode = runtimeConfig.useMock ? "MOCK" : "BACKEND";
 
   const {
     loading,
@@ -59,6 +61,11 @@ export function App() {
           >
             Giao diện quản trị
           </button>
+        </div>
+
+        <div className={runtimeConfig.useMock ? "data-source-banner mock" : "data-source-banner real"}>
+          <strong>Nguon du lieu: {dataMode}</strong>
+          <span>{runtimeConfig.apiBase}</span>
         </div>
       </div>
 

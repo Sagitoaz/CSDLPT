@@ -2,10 +2,23 @@ import dotenv from "dotenv";
 
 dotenv.config({ path: "../../.env" });
 
+function parseCorsOrigins(rawValue: string | undefined): string[] | "*" {
+  const origins = (rawValue || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  if (origins.includes("*")) {
+    return "*";
+  }
+
+  return origins.length > 0 ? origins : ["http://localhost:5174"];
+}
+
 export const config = {
   port: Number(process.env.PORT || 8080),
   mongoUri: process.env.MONGODB_URI || "",
-  corsOrigin: process.env.CORS_ORIGIN || "http://localhost:5173"
+  corsOrigin: parseCorsOrigins(process.env.CORS_ORIGIN)
 };
 
 if (!config.mongoUri) {

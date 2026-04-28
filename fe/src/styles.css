@@ -54,6 +54,10 @@ body {
   position: relative;
   z-index: 1;
   margin-bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
 .mode-switch {
@@ -64,6 +68,33 @@ body {
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 4px;
+}
+
+.data-source-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  border: 1px solid transparent;
+}
+
+.data-source-banner strong {
+  font-size: 12px;
+}
+
+.data-source-banner.real {
+  color: #0d6b46;
+  background: #e9f9f1;
+  border-color: #9ce2bf;
+}
+
+.data-source-banner.mock {
+  color: #8a5b00;
+  background: #fff6e5;
+  border-color: #f2cc79;
 }
 
 .public-header {

@@ -11,15 +11,16 @@ Frontend tach rieng cho he thong charity.
 
 ## Yeu cau
 - Backend dang chay o `http://localhost:8080`
-- CORS backend cho phep origin frontend (mac dinh backend dang dung 5173)
+- Neu backend va frontend nam tren 2 may khac nhau qua Tailscale, them origin FE vao `CORS_ORIGIN` o root `.env`
+- FE dev port mac dinh la `5174`
 
 ## Cau hinh env
 1. Copy `.env.example` thanh `.env`
 2. Chinh gia tri:
 
 ```env
-VITE_API_BASE=http://localhost:8080/api
-VITE_USE_MOCK=true
+VITE_API_BASE=http://<TAILSCALE_BACKEND_IP>:8080/api
+VITE_USE_MOCK=false
 ```
 
 ## Chay FE voi mock data (khong can BE)
@@ -34,6 +35,11 @@ npm run dev
 ```
 
 App FE chay tai `http://localhost:5174`.
+
+## Chay voi backend thuc
+- Chay backend truoc.
+- Dam bao `fe/.env` tro toi `VITE_API_BASE=http://<TAILSCALE_BACKEND_IP>:8080/api`.
+- Dam bao root `.env` cho phep origin cua FE, vi du `CORS_ORIGIN=http://localhost:5174,http://<TAILSCALE_FE_IP>:5174`.
 
 ## Build production
 ```bash

@@ -3,12 +3,20 @@ import express from "express";
 import helmet from "helmet";
 import { config } from "../../config/env";
 
+function getConnectSrc(): string[] {
+  if (config.corsOrigin === "*") {
+    return ["'self'", "*"];
+  }
+
+  return ["'self'", ...config.corsOrigin];
+}
+
 export function applySecurity(app: express.Express): void {
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        connectSrc: ["'self'", config.corsOrigin]
+        connectSrc: getConnectSrc()
       }
     },
     frameguard: { action: "deny" },

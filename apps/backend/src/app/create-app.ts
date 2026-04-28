@@ -7,6 +7,8 @@ import { createDonationRoutes } from "../modules/donations/donation.routes";
 import { createDonationService, DonationService } from "../modules/donations/donation.service";
 import { createStatsRoutes } from "../modules/stats/stats.routes";
 import { createStatsService, StatsService } from "../modules/stats/stats.service";
+import authRoutes from "../modules/auth";
+import healthRoutes from "../modules/health/health.routes";
 
 export interface AppServices {
   donationService?: DonationService;
@@ -23,6 +25,9 @@ export function createApp(services: AppServices = {}): express.Express {
   const app = express();
   applySecurity(app);
 
+  // Health check routes (public)
+  app.use("/health", healthRoutes);
+
   app.get(
     "/health",
     asyncHandler(async (_req, res) => {
@@ -30,6 +35,10 @@ export function createApp(services: AppServices = {}): express.Express {
     })
   );
 
+  // Authentication routes (public)
+  app.use("/api/auth", authRoutes);
+
+  // Business logic routes
   app.use("/api/donations", createDonationRoutes(donationService));
   app.use("/api/campaigns", createCampaignRoutes(campaignService));
   app.use("/api/stats", createStatsRoutes(statsService));
