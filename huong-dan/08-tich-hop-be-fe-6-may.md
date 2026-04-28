@@ -1,209 +1,382 @@
-# Hướng dẫn chi tiết tích hợp BE vào FE và triển khai 6 máy (PowerShell thuần, không Docker)
+﻿# Hướng dẫn triển khai thực tế 6 máy: Leader chạy FE + BE + QA, DB dùng Sharded Cluster
 
-Tài liệu này dùng cho đúng bối cảnh nhóm bạn: **không dùng Docker**, chỉ chạy bằng Windows + PowerShell + Node.js + MongoDB Community Server.
+Tài liệu này dùng cho mô hình sát thực tế vận hành hơn:
 
-## 0) Trả lời nhanh câu hỏi của bạn
+- Leader chạy ứng dụng và điều phối kiểm thử: FE + BE + QA + mongos + cfg1
+- ShardA1 không chạy trên Leader
+- Cả 6 máy đều tham gia tầng database
+- Dùng MongoDB Sharded Cluster chuẩn: mỗi shard là 1 Replica Set
+- Cho phép 1 máy chạy nhiều node MongoDB
 
-Có, **chạy được dự án hoàn toàn không cần Docker**.
+## 0) Kiến trúc mục tiêu
 
-Mô hình đúng cho bài này:
+### 0.1 Vai trò 6 máy (đã chỉnh theo yêu cầu)
 
-- 1 Replica Set duy nhất: `rsCharity`
-- 3 máy DB, mỗi máy chạy **1 MongoDB node** trên cổng `27017`
-- Không làm kiểu mỗi máy tự tạo 1 Replica Set riêng
-- Không cần mỗi máy tạo thêm 2 secondary (vừa nặng, vừa không cần thiết)
+- Máy 1 (Leader): FE + BE + QA + mongos + cfg1
+- Máy 2: cfg2 + shardA1
+- Máy 3: cfg3 + shardA2
+- Máy 4: shardA3 + shardB1
+- Máy 5: shardB2
+- Máy 6: shardB3
 
-## 1) Mô hình 6 máy đề xuất
+Như vậy:
 
-- Máy 1: MongoDB Node A
-- Máy 2: MongoDB Node B
-- Máy 3: MongoDB Node C
-- Máy 4: Backend (Node.js/Express)
-- Máy 5: Frontend (`fe/`)
-- Máy 6: QA + kiểm thử failover + backup/restore
+- Leader không còn chạy shardA1
+- Leader vẫn tham gia DB qua cfg1
+- Cả 6 máy đều có vai trò DB
 
-Tất cả máy cùng vào một mạng Tailscale.
+### 0.2 Thành phần cluster
 
-## 2) Chuẩn bị chung cho cả 6 máy
+- Config Server Replica Set: cfgRS (3 node)
+- Shard 1 Replica Set: rsShardA (3 node)
+- Shard 2 Replica Set: rsShardB (3 node)
+- Query Router: mongos (chạy trên Leader)
 
-### 2.1 Cài phần mềm bắt buộc
+## 1) Mapping IP và port (bắt buộc chốt trước khi chạy)
 
-- Tailscale
-- Node.js 20+
-- MongoDB Community Server (chỉ bắt buộc cho máy 1,2,3 và máy 6 nếu muốn dùng `mongosh` kiểm tra)
+Điền IP Tailscale thật vào các placeholder bên dưới.
 
-### 2.2 Kiểm tra Tailscale
+| Máy | IP | Vai trò DB | Port |
+|---|---|---|---|
+| Máy 1 | M1_IP | cfg1, mongos | 27101, 27017 |
+| Máy 2 | M2_IP | cfg2, shardA1 | 27102, 27211 |
+| Máy 3 | M3_IP | cfg3, shardA2 | 27103, 27212 |
+| Máy 4 | M4_IP | shardA3, shardB1 | 27213, 27311 |
+| Máy 5 | M5_IP | shardB2 | 27312 |
+| Máy 6 | M6_IP | shardB3 | 27313 |
 
-Chạy trên từng máy:
+## 2) Chuẩn bị chung
+
+### 2.1 Cài phần mềm
+
+- Tailscale: cả 6 máy
+- MongoDB Community Server 7.x: cả 6 máy (vì máy nào cũng chạy node DB)
+- MongoDB Database Tools:
+  - Bắt buộc: máy Leader (vì Leader chạy QA)
+  - Khuyến nghị: máy 6 (để backup/restore độc lập)
+- Node.js 20+: máy Leader
+
+### 2.2 Kiểm tra mạng
+
+Trên từng máy:
 
 ```powershell
 tailscale status
 tailscale ip -4
 ```
 
-Lưu lại IP của từng máy:
-
-- `DB1_IP`
-- `DB2_IP`
-- `DB3_IP`
-- `BACKEND_IP`
-- `FE_IP`
-
-## 3) Phân công chi tiết theo từng người (kèm lệnh)
-
-## Người 1 - Trưởng nhóm (điều phối)
-
-Nhiệm vụ:
-
-- Thu thập đủ 5 IP ở trên
-- Tạo bảng mapping máy - vai trò
-- Gửi thông số cấu hình cho Người 4,5,6
-
-Lệnh:
+Từ Leader kiểm tra các port chính:
 
 ```powershell
-tailscale status
-tailscale ip -4
+Test-NetConnection M2_IP -Port 27102
+Test-NetConnection M3_IP -Port 27103
+Test-NetConnection M4_IP -Port 27213
+Test-NetConnection M4_IP -Port 27311
+Test-NetConnection M5_IP -Port 27312
+Test-NetConnection M6_IP -Port 27313
 ```
 
-Bảng cần gửi cho cả nhóm:
+## 3) Cấu hình và chạy node theo từng máy
 
-- DB1_IP = ...
-- DB2_IP = ...
-- DB3_IP = ...
-- BACKEND_IP = ...
-- FE_IP = ...
+Lưu ý chung:
 
-## Người 2 - Máy 1 (MongoDB Node A)
+- Chạy PowerShell quyền admin
+- Mỗi node cần dbPath và log riêng
+- Các file cấu hình dùng bindIp 0.0.0.0 để truy cập trong tailnet
 
-### Bước 1: Tạo thư mục dữ liệu và log
+### 3.1 Máy 1 (Leader): cfg1 + mongos + FE/BE/QA
+
+Tạo thư mục:
 
 ```powershell
-New-Item -ItemType Directory -Force C:\mongodb\data\rs1 | Out-Null
-New-Item -ItemType Directory -Force C:\mongodb\log | Out-Null
+New-Item -ItemType Directory -Force C:\mongodb\cfg1\data | Out-Null
+New-Item -ItemType Directory -Force C:\mongodb\cfg1\log  | Out-Null
+New-Item -ItemType Directory -Force C:\mongodb\mongos\log | Out-Null
 ```
 
-### Bước 2: Tạo file cấu hình `C:\mongodb\mongod-rs1.yml`
-
-Nội dung:
+Tạo file C:\mongodb\cfg1\mongod-cfg1.yml:
 
 ```yaml
 storage:
-  dbPath: C:\mongodb\data\rs1
+  dbPath: C:\mongodb\cfg1\data
 systemLog:
   destination: file
-  path: C:\mongodb\log\mongod-rs1.log
+  path: C:\mongodb\cfg1\log\mongod-cfg1.log
   logAppend: true
 net:
   bindIp: 0.0.0.0
-  port: 27017
+  port: 27101
 replication:
-  replSetName: rsCharity
+  replSetName: cfgRS
+sharding:
+  clusterRole: configsvr
 ```
 
-### Bước 3: Mở firewall cổng 27017
+Mở firewall:
 
 ```powershell
-New-NetFirewallRule -DisplayName "MongoDB-27017" -Direction Inbound -Protocol TCP -LocalPort 27017 -Action Allow
+New-NetFirewallRule -DisplayName "Mongo-cfg1-27101" -Direction Inbound -Protocol TCP -LocalPort 27101 -Action Allow -ErrorAction SilentlyContinue
+New-NetFirewallRule -DisplayName "Mongo-mongos-27017" -Direction Inbound -Protocol TCP -LocalPort 27017 -Action Allow -ErrorAction SilentlyContinue
+New-NetFirewallRule -DisplayName "Leader-BE-8080" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow -ErrorAction SilentlyContinue
+New-NetFirewallRule -DisplayName "Leader-FE-5174" -Direction Inbound -Protocol TCP -LocalPort 5174 -Action Allow -ErrorAction SilentlyContinue
 ```
 
-### Bước 4: Chạy MongoDB node
+Chạy cfg1:
 
 ```powershell
-& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\mongod-rs1.yml
+& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\cfg1\mongod-cfg1.yml
 ```
 
-Giữ cửa sổ này chạy trong lúc demo.
+### 3.2 Máy 2: cfg2 + shardA1
 
-## Người 3 - Máy 2 (MongoDB Node B)
-
-Làm tương tự Người 2, chỉ đổi tên thư mục/log cho dễ theo dõi.
-
-### Bước 1
+Tạo thư mục:
 
 ```powershell
-New-Item -ItemType Directory -Force C:\mongodb\data\rs2 | Out-Null
-New-Item -ItemType Directory -Force C:\mongodb\log | Out-Null
+New-Item -ItemType Directory -Force C:\mongodb\cfg2\data | Out-Null
+New-Item -ItemType Directory -Force C:\mongodb\cfg2\log  | Out-Null
+New-Item -ItemType Directory -Force C:\mongodb\shardA1\data | Out-Null
+New-Item -ItemType Directory -Force C:\mongodb\shardA1\log  | Out-Null
 ```
 
-### Bước 2: file `C:\mongodb\mongod-rs2.yml`
+Tạo C:\mongodb\cfg2\mongod-cfg2.yml:
 
 ```yaml
 storage:
-  dbPath: C:\mongodb\data\rs2
+  dbPath: C:\mongodb\cfg2\data
 systemLog:
   destination: file
-  path: C:\mongodb\log\mongod-rs2.log
+  path: C:\mongodb\cfg2\log\mongod-cfg2.log
   logAppend: true
 net:
   bindIp: 0.0.0.0
-  port: 27017
+  port: 27102
 replication:
-  replSetName: rsCharity
+  replSetName: cfgRS
+sharding:
+  clusterRole: configsvr
 ```
 
-### Bước 3
+Tạo C:\mongodb\shardA1\mongod-shardA1.yml:
+
+```yaml
+storage:
+  dbPath: C:\mongodb\shardA1\data
+systemLog:
+  destination: file
+  path: C:\mongodb\shardA1\log\mongod-shardA1.log
+  logAppend: true
+net:
+  bindIp: 0.0.0.0
+  port: 27211
+replication:
+  replSetName: rsShardA
+sharding:
+  clusterRole: shardsvr
+```
+
+Mở firewall và chạy:
 
 ```powershell
-New-NetFirewallRule -DisplayName "MongoDB-27017" -Direction Inbound -Protocol TCP -LocalPort 27017 -Action Allow
+New-NetFirewallRule -DisplayName "Mongo-cfg2-27102" -Direction Inbound -Protocol TCP -LocalPort 27102 -Action Allow -ErrorAction SilentlyContinue
+New-NetFirewallRule -DisplayName "Mongo-shardA1-27211" -Direction Inbound -Protocol TCP -LocalPort 27211 -Action Allow -ErrorAction SilentlyContinue
+& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\cfg2\mongod-cfg2.yml
 ```
-
-### Bước 4
 
 ```powershell
-& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\mongod-rs2.yml
+& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\shardA1\mongod-shardA1.yml
 ```
 
-## Người 4 - Máy 3 (MongoDB Node C + khởi tạo Replica Set)
-
-### Bước 1,2,3,4
-
-Làm tương tự Người 2 và 3 với file `mongod-rs3.yml`.
-
-### Bước 5: Khởi tạo Replica Set
-
-Mở PowerShell khác và chạy:
+### 3.3 Máy 3: cfg3 + shardA2
 
 ```powershell
-& "C:\Program Files\MongoDB\Server\7.0\bin\mongosh.exe" "mongodb://DB1_IP:27017"
+New-Item -ItemType Directory -Force C:\mongodb\cfg3\data | Out-Null
+New-Item -ItemType Directory -Force C:\mongodb\cfg3\log  | Out-Null
+New-Item -ItemType Directory -Force C:\mongodb\shardA2\data | Out-Null
+New-Item -ItemType Directory -Force C:\mongodb\shardA2\log  | Out-Null
 ```
 
-Trong `mongosh`, chạy:
+C:\mongodb\cfg3\mongod-cfg3.yml (27103, cfgRS, configsvr) và C:\mongodb\shardA2\mongod-shardA2.yml (27212, rsShardA, shardsvr) tương tự máy 2.
+
+```powershell
+New-NetFirewallRule -DisplayName "Mongo-cfg3-27103" -Direction Inbound -Protocol TCP -LocalPort 27103 -Action Allow -ErrorAction SilentlyContinue
+New-NetFirewallRule -DisplayName "Mongo-shardA2-27212" -Direction Inbound -Protocol TCP -LocalPort 27212 -Action Allow -ErrorAction SilentlyContinue
+& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\cfg3\mongod-cfg3.yml
+```
+
+```powershell
+& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\shardA2\mongod-shardA2.yml
+```
+
+### 3.4 Máy 4: shardA3 + shardB1
+
+```powershell
+New-Item -ItemType Directory -Force C:\mongodb\shardA3\data | Out-Null
+New-Item -ItemType Directory -Force C:\mongodb\shardA3\log  | Out-Null
+New-Item -ItemType Directory -Force C:\mongodb\shardB1\data | Out-Null
+New-Item -ItemType Directory -Force C:\mongodb\shardB1\log  | Out-Null
+```
+
+C:\mongodb\shardA3\mongod-shardA3.yml:
+
+```yaml
+storage:
+  dbPath: C:\mongodb\shardA3\data
+systemLog:
+  destination: file
+  path: C:\mongodb\shardA3\log\mongod-shardA3.log
+  logAppend: true
+net:
+  bindIp: 0.0.0.0
+  port: 27213
+replication:
+  replSetName: rsShardA
+sharding:
+  clusterRole: shardsvr
+```
+
+C:\mongodb\shardB1\mongod-shardB1.yml:
+
+```yaml
+storage:
+  dbPath: C:\mongodb\shardB1\data
+systemLog:
+  destination: file
+  path: C:\mongodb\shardB1\log\mongod-shardB1.log
+  logAppend: true
+net:
+  bindIp: 0.0.0.0
+  port: 27311
+replication:
+  replSetName: rsShardB
+sharding:
+  clusterRole: shardsvr
+```
+
+```powershell
+New-NetFirewallRule -DisplayName "Mongo-shardA3-27213" -Direction Inbound -Protocol TCP -LocalPort 27213 -Action Allow -ErrorAction SilentlyContinue
+New-NetFirewallRule -DisplayName "Mongo-shardB1-27311" -Direction Inbound -Protocol TCP -LocalPort 27311 -Action Allow -ErrorAction SilentlyContinue
+& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\shardA3\mongod-shardA3.yml
+```
+
+```powershell
+& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\shardB1\mongod-shardB1.yml
+```
+
+### 3.5 Máy 5: shardB2
+
+```powershell
+New-Item -ItemType Directory -Force C:\mongodb\shardB2\data | Out-Null
+New-Item -ItemType Directory -Force C:\mongodb\shardB2\log  | Out-Null
+```
+
+C:\mongodb\shardB2\mongod-shardB2.yml tương tự shardB1, đổi port 27312.
+
+```powershell
+New-NetFirewallRule -DisplayName "Mongo-shardB2-27312" -Direction Inbound -Protocol TCP -LocalPort 27312 -Action Allow -ErrorAction SilentlyContinue
+& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\shardB2\mongod-shardB2.yml
+```
+
+### 3.6 Máy 6: shardB3
+
+```powershell
+New-Item -ItemType Directory -Force C:\mongodb\shardB3\data | Out-Null
+New-Item -ItemType Directory -Force C:\mongodb\shardB3\log  | Out-Null
+```
+
+C:\mongodb\shardB3\mongod-shardB3.yml tương tự shardB1, đổi port 27313.
+
+```powershell
+New-NetFirewallRule -DisplayName "Mongo-shardB3-27313" -Direction Inbound -Protocol TCP -LocalPort 27313 -Action Allow -ErrorAction SilentlyContinue
+& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\shardB3\mongod-shardB3.yml
+```
+
+## 4) Khởi tạo cluster sharding (thực hiện từ Leader)
+
+### 4.1 Khởi tạo cfgRS
+
+```powershell
+& "C:\Program Files\MongoDB\Server\7.0\bin\mongosh.exe" "mongodb://M1_IP:27101"
+```
 
 ```javascript
 rs.initiate({
-  _id: "rsCharity",
+  _id: "cfgRS",
+  configsvr: true,
   members: [
-    { _id: 0, host: "DB1_IP:27017" },
-    { _id: 1, host: "DB2_IP:27017" },
-    { _id: 2, host: "DB3_IP:27017" }
+    { _id: 0, host: "M1_IP:27101" },
+    { _id: 1, host: "M2_IP:27102" },
+    { _id: 2, host: "M3_IP:27103" }
   ]
 })
-```
-
-Kiểm tra:
-
-```javascript
 rs.status()
 ```
 
-Điều kiện đúng:
+### 4.2 Khởi tạo rsShardA
 
-- 1 node PRIMARY
-- 2 node SECONDARY
+```powershell
+& "C:\Program Files\MongoDB\Server\7.0\bin\mongosh.exe" "mongodb://M2_IP:27211"
+```
 
-## Người 5 - Máy 4 (Backend)
+```javascript
+rs.initiate({
+  _id: "rsShardA",
+  members: [
+    { _id: 0, host: "M2_IP:27211" },
+    { _id: 1, host: "M3_IP:27212" },
+    { _id: 2, host: "M4_IP:27213" }
+  ]
+})
+rs.status()
+```
 
-### Bước 1: tạo file `.env` ở thư mục gốc project
+### 4.3 Khởi tạo rsShardB
+
+```powershell
+& "C:\Program Files\MongoDB\Server\7.0\bin\mongosh.exe" "mongodb://M4_IP:27311"
+```
+
+```javascript
+rs.initiate({
+  _id: "rsShardB",
+  members: [
+    { _id: 0, host: "M4_IP:27311" },
+    { _id: 1, host: "M5_IP:27312" },
+    { _id: 2, host: "M6_IP:27313" }
+  ]
+})
+rs.status()
+```
+
+### 4.4 Chạy mongos trên Leader
+
+```powershell
+& "C:\Program Files\MongoDB\Server\7.0\bin\mongos.exe" --configdb cfgRS/M1_IP:27101,M2_IP:27102,M3_IP:27103 --bind_ip 0.0.0.0 --port 27017 --logpath C:\mongodb\mongos\log\mongos.log --logappend
+```
+
+### 4.5 Add shard vào cluster
+
+```powershell
+& "C:\Program Files\MongoDB\Server\7.0\bin\mongosh.exe" "mongodb://M1_IP:27017"
+```
+
+```javascript
+sh.addShard("rsShardA/M2_IP:27211,M3_IP:27212,M4_IP:27213")
+sh.addShard("rsShardB/M4_IP:27311,M5_IP:27312,M6_IP:27313")
+sh.status()
+```
+
+## 5) Leader chạy cả BE, FE và QA
+
+### 5.1 Backend trên Leader
+
+Sửa file .env ở root project:
 
 ```env
 PORT=8080
 NODE_ENV=development
-MONGODB_URI=mongodb://DB1_IP:27017,DB2_IP:27017,DB3_IP:27017/charity_distributed?replicaSet=rsCharity
-CORS_ORIGIN=http://localhost:5174,http://FE_IP:5174
+MONGODB_URI=mongodb://M1_IP:27017/charity_distributed
+CORS_ORIGIN=http://localhost:5174,http://M1_IP:5174
 ```
-
-### Bước 2: cài dependency và chạy backend
 
 ```powershell
 npm install
@@ -211,147 +384,115 @@ npm --prefix apps/backend install
 npm --prefix apps/backend run dev
 ```
 
-### Bước 3: test backend
+### 5.2 Frontend trên Leader
 
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/health"
-Invoke-RestMethod -Uri "http://localhost:8080/api/stats/overview"
-```
-
-Nếu máy FE truy cập qua Tailscale thì gửi URL cho Người 6:
-
-- `http://BACKEND_IP:8080`
-
-### Bước 4: seed dữ liệu (nếu cần)
-
-```powershell
-npm --prefix apps/backend run seed
-```
-
-## Người 6 - Máy 5 (Frontend) + Máy 6 (QA)
-
-## 3.6.1 Trên máy FE: cấu hình chạy dữ liệu thật
-
-Tạo `fe/.env`:
+Sửa file fe/.env:
 
 ```env
-VITE_API_BASE=http://BACKEND_IP:8080/api
+VITE_API_BASE=http://M1_IP:8080/api
 VITE_USE_MOCK=false
 ```
-
-Chạy FE:
 
 ```powershell
 npm --prefix fe install
 npm --prefix fe run dev
 ```
 
-Mở:
+### 5.3 QA trên Leader
 
-- `http://localhost:5174`
-
-Kiểm tra trên UI:
-
-- Banner phải hiển thị **Nguồn dữ liệu: BACKEND**
-- Nếu hiển thị **MOCK** thì cấu hình sai hoặc chưa restart FE
-
-## 3.6.2 Kiểm thử chức năng FE
-
-Thực hiện đủ 5 thao tác:
-
-1. Tạo campaign mới
-2. Tạo donation mới
-3. Duyệt donation (`verified`)
-4. Từ chối donation (`rejected`)
-5. Refresh trang, dữ liệu vẫn còn
-
-## 3.6.3 Trên máy QA (máy 6): kiểm thử kết nối và failover
-
-### Kiểm tra kết nối đến 3 DB node
+Test API:
 
 ```powershell
-Test-NetConnection DB1_IP -Port 27017
-Test-NetConnection DB2_IP -Port 27017
-Test-NetConnection DB3_IP -Port 27017
+Invoke-RestMethod -Uri "http://localhost:8080/health"
+Invoke-RestMethod -Uri "http://localhost:8080/api/stats/overview"
 ```
 
-### Kiểm tra trạng thái Replica Set
+Kiểm tra shard:
 
 ```powershell
-& "C:\Program Files\MongoDB\Server\7.0\bin\mongosh.exe" "mongodb://DB1_IP:27017,DB2_IP:27017,DB3_IP:27017/?replicaSet=rsCharity"
+& "C:\Program Files\MongoDB\Server\7.0\bin\mongosh.exe" "mongodb://M1_IP:27017"
 ```
-
-Trong `mongosh`:
 
 ```javascript
-rs.status()
+sh.status()
 ```
 
-### Demo failover
+Failover test:
 
-- Nhờ người đang giữ node PRIMARY bấm `Ctrl + C` cửa sổ `mongod` để dừng node
-- Đợi vài giây, chạy lại `rs.status()` từ máy QA
-- Xác nhận có PRIMARY mới
-- Bật lại node cũ bằng lệnh `mongod.exe --config ...`
+- Dừng PRIMARY của rsShardA, kiểm tra election, tạo donation từ FE
+- Dừng PRIMARY của rsShardB, kiểm tra election, tạo donation/campaign từ FE
 
-## 3.6.4 Backup/Restore (máy QA)
-
-Backup:
+Backup/restore trên Leader:
 
 ```powershell
 $backupRoot = "C:\backup\charity"
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $outDir = Join-Path $backupRoot $timestamp
 New-Item -ItemType Directory -Force $outDir | Out-Null
-& "C:\Program Files\MongoDB\Tools\100\bin\mongodump.exe" --uri="mongodb://DB1_IP:27017,DB2_IP:27017,DB3_IP:27017/charity_distributed?replicaSet=rsCharity" --out=$outDir
+& "C:\Program Files\MongoDB\Tools\100\bin\mongodump.exe" --uri="mongodb://M1_IP:27017/charity_distributed" --out=$outDir
 ```
-
-Restore:
 
 ```powershell
 $restorePath = "C:\backup\charity\TIMESTAMP\charity_distributed"
-& "C:\Program Files\MongoDB\Tools\100\bin\mongorestore.exe" --uri="mongodb://DB1_IP:27017,DB2_IP:27017,DB3_IP:27017/charity_distributed?replicaSet=rsCharity" --drop $restorePath
+& "C:\Program Files\MongoDB\Tools\100\bin\mongorestore.exe" --uri="mongodb://M1_IP:27017/charity_distributed" --drop $restorePath
 ```
 
-## 4) Quy trình chạy demo chuẩn (đúng thứ tự)
+## 6) Phân mảnh dữ liệu hiện tại: đang dựa trên gì, vì sao, và dữ liệu vào shard nào
 
-1. Người 2,3,4 chạy `mongod` trên 3 máy DB
-2. Người 4 khởi tạo `rs.initiate(...)` và xác nhận `rs.status()`
-3. Người 5 chạy backend + kiểm tra `/health`
-4. Người 6 chạy frontend với `VITE_USE_MOCK=false`
-5. Người 6 thao tác nghiệp vụ trên FE
-6. Người 6 + Người 4 demo failover
-7. Người 6 demo backup/restore
+### 6.1 Hiện đang shard theo gì
 
-## 5) Cách xử lý lỗi nhanh
+Trong tài liệu vận hành hiện tại, collection donations được cấu hình shard key:
 
-### FE vẫn hiện MOCK
+- donations: { campaignCode: "hashed" }
 
-- Kiểm tra `fe/.env`: phải là `VITE_USE_MOCK=false`
-- Tắt terminal FE, chạy lại `npm --prefix fe run dev`
+Lệnh đã ghi trong tài liệu:
 
-### FE gọi API lỗi CORS
+```javascript
+sh.enableSharding("charity_distributed")
+sh.shardCollection("charity_distributed.donations", { campaignCode: "hashed" })
+```
 
-- Kiểm tra `.env` backend có `CORS_ORIGIN=http://localhost:5174,http://FE_IP:5174`
-- Restart backend
+### 6.2 Vì sao chọn campaignCode hashed
 
-### Backend không vào được Mongo
+- Hệ thống truy vấn theo campaignCode nhiều (lọc donation theo chiến dịch)
+- campaignCode có tính nghiệp vụ rõ, dễ giải thích trong báo cáo
+- Dùng hashed giúp phân tán ghi đều hơn giữa các shard, giảm lệch tải khi một số campaign có nhiều donation
+- Phù hợp demo thực tế vì vẫn giữ nghĩa nghiệp vụ nhưng tránh hotspot kiểu range key đơn giản
 
-- Kiểm tra `MONGODB_URI` đúng IP + `replicaSet=rsCharity`
-- Kiểm tra firewall 27017 trên 3 máy DB
-- Kiểm tra `rs.status()`
+### 6.3 Dữ liệu phân vào shard như thế nào
 
-### Node không lên SECONDARY
+- Mongos nhận request ghi từ backend
+- MongoDB hash giá trị campaignCode
+- Dựa vào chunk range trong metadata để route đến shard chứa chunk đó
+- Các shard trong cluster hiện tại:
+  - rsShardA: M2/M3/M4
+  - rsShardB: M4/M5/M6
+- Theo thời gian, balancer sẽ tự cân lại chunk để phân phối dữ liệu đều hơn giữa rsShardA và rsShardB
 
-- Kiểm tra tên replica set trên cả 3 máy đều là `rsCharity`
-- Kiểm tra host trong `rs.initiate` đúng `IP:27017`
+Lưu ý quan trọng:
 
-## 6) Checklist nộp bài
+- Code backend không tự tạo sharding
+- Sharding chỉ có hiệu lực sau khi chạy các lệnh ở mục 4.5 và mục 6.1 trên mongos
 
-- [ ] FE hiển thị nguồn dữ liệu BACKEND
-- [ ] CRUD campaign/donation chạy trên FE
-- [ ] Backend trả về `/health` và `/api/stats/overview`
-- [ ] Replica set có 1 PRIMARY, 2 SECONDARY
-- [ ] Demo failover thành công
-- [ ] Demo backup và restore thành công
-- [ ] Tài liệu phân công + lệnh chạy từng người đầy đủ
+## 7) Bảng lệnh tóm tắt theo từng máy
+
+| Máy | Dịch vụ chính | Lệnh chính |
+|---|---|---|
+| Máy 1 | cfg1, mongos, FE, BE, QA | chạy mongod cfg1, mongos, npm backend, npm frontend, test và dump/restore |
+| Máy 2 | cfg2, shardA1 | chạy mongod cfg2 và mongod shardA1 |
+| Máy 3 | cfg3, shardA2 | chạy mongod cfg3 và mongod shardA2 |
+| Máy 4 | shardA3, shardB1 | chạy 2 mongod shard |
+| Máy 5 | shardB2 | chạy mongod shardB2 |
+| Máy 6 | shardB3 | chạy mongod shardB3 |
+
+## 8) Checklist hoàn tất
+
+- [ ] Leader chạy ổn định FE + BE + QA + mongos + cfg1
+- [ ] cfgRS có 1 PRIMARY, 2 SECONDARY
+- [ ] rsShardA có 1 PRIMARY, 2 SECONDARY
+- [ ] rsShardB có 1 PRIMARY, 2 SECONDARY
+- [ ] sh.status() hiển thị đủ 2 shard
+- [ ] donations đã shard theo campaignCode hashed
+- [ ] Tạo donation từ FE và đọc lại thành công
+- [ ] Demo failover cả rsShardA và rsShardB thành công
+- [ ] Demo backup/restore thành công
