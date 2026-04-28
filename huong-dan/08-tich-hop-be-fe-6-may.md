@@ -124,7 +124,7 @@ New-NetFirewallRule -DisplayName "Leader-FE-5174" -Direction Inbound -Protocol T
 Chạy cfg1:
 
 ```powershell
-& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\cfg1\mongod-cfg1.yml
+mongod --config E:\WINDOW\BTL\CSDLPT\mongodb\cfg1\mongod-cfg1.yml
 ```
 
 ### 3.2 Máy 2: cfg2 + shardA1
@@ -200,11 +200,11 @@ C:\mongodb\cfg3\mongod-cfg3.yml (27103, cfgRS, configsvr) và C:\mongodb\shardA2
 ```powershell
 New-NetFirewallRule -DisplayName "Mongo-cfg3-27103" -Direction Inbound -Protocol TCP -LocalPort 27103 -Action Allow -ErrorAction SilentlyContinue
 New-NetFirewallRule -DisplayName "Mongo-shardA2-27212" -Direction Inbound -Protocol TCP -LocalPort 27212 -Action Allow -ErrorAction SilentlyContinue
-& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\cfg3\mongod-cfg3.yml
+mongod --config C:\mongodb\cfg3\mongod-cfg3.yml
 ```
 
 ```powershell
-& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\shardA2\mongod-shardA2.yml
+mongod --config C:\mongodb\shardA2\mongod-shardA2.yml
 ```
 
 ### 3.4 Máy 4: shardA3 + shardB1
@@ -220,10 +220,10 @@ C:\mongodb\shardA3\mongod-shardA3.yml:
 
 ```yaml
 storage:
-  dbPath: C:\mongodb\shardA3\data
+  dbPath: D:\mongodb\shardA3\data
 systemLog:
   destination: file
-  path: C:\mongodb\shardA3\log\mongod-shardA3.log
+  path: D:\mongodb\shardA3\log\mongod-shardA3.log
   logAppend: true
 net:
   bindIp: 0.0.0.0
@@ -238,10 +238,10 @@ C:\mongodb\shardB1\mongod-shardB1.yml:
 
 ```yaml
 storage:
-  dbPath: C:\mongodb\shardB1\data
+  dbPath: D:\mongodb\shardB1\data
 systemLog:
   destination: file
-  path: C:\mongodb\shardB1\log\mongod-shardB1.log
+  path: D:\mongodb\shardB1\log\mongod-shardB1.log
   logAppend: true
 net:
   bindIp: 0.0.0.0
@@ -255,11 +255,11 @@ sharding:
 ```powershell
 New-NetFirewallRule -DisplayName "Mongo-shardA3-27213" -Direction Inbound -Protocol TCP -LocalPort 27213 -Action Allow -ErrorAction SilentlyContinue
 New-NetFirewallRule -DisplayName "Mongo-shardB1-27311" -Direction Inbound -Protocol TCP -LocalPort 27311 -Action Allow -ErrorAction SilentlyContinue
-& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\shardA3\mongod-shardA3.yml
+mongod --config D:\mongodb\shardA3\mongod-shardA3.yml
 ```
 
 ```powershell
-& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\shardB1\mongod-shardB1.yml
+mongod --config D:\mongodb\shardB1\mongod-shardB1.yml
 ```
 
 ### 3.5 Máy 5: shardB2
@@ -273,7 +273,7 @@ C:\mongodb\shardB2\mongod-shardB2.yml tương tự shardB1, đổi port 27312.
 
 ```powershell
 New-NetFirewallRule -DisplayName "Mongo-shardB2-27312" -Direction Inbound -Protocol TCP -LocalPort 27312 -Action Allow -ErrorAction SilentlyContinue
-& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\shardB2\mongod-shardB2.yml
+& "C:\Program Files\MongoDB\Server\8.2\bin\mongod.exe" --config D:\mongodb\shardB2\mongod-shardB2.yml
 ```
 
 ### 3.6 Máy 6: shardB3
@@ -286,8 +286,27 @@ New-Item -ItemType Directory -Force C:\mongodb\shardB3\log  | Out-Null
 C:\mongodb\shardB3\mongod-shardB3.yml tương tự shardB1, đổi port 27313.
 
 ```powershell
-New-NetFirewallRule -DisplayName "Mongo-shardB3-27313" -Direction Inbound -Protocol TCP -LocalPort 27313 -Action Allow -ErrorAction SilentlyContinue
-& "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --config C:\mongodb\shardB3\mongod-shardB3.yml
+mkdir -p ~/mongodb/shardB3/{data,log}
+
+nano ~/mongodb/shardB3/mongod-shardB3.yml
+
+storage:
+  dbPath: /Users/apple/mongodb/shardB3/data
+
+systemLog:
+  destination: file
+  path: /Users/apple/mongodb/shardB3/log/mongod-shardB3.log
+  logAppend: true
+
+net:
+  bindIp: 0.0.0.0
+  port: 27313
+
+replication:
+  replSetName: rsShardB
+
+sharding:
+  clusterRole: shardsvr
 ```
 
 ## 4) Khởi tạo cluster sharding (thực hiện từ Leader)
@@ -296,6 +315,7 @@ New-NetFirewallRule -DisplayName "Mongo-shardB3-27313" -Direction Inbound -Proto
 
 ```powershell
 & "C:\Program Files\MongoDB\Server\7.0\bin\mongosh.exe" "mongodb://M1_IP:27101"
+mongosh mongodb://100.93.54.47:27101
 ```
 
 ```javascript
@@ -303,9 +323,9 @@ rs.initiate({
   _id: "cfgRS",
   configsvr: true,
   members: [
-    { _id: 0, host: "M1_IP:27101" },
-    { _id: 1, host: "M2_IP:27102" },
-    { _id: 2, host: "M3_IP:27103" }
+    { _id: 0, host: "100.93.54.47:27101" },
+    { _id: 1, host: "100.70.25.109:27102" },
+    { _id: 2, host: "100.106.101.66:27103" }
   ]
 })
 rs.status()
@@ -315,15 +335,16 @@ rs.status()
 
 ```powershell
 & "C:\Program Files\MongoDB\Server\7.0\bin\mongosh.exe" "mongodb://M2_IP:27211"
+mongosh mongodb://100.70.25.109:27211
 ```
 
 ```javascript
 rs.initiate({
   _id: "rsShardA",
   members: [
-    { _id: 0, host: "M2_IP:27211" },
-    { _id: 1, host: "M3_IP:27212" },
-    { _id: 2, host: "M4_IP:27213" }
+    { _id: 0, host: "100.70.25.109:27211" },
+    { _id: 1, host: "100.106.101.66:27212" },
+    { _id: 2, host: "100.86.128.18:27213" }
   ]
 })
 rs.status()
@@ -333,15 +354,16 @@ rs.status()
 
 ```powershell
 & "C:\Program Files\MongoDB\Server\7.0\bin\mongosh.exe" "mongodb://M4_IP:27311"
+mongosh mongodb://100.86.128.18:27311
 ```
 
 ```javascript
 rs.initiate({
   _id: "rsShardB",
   members: [
-    { _id: 0, host: "M4_IP:27311" },
-    { _id: 1, host: "M5_IP:27312" },
-    { _id: 2, host: "M6_IP:27313" }
+    { _id: 0, host: "100.86.128.18:27311" },
+    { _id: 1, host: "100.125.201.49:27312" },
+    { _id: 2, host: "100.79.175.92:27313" }
   ]
 })
 rs.status()
@@ -350,18 +372,18 @@ rs.status()
 ### 4.4 Chạy mongos trên Leader
 
 ```powershell
-& "C:\Program Files\MongoDB\Server\7.0\bin\mongos.exe" --configdb cfgRS/M1_IP:27101,M2_IP:27102,M3_IP:27103 --bind_ip 0.0.0.0 --port 27017 --logpath C:\mongodb\mongos\log\mongos.log --logappend
+mongos --configdb cfgRS/100.93.54.47:27101,100.70.25.109:27102,100.106.101.66:27103 --bind_ip 0.0.0.0 --port 27017 --logpath E:\WINDOW\BTL\CSDLPT\mongodb\mongos\log\mongos.log --logappend
 ```
 
 ### 4.5 Add shard vào cluster
 
 ```powershell
-& "C:\Program Files\MongoDB\Server\7.0\bin\mongosh.exe" "mongodb://M1_IP:27017"
+mongosh mongodb://100.93.54.47:27017
 ```
 
 ```javascript
-sh.addShard("rsShardA/M2_IP:27211,M3_IP:27212,M4_IP:27213")
-sh.addShard("rsShardB/M4_IP:27311,M5_IP:27312,M6_IP:27313")
+sh.addShard("rsShardA/100.70.25.109:27211,100.106.101.66:27212,100.86.128.18:27213")
+sh.addShard("rsShardB/100.86.128.18:27311,100.125.201.49:27312,100.79.175.92:27313")
 sh.status()
 ```
 
