@@ -1,0 +1,1654 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Preview mermail - MongoDB Charity Distributed Design</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #e2e8f0;
+      --accent: #2563eb;
+      --code-bg: #0f172a;
+      --code-text: #e2e8f0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    header {
+      padding: 32px 28px 20px;
+      background: linear-gradient(135deg, #eff6ff, #f8fafc 55%, #f0fdf4);
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 { margin: 0 0 8px; font-size: clamp(24px, 4vw, 38px); }
+    header p { margin: 0; color: var(--muted); max-width: 980px; }
+    .layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; padding: 20px; }
+    nav { position: sticky; top: 12px; align-self: start; max-height: calc(100vh - 24px); overflow: auto; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; }
+    nav h2 { font-size: 16px; margin: 0 0 12px; }
+    nav ol { margin: 0; padding-left: 20px; }
+    nav li { margin: 0 0 12px; }
+    nav a { color: var(--accent); text-decoration: none; font-weight: 650; }
+    nav a:hover { text-decoration: underline; }
+    .file { color: var(--muted); font-size: 12px; word-break: break-all; }
+    main { min-width: 0; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; margin-bottom: 22px; overflow: hidden; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04); }
+    .card-header { display: flex; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+    .card h2 { margin: 0 0 6px; font-size: 20px; }
+    .card p { margin: 0; color: var(--muted); }
+    .filename { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; white-space: nowrap; }
+    .diagram-wrap { padding: 18px; overflow: auto; background: #ffffff; }
+    .mermaid { min-width: 760px; margin: 0 auto; }
+    details { border-top: 1px solid var(--border); }
+    summary { cursor: pointer; padding: 12px 18px; color: var(--accent); font-weight: 650; }
+    .source { margin: 0; padding: 18px; overflow: auto; background: var(--code-bg); color: var(--code-text); font-size: 13px; }
+    .meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .pill { border: 1px solid var(--border); border-radius: 999px; padding: 6px 10px; background: #fff; color: var(--muted); font-size: 13px; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      nav { position: relative; top: auto; max-height: none; }
+      .card-header { flex-direction: column; }
+      .filename { white-space: normal; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Preview mermail - Thiết kế MongoDB cho hệ thống quản lý từ thiện phân tán</h1>
+    <p>Bản tổng hợp này render toàn bộ sơ đồ Mermaid trong thư mục <strong>mermail/</strong>. Mỗi sơ đồ vẫn có file <code>.mmd</code> riêng để dễ kiểm tra, chỉnh sửa và tái sử dụng.</p>
+    <div class="meta">
+      <span class="pill">Document model</span>
+      <span class="pill">Aggregate root</span>
+      <span class="pill">Embedded / Reference / Snapshot</span>
+      <span class="pill">Branch scope + RBAC</span>
+      <span class="pill">4 shard MongoDB</span>
+    </div>
+  </header>
+  <div class="layout">
+    <nav>
+      <h2>Danh sách sơ đồ</h2>
+      <ol>
+        <li><a href="#diagram-01">01. Kiến trúc trung tâm và 4 shard MongoDB</a><div class="file">mermail/01-kien-truc-trung-tam-4-shard.mmd</div></li><li><a href="#diagram-02">02. Sơ đồ collection và aggregate root</a><div class="file">mermail/02-so-do-collection-aggregate-root.mmd</div></li><li><a href="#diagram-03">03. Nguyên tắc embed, reference và snapshot</a><div class="file">mermail/03-embedded-reference-snapshot.mmd</div></li><li><a href="#diagram-04">04. Tần suất truy cập theo trụ sở và chi nhánh</a><div class="file">mermail/04-tan-suat-truy-cap-hq-branch.mmd</div></li><li><a href="#diagram-05">05. Phân quyền RBAC và branch scope</a><div class="file">mermail/05-rbac-branch-scope.mmd</div></li><li><a href="#diagram-06">06. Document model của campaigns</a><div class="file">mermail/06-campaign-document-model.mmd</div></li><li><a href="#diagram-07">07. Document model của contributions</a><div class="file">mermail/07-contribution-document-model.mmd</div></li><li><a href="#diagram-08">08. Document model của aid_distributions</a><div class="file">mermail/08-aid-distribution-document-model.mmd</div></li><li><a href="#diagram-09">09. Luồng cập nhật nguồn lực đầu vào</a><div class="file">mermail/09-luong-contribution-dau-vao.mmd</div></li><li><a href="#diagram-10">10. Luồng cập nhật nguồn lực đầu ra</a><div class="file">mermail/10-luong-aid-distribution-dau-ra.mmd</div></li><li><a href="#diagram-11">11. State transition của contributions và delta thống kê</a><div class="file">mermail/11-state-contribution-summary-delta.mmd</div></li><li><a href="#diagram-12">12. State transition của aid_distributions</a><div class="file">mermail/12-state-aid-distribution.mmd</div></li><li><a href="#diagram-13">13. Sharding strategy cho 4 shard</a><div class="file">mermail/13-sharding-strategy-4-shard.mmd</div></li><li><a href="#diagram-14">14. Index theo use case chính</a><div class="file">mermail/14-index-theo-use-case.mmd</div></li><li><a href="#diagram-15">15. Toàn vẹn dữ liệu, transaction và audit</a><div class="file">mermail/15-toan-ven-du-lieu-audit-transaction.mmd</div></li><li><a href="#diagram-16">16. API/module map sang collection MongoDB</a><div class="file">mermail/16-api-to-collection-map.mmd</div></li><li><a href="#diagram-17">17. Dashboard và summaryStats denormalized</a><div class="file">mermail/17-dashboard-summary-stats.mmd</div></li>
+      </ol>
+    </nav>
+    <main>
+      
+<section class="card" id="diagram-01">
+  <div class="card-header">
+    <div>
+      <h2>01. Kiến trúc trung tâm và 4 shard MongoDB</h2>
+      <p>Mô tả cụm trung tâm, mongos, config server và 4 shard replica set, mỗi shard giữ khoảng 1/4 chunk dữ liệu sharded.</p>
+    </div>
+    <div class="filename">mermail/01-kien-truc-trung-tam-4-shard.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">flowchart TB
+    client[&quot;Frontend / Admin / Public UI&quot;] --&gt; api[&quot;Backend API&lt;br/&gt;Express + TypeScript + Mongoose&quot;]
+
+    subgraph central[&quot;Cụm máy chủ trung tâm&quot;]
+        api --&gt; mongos[&quot;mongos router&lt;br/&gt;logical database: charity_distributed&quot;]
+        mongos &lt;--&gt; cfg[&quot;Config server replica set&lt;br/&gt;metadata sharding&lt;br/&gt;không lưu document nghiệp vụ chính&quot;]
+    end
+
+    mongos --&gt; route[&quot;MongoDB sharding routing&lt;br/&gt;query chứa shard key sẽ target shard tốt hơn&quot;]
+
+    route --&gt; s1[&quot;Shard 01 replica set&lt;br/&gt;~25% chunks&quot;]
+    route --&gt; s2[&quot;Shard 02 replica set&lt;br/&gt;~25% chunks&quot;]
+    route --&gt; s3[&quot;Shard 03 replica set&lt;br/&gt;~25% chunks&quot;]
+    route --&gt; s4[&quot;Shard 04 replica set&lt;br/&gt;~25% chunks&quot;]
+
+    subgraph rs1[&quot;Replica set nội bộ Shard 01&quot;]
+        s1 --&gt; s1p[&quot;Primary&quot;]
+        s1 --&gt; s1r1[&quot;Secondary&quot;]
+        s1 --&gt; s1r2[&quot;Secondary&quot;]
+    end
+
+    subgraph rs2[&quot;Replica set nội bộ Shard 02&quot;]
+        s2 --&gt; s2p[&quot;Primary&quot;]
+        s2 --&gt; s2r1[&quot;Secondary&quot;]
+        s2 --&gt; s2r2[&quot;Secondary&quot;]
+    end
+
+    subgraph rs3[&quot;Replica set nội bộ Shard 03&quot;]
+        s3 --&gt; s3p[&quot;Primary&quot;]
+        s3 --&gt; s3r1[&quot;Secondary&quot;]
+        s3 --&gt; s3r2[&quot;Secondary&quot;]
+    end
+
+    subgraph rs4[&quot;Replica set nội bộ Shard 04&quot;]
+        s4 --&gt; s4p[&quot;Primary&quot;]
+        s4 --&gt; s4r1[&quot;Secondary&quot;]
+        s4 --&gt; s4r2[&quot;Secondary&quot;]
+    end
+
+    warn[&quot;Không dùng createdAt đơn lẻ làm shard key&lt;br/&gt;vì dễ hot shard do giá trị tăng dần&quot;]
+    route -. lưu ý .-&gt; warn
+
+    classDef central fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef shard fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef warn fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    class api,mongos,cfg,route central;
+    class s1,s2,s3,s4,s1p,s1r1,s1r2,s2p,s2r1,s2r2,s3p,s3r1,s3r2,s4p,s4r1,s4r2 shard;
+    class warn warn;</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>flowchart TB
+    client[&quot;Frontend / Admin / Public UI&quot;] --&gt; api[&quot;Backend API&lt;br/&gt;Express + TypeScript + Mongoose&quot;]
+
+    subgraph central[&quot;Cụm máy chủ trung tâm&quot;]
+        api --&gt; mongos[&quot;mongos router&lt;br/&gt;logical database: charity_distributed&quot;]
+        mongos &lt;--&gt; cfg[&quot;Config server replica set&lt;br/&gt;metadata sharding&lt;br/&gt;không lưu document nghiệp vụ chính&quot;]
+    end
+
+    mongos --&gt; route[&quot;MongoDB sharding routing&lt;br/&gt;query chứa shard key sẽ target shard tốt hơn&quot;]
+
+    route --&gt; s1[&quot;Shard 01 replica set&lt;br/&gt;~25% chunks&quot;]
+    route --&gt; s2[&quot;Shard 02 replica set&lt;br/&gt;~25% chunks&quot;]
+    route --&gt; s3[&quot;Shard 03 replica set&lt;br/&gt;~25% chunks&quot;]
+    route --&gt; s4[&quot;Shard 04 replica set&lt;br/&gt;~25% chunks&quot;]
+
+    subgraph rs1[&quot;Replica set nội bộ Shard 01&quot;]
+        s1 --&gt; s1p[&quot;Primary&quot;]
+        s1 --&gt; s1r1[&quot;Secondary&quot;]
+        s1 --&gt; s1r2[&quot;Secondary&quot;]
+    end
+
+    subgraph rs2[&quot;Replica set nội bộ Shard 02&quot;]
+        s2 --&gt; s2p[&quot;Primary&quot;]
+        s2 --&gt; s2r1[&quot;Secondary&quot;]
+        s2 --&gt; s2r2[&quot;Secondary&quot;]
+    end
+
+    subgraph rs3[&quot;Replica set nội bộ Shard 03&quot;]
+        s3 --&gt; s3p[&quot;Primary&quot;]
+        s3 --&gt; s3r1[&quot;Secondary&quot;]
+        s3 --&gt; s3r2[&quot;Secondary&quot;]
+    end
+
+    subgraph rs4[&quot;Replica set nội bộ Shard 04&quot;]
+        s4 --&gt; s4p[&quot;Primary&quot;]
+        s4 --&gt; s4r1[&quot;Secondary&quot;]
+        s4 --&gt; s4r2[&quot;Secondary&quot;]
+    end
+
+    warn[&quot;Không dùng createdAt đơn lẻ làm shard key&lt;br/&gt;vì dễ hot shard do giá trị tăng dần&quot;]
+    route -. lưu ý .-&gt; warn
+
+    classDef central fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef shard fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef warn fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    class api,mongos,cfg,route central;
+    class s1,s2,s3,s4,s1p,s1r1,s1r2,s2p,s2r1,s2r2,s3p,s3r1,s3r2,s4p,s4r1,s4r2 shard;
+    class warn warn;</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-02">
+  <div class="card-header">
+    <div>
+      <h2>02. Sơ đồ collection và aggregate root</h2>
+      <p>Bản đồ các collection chính, cách reference bằng ObjectId và vai trò aggregate root trong mô hình tài liệu MongoDB.</p>
+    </div>
+    <div class="filename">mermail/02-so-do-collection-aggregate-root.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">flowchart LR
+    subgraph identity[&quot;Identity / Branch scope&quot;]
+        branches[&quot;branches&lt;br/&gt;aggregate root&lt;br/&gt;location, contact embedded&quot;]
+        users[&quot;users&lt;br/&gt;aggregate root&lt;br/&gt;permissions, profile embedded&quot;]
+    end
+
+    subgraph campaign_group[&quot;Campaign domain&quot;]
+        campaigns[&quot;campaigns&lt;br/&gt;aggregate root trung tâm&lt;br/&gt;goals, requiredResources, summaryStats embedded&quot;]
+        beneficiaries[&quot;beneficiaries&lt;br/&gt;hồ sơ người/đơn vị nhận hỗ trợ&quot;]
+        volunteers[&quot;volunteers&lt;br/&gt;skills, availability, stats embedded&quot;]
+    end
+
+    subgraph inbound[&quot;Nguồn lực đầu vào&quot;]
+        contributors[&quot;contributors&lt;br/&gt;cá nhân / tổ chức / người góp dịch vụ&quot;]
+        contributions[&quot;contributions&lt;br/&gt;tiền, hiện vật, thuốc, sách, dịch vụ, giờ công&quot;]
+    end
+
+    subgraph outbound[&quot;Nguồn lực đầu ra&quot;]
+        aid[&quot;aid_distributions&lt;br/&gt;phát tiền, trao hàng, dịch vụ, hỗn hợp&quot;]
+    end
+
+    subgraph audit_dashboard[&quot;Audit / Dashboard&quot;]
+        logs[&quot;activity_logs&lt;br/&gt;actor, entity, before, after embedded&quot;]
+        stats[&quot;stats_snapshots&lt;br/&gt;dashboard đọc nhanh&quot;]
+    end
+
+    users --&gt;|&quot;branchId&quot;| branches
+    campaigns --&gt;|&quot;branchId&quot;| branches
+    campaigns --&gt;|&quot;createdBy&quot;| users
+    beneficiaries --&gt;|&quot;branchId&quot;| branches
+    beneficiaries --&gt;|&quot;campaignId&quot;| campaigns
+    volunteers --&gt;|&quot;branchId&quot;| branches
+    volunteers -.-&gt;|&quot;userId optional&quot;| users
+
+    contributions --&gt;|&quot;branchId&quot;| branches
+    contributions --&gt;|&quot;campaignId&quot;| campaigns
+    contributions --&gt;|&quot;contributorId&quot;| contributors
+
+    aid --&gt;|&quot;branchId&quot;| branches
+    aid --&gt;|&quot;campaignId&quot;| campaigns
+    aid --&gt;|&quot;beneficiaryId&quot;| beneficiaries
+
+    logs --&gt;|&quot;branchId nullable&quot;| branches
+    logs --&gt;|&quot;entity.entityId&quot;| campaigns
+    logs --&gt;|&quot;entity.entityId&quot;| contributions
+    logs --&gt;|&quot;entity.entityId&quot;| aid
+
+    stats --&gt;|&quot;branchId / scopeKey&quot;| branches
+    stats --&gt;|&quot;campaignId optional&quot;| campaigns
+
+    classDef root fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef txn fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef audit fill:#faf5ff,stroke:#6b46c1,stroke-width:1px;
+    class branches,users,campaigns,contributors,beneficiaries,volunteers root;
+    class contributions,aid txn;
+    class logs,stats audit;</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>flowchart LR
+    subgraph identity[&quot;Identity / Branch scope&quot;]
+        branches[&quot;branches&lt;br/&gt;aggregate root&lt;br/&gt;location, contact embedded&quot;]
+        users[&quot;users&lt;br/&gt;aggregate root&lt;br/&gt;permissions, profile embedded&quot;]
+    end
+
+    subgraph campaign_group[&quot;Campaign domain&quot;]
+        campaigns[&quot;campaigns&lt;br/&gt;aggregate root trung tâm&lt;br/&gt;goals, requiredResources, summaryStats embedded&quot;]
+        beneficiaries[&quot;beneficiaries&lt;br/&gt;hồ sơ người/đơn vị nhận hỗ trợ&quot;]
+        volunteers[&quot;volunteers&lt;br/&gt;skills, availability, stats embedded&quot;]
+    end
+
+    subgraph inbound[&quot;Nguồn lực đầu vào&quot;]
+        contributors[&quot;contributors&lt;br/&gt;cá nhân / tổ chức / người góp dịch vụ&quot;]
+        contributions[&quot;contributions&lt;br/&gt;tiền, hiện vật, thuốc, sách, dịch vụ, giờ công&quot;]
+    end
+
+    subgraph outbound[&quot;Nguồn lực đầu ra&quot;]
+        aid[&quot;aid_distributions&lt;br/&gt;phát tiền, trao hàng, dịch vụ, hỗn hợp&quot;]
+    end
+
+    subgraph audit_dashboard[&quot;Audit / Dashboard&quot;]
+        logs[&quot;activity_logs&lt;br/&gt;actor, entity, before, after embedded&quot;]
+        stats[&quot;stats_snapshots&lt;br/&gt;dashboard đọc nhanh&quot;]
+    end
+
+    users --&gt;|&quot;branchId&quot;| branches
+    campaigns --&gt;|&quot;branchId&quot;| branches
+    campaigns --&gt;|&quot;createdBy&quot;| users
+    beneficiaries --&gt;|&quot;branchId&quot;| branches
+    beneficiaries --&gt;|&quot;campaignId&quot;| campaigns
+    volunteers --&gt;|&quot;branchId&quot;| branches
+    volunteers -.-&gt;|&quot;userId optional&quot;| users
+
+    contributions --&gt;|&quot;branchId&quot;| branches
+    contributions --&gt;|&quot;campaignId&quot;| campaigns
+    contributions --&gt;|&quot;contributorId&quot;| contributors
+
+    aid --&gt;|&quot;branchId&quot;| branches
+    aid --&gt;|&quot;campaignId&quot;| campaigns
+    aid --&gt;|&quot;beneficiaryId&quot;| beneficiaries
+
+    logs --&gt;|&quot;branchId nullable&quot;| branches
+    logs --&gt;|&quot;entity.entityId&quot;| campaigns
+    logs --&gt;|&quot;entity.entityId&quot;| contributions
+    logs --&gt;|&quot;entity.entityId&quot;| aid
+
+    stats --&gt;|&quot;branchId / scopeKey&quot;| branches
+    stats --&gt;|&quot;campaignId optional&quot;| campaigns
+
+    classDef root fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef txn fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef audit fill:#faf5ff,stroke:#6b46c1,stroke-width:1px;
+    class branches,users,campaigns,contributors,beneficiaries,volunteers root;
+    class contributions,aid txn;
+    class logs,stats audit;</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-03">
+  <div class="card-header">
+    <div>
+      <h2>03. Nguyên tắc embed, reference và snapshot</h2>
+      <p>Tóm tắt quyết định thiết kế quan trọng: embed dữ liệu cùng vòng đời, reference dữ liệu độc lập, snapshot dữ liệu lịch sử trong giao dịch.</p>
+    </div>
+    <div class="filename">mermail/03-embedded-reference-snapshot.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">flowchart TB
+    rule[&quot;Nguyên tắc thiết kế MongoDB hướng tài liệu&quot;]
+
+    rule --&gt; embed[&quot;Embed&lt;br/&gt;dữ liệu thường đọc cùng nhau&lt;br/&gt;và cùng vòng đời document cha&quot;]
+    rule --&gt; ref[&quot;Reference&lt;br/&gt;đối tượng có vòng đời độc lập&lt;br/&gt;hoặc cần phân quyền/truy vấn riêng&quot;]
+    rule --&gt; snap[&quot;Snapshot lịch sử&lt;br/&gt;giữ đúng ngữ cảnh tại thời điểm phát sinh&lt;br/&gt;giảm lookup khi xem lịch sử&quot;]
+
+    embed --&gt; e1[&quot;campaigns.location&lt;br/&gt;campaigns.goals&lt;br/&gt;campaigns.requiredResources&lt;br/&gt;campaigns.summaryStats&quot;]
+    embed --&gt; e2[&quot;contributions.moneyDetail&lt;br/&gt;contributions.itemDetails[]&lt;br/&gt;contributions.proofs[]&quot;]
+    embed --&gt; e3[&quot;aid_distributions.moneySupport&lt;br/&gt;aid_distributions.itemSupports[]&lt;br/&gt;aid_distributions.proofs[]&quot;]
+    embed --&gt; e4[&quot;activity_logs.actor&lt;br/&gt;activity_logs.entity&lt;br/&gt;activity_logs.before / after&quot;]
+
+    ref --&gt; r1[&quot;branchId -&gt; branches._id&lt;br/&gt;trục phân quyền, index, sharding&quot;]
+    ref --&gt; r2[&quot;campaignId -&gt; campaigns._id&lt;br/&gt;trục nghiệp vụ chiến dịch&quot;]
+    ref --&gt; r3[&quot;contributorId -&gt; contributors._id&lt;br/&gt;hồ sơ người/tổ chức đóng góp độc lập&quot;]
+    ref --&gt; r4[&quot;beneficiaryId -&gt; beneficiaries._id&lt;br/&gt;hồ sơ người nhận hỗ trợ độc lập&quot;]
+    ref --&gt; r5[&quot;userId -&gt; users._id optional&lt;br/&gt;khi contributor/volunteer có tài khoản&quot;]
+
+    snap --&gt; s1[&quot;contributorSnapshot&lt;br/&gt;tên, phone, email, type lúc đóng góp&quot;]
+    snap --&gt; s2[&quot;campaignSnapshot&lt;br/&gt;code, title lúc giao dịch&quot;]
+    snap --&gt; s3[&quot;branchSnapshot&lt;br/&gt;code, name lúc giao dịch&quot;]
+    snap --&gt; s4[&quot;beneficiarySnapshot&lt;br/&gt;name, type, phone, addressSummary lúc hỗ trợ&quot;]
+
+    conclusion[&quot;Kết quả: document giao dịch đủ thông tin để đọc lịch sử&lt;br/&gt;không dùng lookup như join mặc định&quot;]
+    embed --&gt; conclusion
+    ref --&gt; conclusion
+    snap --&gt; conclusion
+
+    classDef principle fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef embedded fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef reference fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef snapshot fill:#faf5ff,stroke:#6b46c1,stroke-width:1px;
+    class rule,conclusion principle;
+    class embed,e1,e2,e3,e4 embedded;
+    class ref,r1,r2,r3,r4,r5 reference;
+    class snap,s1,s2,s3,s4 snapshot;</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>flowchart TB
+    rule[&quot;Nguyên tắc thiết kế MongoDB hướng tài liệu&quot;]
+
+    rule --&gt; embed[&quot;Embed&lt;br/&gt;dữ liệu thường đọc cùng nhau&lt;br/&gt;và cùng vòng đời document cha&quot;]
+    rule --&gt; ref[&quot;Reference&lt;br/&gt;đối tượng có vòng đời độc lập&lt;br/&gt;hoặc cần phân quyền/truy vấn riêng&quot;]
+    rule --&gt; snap[&quot;Snapshot lịch sử&lt;br/&gt;giữ đúng ngữ cảnh tại thời điểm phát sinh&lt;br/&gt;giảm lookup khi xem lịch sử&quot;]
+
+    embed --&gt; e1[&quot;campaigns.location&lt;br/&gt;campaigns.goals&lt;br/&gt;campaigns.requiredResources&lt;br/&gt;campaigns.summaryStats&quot;]
+    embed --&gt; e2[&quot;contributions.moneyDetail&lt;br/&gt;contributions.itemDetails[]&lt;br/&gt;contributions.proofs[]&quot;]
+    embed --&gt; e3[&quot;aid_distributions.moneySupport&lt;br/&gt;aid_distributions.itemSupports[]&lt;br/&gt;aid_distributions.proofs[]&quot;]
+    embed --&gt; e4[&quot;activity_logs.actor&lt;br/&gt;activity_logs.entity&lt;br/&gt;activity_logs.before / after&quot;]
+
+    ref --&gt; r1[&quot;branchId -&gt; branches._id&lt;br/&gt;trục phân quyền, index, sharding&quot;]
+    ref --&gt; r2[&quot;campaignId -&gt; campaigns._id&lt;br/&gt;trục nghiệp vụ chiến dịch&quot;]
+    ref --&gt; r3[&quot;contributorId -&gt; contributors._id&lt;br/&gt;hồ sơ người/tổ chức đóng góp độc lập&quot;]
+    ref --&gt; r4[&quot;beneficiaryId -&gt; beneficiaries._id&lt;br/&gt;hồ sơ người nhận hỗ trợ độc lập&quot;]
+    ref --&gt; r5[&quot;userId -&gt; users._id optional&lt;br/&gt;khi contributor/volunteer có tài khoản&quot;]
+
+    snap --&gt; s1[&quot;contributorSnapshot&lt;br/&gt;tên, phone, email, type lúc đóng góp&quot;]
+    snap --&gt; s2[&quot;campaignSnapshot&lt;br/&gt;code, title lúc giao dịch&quot;]
+    snap --&gt; s3[&quot;branchSnapshot&lt;br/&gt;code, name lúc giao dịch&quot;]
+    snap --&gt; s4[&quot;beneficiarySnapshot&lt;br/&gt;name, type, phone, addressSummary lúc hỗ trợ&quot;]
+
+    conclusion[&quot;Kết quả: document giao dịch đủ thông tin để đọc lịch sử&lt;br/&gt;không dùng lookup như join mặc định&quot;]
+    embed --&gt; conclusion
+    ref --&gt; conclusion
+    snap --&gt; conclusion
+
+    classDef principle fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef embedded fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef reference fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef snapshot fill:#faf5ff,stroke:#6b46c1,stroke-width:1px;
+    class rule,conclusion principle;
+    class embed,e1,e2,e3,e4 embedded;
+    class ref,r1,r2,r3,r4,r5 reference;
+    class snap,s1,s2,s3,s4 snapshot;</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-04">
+  <div class="card-header">
+    <div>
+      <h2>04. Tần suất truy cập theo trụ sở và chi nhánh</h2>
+      <p>Sơ đồ hóa bảng tần suất truy cập, làm nổi bật collection tăng trưởng nhanh và trục branchId.</p>
+    </div>
+    <div class="filename">mermail/04-tan-suat-truy-cap-hq-branch.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">flowchart TB
+    note[&quot;Ký hiệu: H = cao, M = trung bình, L = thấp&lt;br/&gt;R = đọc, W = tạo, E = sửa, D = xóa mềm / hủy&quot;]
+
+    subgraph hq[&quot;Trụ sở chính&quot;]
+        hq_branches[&quot;branches&lt;br/&gt;H.R, L.WED&quot;]
+        hq_users[&quot;users&lt;br/&gt;H.R, M.WED&quot;]
+        hq_campaigns[&quot;campaigns&lt;br/&gt;H.R, M.WED&quot;]
+        hq_contributors[&quot;contributors&lt;br/&gt;H.R, M.WE&quot;]
+        hq_contributions[&quot;contributions&lt;br/&gt;H.WERD&quot;]
+        hq_beneficiaries[&quot;beneficiaries&lt;br/&gt;H.R, M.WE&quot;]
+        hq_aid[&quot;aid_distributions&lt;br/&gt;H.R, M.WED&quot;]
+        hq_logs[&quot;activity_logs&lt;br/&gt;H.R&quot;]
+        hq_stats[&quot;stats_snapshots&lt;br/&gt;H.R, M.W&quot;]
+    end
+
+    subgraph branch[&quot;Chi nhánh / trung tâm&quot;]
+        br_branches[&quot;branches&lt;br/&gt;H.R&quot;]
+        br_users[&quot;users&lt;br/&gt;H.R, M.WE&quot;]
+        br_campaigns[&quot;campaigns&lt;br/&gt;H.WER, M.D&quot;]
+        br_contributors[&quot;contributors&lt;br/&gt;H.R, M.WE&quot;]
+        br_contributions[&quot;contributions&lt;br/&gt;H.WERD&quot;]
+        br_beneficiaries[&quot;beneficiaries&lt;br/&gt;H.WER, M.D&quot;]
+        br_aid[&quot;aid_distributions&lt;br/&gt;H.WERD&quot;]
+        br_volunteers[&quot;volunteers&lt;br/&gt;H.WER&quot;]
+        br_logs[&quot;activity_logs&lt;br/&gt;H.R, L.W&quot;]
+        br_stats[&quot;stats_snapshots&lt;br/&gt;H.R, M.W&quot;]
+    end
+
+    note --&gt; hq_branches
+    note --&gt; br_branches
+
+    hot[&quot;Nhóm tăng trưởng nhanh nhất:&lt;br/&gt;contributions, aid_distributions, activity_logs&quot;]
+    axis[&quot;branchId là trục phân quyền, lọc dữ liệu,&lt;br/&gt;index và sharding quan trọng nhất&quot;]
+    campaign_root[&quot;campaigns là aggregate root trung tâm&lt;br/&gt;cho public view, admin view và dashboard&quot;]
+
+    hq_contributions --&gt; hot
+    br_contributions --&gt; hot
+    br_aid --&gt; hot
+    br_logs --&gt; hot
+    hot --&gt; axis
+    axis --&gt; campaign_root
+
+    classDef high fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef mid fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef info fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    class hq_contributions,br_contributions,br_aid,br_logs,hot high;
+    class hq_campaigns,br_campaigns,campaign_root mid;
+    class note,axis info;</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>flowchart TB
+    note[&quot;Ký hiệu: H = cao, M = trung bình, L = thấp&lt;br/&gt;R = đọc, W = tạo, E = sửa, D = xóa mềm / hủy&quot;]
+
+    subgraph hq[&quot;Trụ sở chính&quot;]
+        hq_branches[&quot;branches&lt;br/&gt;H.R, L.WED&quot;]
+        hq_users[&quot;users&lt;br/&gt;H.R, M.WED&quot;]
+        hq_campaigns[&quot;campaigns&lt;br/&gt;H.R, M.WED&quot;]
+        hq_contributors[&quot;contributors&lt;br/&gt;H.R, M.WE&quot;]
+        hq_contributions[&quot;contributions&lt;br/&gt;H.WERD&quot;]
+        hq_beneficiaries[&quot;beneficiaries&lt;br/&gt;H.R, M.WE&quot;]
+        hq_aid[&quot;aid_distributions&lt;br/&gt;H.R, M.WED&quot;]
+        hq_logs[&quot;activity_logs&lt;br/&gt;H.R&quot;]
+        hq_stats[&quot;stats_snapshots&lt;br/&gt;H.R, M.W&quot;]
+    end
+
+    subgraph branch[&quot;Chi nhánh / trung tâm&quot;]
+        br_branches[&quot;branches&lt;br/&gt;H.R&quot;]
+        br_users[&quot;users&lt;br/&gt;H.R, M.WE&quot;]
+        br_campaigns[&quot;campaigns&lt;br/&gt;H.WER, M.D&quot;]
+        br_contributors[&quot;contributors&lt;br/&gt;H.R, M.WE&quot;]
+        br_contributions[&quot;contributions&lt;br/&gt;H.WERD&quot;]
+        br_beneficiaries[&quot;beneficiaries&lt;br/&gt;H.WER, M.D&quot;]
+        br_aid[&quot;aid_distributions&lt;br/&gt;H.WERD&quot;]
+        br_volunteers[&quot;volunteers&lt;br/&gt;H.WER&quot;]
+        br_logs[&quot;activity_logs&lt;br/&gt;H.R, L.W&quot;]
+        br_stats[&quot;stats_snapshots&lt;br/&gt;H.R, M.W&quot;]
+    end
+
+    note --&gt; hq_branches
+    note --&gt; br_branches
+
+    hot[&quot;Nhóm tăng trưởng nhanh nhất:&lt;br/&gt;contributions, aid_distributions, activity_logs&quot;]
+    axis[&quot;branchId là trục phân quyền, lọc dữ liệu,&lt;br/&gt;index và sharding quan trọng nhất&quot;]
+    campaign_root[&quot;campaigns là aggregate root trung tâm&lt;br/&gt;cho public view, admin view và dashboard&quot;]
+
+    hq_contributions --&gt; hot
+    br_contributions --&gt; hot
+    br_aid --&gt; hot
+    br_logs --&gt; hot
+    hot --&gt; axis
+    axis --&gt; campaign_root
+
+    classDef high fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef mid fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef info fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    class hq_contributions,br_contributions,br_aid,br_logs,hot high;
+    class hq_campaigns,br_campaigns,campaign_root mid;
+    class note,axis info;</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-05">
+  <div class="card-header">
+    <div>
+      <h2>05. Phân quyền RBAC và branch scope</h2>
+      <p>Luồng backend áp filter dữ liệu theo vai trò, đảm bảo chi nhánh không đọc/sửa dữ liệu của chi nhánh khác.</p>
+    </div>
+    <div class="filename">mermail/05-rbac-branch-scope.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">flowchart TD
+    req[&quot;Request vào API&lt;br/&gt;JWT chứa userId, role, branchId&quot;] --&gt; auth[&quot;Auth middleware&lt;br/&gt;verify token + load currentUser&quot;]
+    auth --&gt; role{Role là gì?}
+
+    role --&gt;|&quot;SUPER_ADMIN&quot;| super_filter[&quot;filter = {}&lt;br/&gt;được xem toàn hệ thống&quot;]
+    role --&gt;|&quot;BRANCH_ADMIN / STAFF&quot;| branch_filter[&quot;filter = { branchId: currentUser.branchId }&lt;br/&gt;chỉ dữ liệu chi nhánh mình&quot;]
+    role --&gt;|&quot;CONTRIBUTOR / DONOR&quot;| own_filter[&quot;public campaign&lt;br/&gt;hoặc own data theo userId/contributorId&quot;]
+    role --&gt;|&quot;VOLUNTEER&quot;| vol_filter[&quot;public campaign&lt;br/&gt;hoặc hồ sơ volunteer của chính mình&quot;]
+
+    branch_filter --&gt; read_doc[&quot;Read document hiện tại trước update/delete&quot;]
+    read_doc --&gt; compare{document.branchId == currentUser.branchId?}
+    compare --&gt;|&quot;Đúng&quot;| allow[&quot;Allow action&quot;]
+    compare --&gt;|&quot;Sai&quot;| forbidden[&quot;403 Forbidden&quot;]
+
+    super_filter --&gt; allow
+    own_filter --&gt; allow
+    vol_filter --&gt; allow
+
+    allow --&gt; service[&quot;Service nghiệp vụ&lt;br/&gt;validate state + schema&quot;]
+    service --&gt; write[&quot;Write MongoDB&quot;]
+    write --&gt; log[&quot;Insert activity_logs&lt;br/&gt;actor, entity, before, after&quot;]
+
+    helper[&quot;Dùng branchScopedFilter/helper/service chung&lt;br/&gt;không rải logic scope trong từng controller&quot;]
+    branch_filter -.-&gt; helper
+    helper -.-&gt; service
+
+    classDef guard fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef ok fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef stop fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    class role,compare,branch_filter,helper guard;
+    class allow,service,write,log ok;
+    class forbidden stop;</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>flowchart TD
+    req[&quot;Request vào API&lt;br/&gt;JWT chứa userId, role, branchId&quot;] --&gt; auth[&quot;Auth middleware&lt;br/&gt;verify token + load currentUser&quot;]
+    auth --&gt; role{Role là gì?}
+
+    role --&gt;|&quot;SUPER_ADMIN&quot;| super_filter[&quot;filter = {}&lt;br/&gt;được xem toàn hệ thống&quot;]
+    role --&gt;|&quot;BRANCH_ADMIN / STAFF&quot;| branch_filter[&quot;filter = { branchId: currentUser.branchId }&lt;br/&gt;chỉ dữ liệu chi nhánh mình&quot;]
+    role --&gt;|&quot;CONTRIBUTOR / DONOR&quot;| own_filter[&quot;public campaign&lt;br/&gt;hoặc own data theo userId/contributorId&quot;]
+    role --&gt;|&quot;VOLUNTEER&quot;| vol_filter[&quot;public campaign&lt;br/&gt;hoặc hồ sơ volunteer của chính mình&quot;]
+
+    branch_filter --&gt; read_doc[&quot;Read document hiện tại trước update/delete&quot;]
+    read_doc --&gt; compare{document.branchId == currentUser.branchId?}
+    compare --&gt;|&quot;Đúng&quot;| allow[&quot;Allow action&quot;]
+    compare --&gt;|&quot;Sai&quot;| forbidden[&quot;403 Forbidden&quot;]
+
+    super_filter --&gt; allow
+    own_filter --&gt; allow
+    vol_filter --&gt; allow
+
+    allow --&gt; service[&quot;Service nghiệp vụ&lt;br/&gt;validate state + schema&quot;]
+    service --&gt; write[&quot;Write MongoDB&quot;]
+    write --&gt; log[&quot;Insert activity_logs&lt;br/&gt;actor, entity, before, after&quot;]
+
+    helper[&quot;Dùng branchScopedFilter/helper/service chung&lt;br/&gt;không rải logic scope trong từng controller&quot;]
+    branch_filter -.-&gt; helper
+    helper -.-&gt; service
+
+    classDef guard fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef ok fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef stop fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    class role,compare,branch_filter,helper guard;
+    class allow,service,write,log ok;
+    class forbidden stop;</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-06">
+  <div class="card-header">
+    <div>
+      <h2>06. Document model của campaigns</h2>
+      <p>Chiến dịch là aggregate root trung tâm, chứa mục tiêu, nguồn lực cần, thống kê tổng hợp và media/document đính kèm.</p>
+    </div>
+    <div class="filename">mermail/06-campaign-document-model.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">flowchart TB
+    campaign[&quot;campaigns document&lt;br/&gt;_id, code, title, description, type&lt;br/&gt;status, visibility, createdAt, updatedAt&quot;]
+
+    campaign --&gt; embedded[&quot;Embedded trong campaign&quot;]
+    embedded --&gt; location[&quot;location&lt;br/&gt;province, district, ward, address&quot;]
+    embedded --&gt; timeRange[&quot;timeRange&lt;br/&gt;startDate, endDate&quot;]
+    embedded --&gt; goals[&quot;goals&lt;br/&gt;targetMoneyAmount&lt;br/&gt;targetItemSummary[]&lt;br/&gt;targetVolunteerCount&quot;]
+    embedded --&gt; resources[&quot;requiredResources[]&lt;br/&gt;resourceType, name, quantity, unit&lt;br/&gt;estimatedValue, note&quot;]
+    embedded --&gt; summary[&quot;summaryStats&lt;br/&gt;totalMoneyReceived&lt;br/&gt;totalEstimatedItemValue&lt;br/&gt;totalVolunteerHours&lt;br/&gt;totalMoneyDistributed&lt;br/&gt;totalEstimatedAidValue&lt;br/&gt;beneficiaryCount&quot;]
+    embedded --&gt; media[&quot;images[] + documents[]&lt;br/&gt;url, caption/name, type&quot;]
+
+    campaign -.-&gt;|&quot;branchId&quot;| branch[&quot;branches&lt;br/&gt;vòng đời độc lập&lt;br/&gt;scope phân quyền + shard&quot;]
+    campaign -.-&gt;|&quot;createdBy&quot;| user[&quot;users&lt;br/&gt;người tạo chiến dịch&quot;]
+
+    public_query[&quot;Public query&lt;br/&gt;{ visibility: PUBLIC, status: ACTIVE }&lt;br/&gt;sort createdAt desc&quot;] --&gt; campaign
+    branch_query[&quot;Branch admin query&lt;br/&gt;{ branchId, status }&lt;br/&gt;sort createdAt desc&quot;] --&gt; campaign
+    dashboard[&quot;Dashboard đọc nhanh&lt;br/&gt;ưu tiên summaryStats đã denormalize&quot;] --&gt; summary
+
+    classDef root fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef embed fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef ref fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef query fill:#faf5ff,stroke:#6b46c1,stroke-width:1px;
+    class campaign root;
+    class embedded,location,timeRange,goals,resources,summary,media embed;
+    class branch,user ref;
+    class public_query,branch_query,dashboard query;</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>flowchart TB
+    campaign[&quot;campaigns document&lt;br/&gt;_id, code, title, description, type&lt;br/&gt;status, visibility, createdAt, updatedAt&quot;]
+
+    campaign --&gt; embedded[&quot;Embedded trong campaign&quot;]
+    embedded --&gt; location[&quot;location&lt;br/&gt;province, district, ward, address&quot;]
+    embedded --&gt; timeRange[&quot;timeRange&lt;br/&gt;startDate, endDate&quot;]
+    embedded --&gt; goals[&quot;goals&lt;br/&gt;targetMoneyAmount&lt;br/&gt;targetItemSummary[]&lt;br/&gt;targetVolunteerCount&quot;]
+    embedded --&gt; resources[&quot;requiredResources[]&lt;br/&gt;resourceType, name, quantity, unit&lt;br/&gt;estimatedValue, note&quot;]
+    embedded --&gt; summary[&quot;summaryStats&lt;br/&gt;totalMoneyReceived&lt;br/&gt;totalEstimatedItemValue&lt;br/&gt;totalVolunteerHours&lt;br/&gt;totalMoneyDistributed&lt;br/&gt;totalEstimatedAidValue&lt;br/&gt;beneficiaryCount&quot;]
+    embedded --&gt; media[&quot;images[] + documents[]&lt;br/&gt;url, caption/name, type&quot;]
+
+    campaign -.-&gt;|&quot;branchId&quot;| branch[&quot;branches&lt;br/&gt;vòng đời độc lập&lt;br/&gt;scope phân quyền + shard&quot;]
+    campaign -.-&gt;|&quot;createdBy&quot;| user[&quot;users&lt;br/&gt;người tạo chiến dịch&quot;]
+
+    public_query[&quot;Public query&lt;br/&gt;{ visibility: PUBLIC, status: ACTIVE }&lt;br/&gt;sort createdAt desc&quot;] --&gt; campaign
+    branch_query[&quot;Branch admin query&lt;br/&gt;{ branchId, status }&lt;br/&gt;sort createdAt desc&quot;] --&gt; campaign
+    dashboard[&quot;Dashboard đọc nhanh&lt;br/&gt;ưu tiên summaryStats đã denormalize&quot;] --&gt; summary
+
+    classDef root fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef embed fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef ref fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef query fill:#faf5ff,stroke:#6b46c1,stroke-width:1px;
+    class campaign root;
+    class embedded,location,timeRange,goals,resources,summary,media embed;
+    class branch,user ref;
+    class public_query,branch_query,dashboard query;</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-07">
+  <div class="card-header">
+    <div>
+      <h2>07. Document model của contributions</h2>
+      <p>Nguồn lực đầu vào mở rộng từ donation tiền sang tiền, hiện vật, thuốc, sách, dịch vụ và giờ công.</p>
+    </div>
+    <div class="filename">mermail/07-contribution-document-model.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">flowchart TB
+    contribution[&quot;contributions document&lt;br/&gt;_id, branchId, campaignId, contributorId&lt;br/&gt;type, status, receivedAt, createdBy&lt;br/&gt;createdAt, updatedAt&quot;]
+
+    contribution -.-&gt;|&quot;branchId&quot;| branch[&quot;branches&quot;]
+    contribution -.-&gt;|&quot;campaignId&quot;| campaign[&quot;campaigns&quot;]
+    contribution -.-&gt;|&quot;contributorId&quot;| contributor[&quot;contributors&quot;]
+
+    contribution --&gt; snapshots[&quot;Snapshots để đọc lịch sử không lookup&quot;]
+    snapshots --&gt; cs[&quot;contributorSnapshot&lt;br/&gt;fullName, organizationName, phone, email, type&quot;]
+    snapshots --&gt; cps[&quot;campaignSnapshot&lt;br/&gt;code, title&quot;]
+    snapshots --&gt; bs[&quot;branchSnapshot&lt;br/&gt;code, name&quot;]
+
+    contribution --&gt; detail{type quyết định detail nào bắt buộc}
+    detail --&gt;|&quot;MONEY&quot;| money[&quot;moneyDetail&lt;br/&gt;amount, currency, paymentMethod&lt;br/&gt;paymentStatus, transactionCode, paidAt&quot;]
+    detail --&gt;|&quot;ITEM / MEDICINE / CLOTHES / BOOK&quot;| item[&quot;itemDetails[]&lt;br/&gt;name, category, quantity, unit&lt;br/&gt;condition, estimatedValue, note&quot;]
+    detail --&gt;|&quot;SERVICE&quot;| service[&quot;serviceDetail&lt;br/&gt;serviceName, provider, estimatedHours&lt;br/&gt;estimatedValue, note&quot;]
+    detail --&gt;|&quot;VOLUNTEER_WORK&quot;| volunteer[&quot;volunteerWorkDetail&lt;br/&gt;skill, hours, workDate, description&quot;]
+    detail --&gt;|&quot;OTHER&quot;| other[&quot;custom note / metadata&lt;br/&gt;validate theo business rule&quot;]
+
+    contribution --&gt; proofs[&quot;proofs[]&lt;br/&gt;type, url, description&lt;br/&gt;uploadedAt, uploadedBy&quot;]
+
+    unique[&quot;Idempotency thanh toán:&lt;br/&gt;moneyDetail.transactionCode unique sparse&quot;]
+    stats[&quot;Chỉ cộng campaigns.summaryStats&lt;br/&gt;và contributors.totalContributionStats&lt;br/&gt;khi status chuyển sang CONFIRMED/RECEIVED lần đầu&quot;]
+
+    money --&gt; unique
+    contribution --&gt; stats
+
+    classDef root fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef snap fill:#faf5ff,stroke:#6b46c1,stroke-width:1px;
+    classDef detail fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef ref fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    class contribution root;
+    class snapshots,cs,cps,bs snap;
+    class detail,money,item,service,volunteer,other,proofs,unique,stats detail;
+    class branch,campaign,contributor ref;</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>flowchart TB
+    contribution[&quot;contributions document&lt;br/&gt;_id, branchId, campaignId, contributorId&lt;br/&gt;type, status, receivedAt, createdBy&lt;br/&gt;createdAt, updatedAt&quot;]
+
+    contribution -.-&gt;|&quot;branchId&quot;| branch[&quot;branches&quot;]
+    contribution -.-&gt;|&quot;campaignId&quot;| campaign[&quot;campaigns&quot;]
+    contribution -.-&gt;|&quot;contributorId&quot;| contributor[&quot;contributors&quot;]
+
+    contribution --&gt; snapshots[&quot;Snapshots để đọc lịch sử không lookup&quot;]
+    snapshots --&gt; cs[&quot;contributorSnapshot&lt;br/&gt;fullName, organizationName, phone, email, type&quot;]
+    snapshots --&gt; cps[&quot;campaignSnapshot&lt;br/&gt;code, title&quot;]
+    snapshots --&gt; bs[&quot;branchSnapshot&lt;br/&gt;code, name&quot;]
+
+    contribution --&gt; detail{type quyết định detail nào bắt buộc}
+    detail --&gt;|&quot;MONEY&quot;| money[&quot;moneyDetail&lt;br/&gt;amount, currency, paymentMethod&lt;br/&gt;paymentStatus, transactionCode, paidAt&quot;]
+    detail --&gt;|&quot;ITEM / MEDICINE / CLOTHES / BOOK&quot;| item[&quot;itemDetails[]&lt;br/&gt;name, category, quantity, unit&lt;br/&gt;condition, estimatedValue, note&quot;]
+    detail --&gt;|&quot;SERVICE&quot;| service[&quot;serviceDetail&lt;br/&gt;serviceName, provider, estimatedHours&lt;br/&gt;estimatedValue, note&quot;]
+    detail --&gt;|&quot;VOLUNTEER_WORK&quot;| volunteer[&quot;volunteerWorkDetail&lt;br/&gt;skill, hours, workDate, description&quot;]
+    detail --&gt;|&quot;OTHER&quot;| other[&quot;custom note / metadata&lt;br/&gt;validate theo business rule&quot;]
+
+    contribution --&gt; proofs[&quot;proofs[]&lt;br/&gt;type, url, description&lt;br/&gt;uploadedAt, uploadedBy&quot;]
+
+    unique[&quot;Idempotency thanh toán:&lt;br/&gt;moneyDetail.transactionCode unique sparse&quot;]
+    stats[&quot;Chỉ cộng campaigns.summaryStats&lt;br/&gt;và contributors.totalContributionStats&lt;br/&gt;khi status chuyển sang CONFIRMED/RECEIVED lần đầu&quot;]
+
+    money --&gt; unique
+    contribution --&gt; stats
+
+    classDef root fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef snap fill:#faf5ff,stroke:#6b46c1,stroke-width:1px;
+    classDef detail fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef ref fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    class contribution root;
+    class snapshots,cs,cps,bs snap;
+    class detail,money,item,service,volunteer,other,proofs,unique,stats detail;
+    class branch,campaign,contributor ref;</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-08">
+  <div class="card-header">
+    <div>
+      <h2>08. Document model của aid_distributions</h2>
+      <p>Nguồn lực đầu ra gồm phát tiền, trao hàng, thuốc, sách, dịch vụ hoặc hỗn hợp, có snapshot và proof.</p>
+    </div>
+    <div class="filename">mermail/08-aid-distribution-document-model.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">flowchart TB
+    aid[&quot;aid_distributions document&lt;br/&gt;_id, branchId, campaignId, beneficiaryId&lt;br/&gt;type, status, approvedBy, deliveredAt, completedAt&lt;br/&gt;createdBy, createdAt, updatedAt&quot;]
+
+    aid -.-&gt;|&quot;branchId&quot;| branch[&quot;branches&quot;]
+    aid -.-&gt;|&quot;campaignId&quot;| campaign[&quot;campaigns&quot;]
+    aid -.-&gt;|&quot;beneficiaryId&quot;| beneficiary[&quot;beneficiaries&quot;]
+
+    aid --&gt; snapshots[&quot;Snapshots để audit lịch sử&quot;]
+    snapshots --&gt; bsnap[&quot;beneficiarySnapshot&lt;br/&gt;name, type, phone, addressSummary&quot;]
+    snapshots --&gt; csnap[&quot;campaignSnapshot&lt;br/&gt;code, title&quot;]
+    snapshots --&gt; brsnap[&quot;branchSnapshot&lt;br/&gt;code, name&quot;]
+
+    aid --&gt; detail{type quyết định support nào bắt buộc}
+    detail --&gt;|&quot;MONEY&quot;| money[&quot;moneySupport&lt;br/&gt;amount, currency, method&quot;]
+    detail --&gt;|&quot;ITEM / MEDICINE / CLOTHES / BOOK&quot;| items[&quot;itemSupports[]&lt;br/&gt;name, category, quantity, unit&lt;br/&gt;estimatedValue, note&quot;]
+    detail --&gt;|&quot;SERVICE&quot;| service[&quot;serviceSupport&lt;br/&gt;serviceName, provider, estimatedHours&lt;br/&gt;estimatedValue, note&quot;]
+    detail --&gt;|&quot;MIXED&quot;| mixed[&quot;moneySupport + itemSupports[] + serviceSupport&lt;br/&gt;hỗ trợ hỗn hợp&quot;]
+
+    aid --&gt; proofs[&quot;proofs[]&lt;br/&gt;ảnh bàn giao / giấy xác nhận&lt;br/&gt;uploadedAt, uploadedBy&quot;]
+    aid --&gt; guards[&quot;Guard khi COMPLETE&lt;br/&gt;không vượt nguồn lực khả dụng&lt;br/&gt;không cộng summary lặp&quot;]
+    guards --&gt; summary[&quot;Update campaigns.summaryStats&lt;br/&gt;totalMoneyDistributed&lt;br/&gt;totalEstimatedAidValue&lt;br/&gt;beneficiaryCount nếu lần đầu&quot;]
+    guards --&gt; log[&quot;Ghi activity_logs cho APPROVED / DELIVERED / COMPLETED / CANCELLED / REJECTED&quot;]
+
+    classDef root fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef snap fill:#faf5ff,stroke:#6b46c1,stroke-width:1px;
+    classDef detail fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef ref fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef ok fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    class aid root;
+    class snapshots,bsnap,csnap,brsnap snap;
+    class detail,money,items,service,mixed,proofs detail;
+    class branch,campaign,beneficiary ref;
+    class guards,summary,log ok;</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>flowchart TB
+    aid[&quot;aid_distributions document&lt;br/&gt;_id, branchId, campaignId, beneficiaryId&lt;br/&gt;type, status, approvedBy, deliveredAt, completedAt&lt;br/&gt;createdBy, createdAt, updatedAt&quot;]
+
+    aid -.-&gt;|&quot;branchId&quot;| branch[&quot;branches&quot;]
+    aid -.-&gt;|&quot;campaignId&quot;| campaign[&quot;campaigns&quot;]
+    aid -.-&gt;|&quot;beneficiaryId&quot;| beneficiary[&quot;beneficiaries&quot;]
+
+    aid --&gt; snapshots[&quot;Snapshots để audit lịch sử&quot;]
+    snapshots --&gt; bsnap[&quot;beneficiarySnapshot&lt;br/&gt;name, type, phone, addressSummary&quot;]
+    snapshots --&gt; csnap[&quot;campaignSnapshot&lt;br/&gt;code, title&quot;]
+    snapshots --&gt; brsnap[&quot;branchSnapshot&lt;br/&gt;code, name&quot;]
+
+    aid --&gt; detail{type quyết định support nào bắt buộc}
+    detail --&gt;|&quot;MONEY&quot;| money[&quot;moneySupport&lt;br/&gt;amount, currency, method&quot;]
+    detail --&gt;|&quot;ITEM / MEDICINE / CLOTHES / BOOK&quot;| items[&quot;itemSupports[]&lt;br/&gt;name, category, quantity, unit&lt;br/&gt;estimatedValue, note&quot;]
+    detail --&gt;|&quot;SERVICE&quot;| service[&quot;serviceSupport&lt;br/&gt;serviceName, provider, estimatedHours&lt;br/&gt;estimatedValue, note&quot;]
+    detail --&gt;|&quot;MIXED&quot;| mixed[&quot;moneySupport + itemSupports[] + serviceSupport&lt;br/&gt;hỗ trợ hỗn hợp&quot;]
+
+    aid --&gt; proofs[&quot;proofs[]&lt;br/&gt;ảnh bàn giao / giấy xác nhận&lt;br/&gt;uploadedAt, uploadedBy&quot;]
+    aid --&gt; guards[&quot;Guard khi COMPLETE&lt;br/&gt;không vượt nguồn lực khả dụng&lt;br/&gt;không cộng summary lặp&quot;]
+    guards --&gt; summary[&quot;Update campaigns.summaryStats&lt;br/&gt;totalMoneyDistributed&lt;br/&gt;totalEstimatedAidValue&lt;br/&gt;beneficiaryCount nếu lần đầu&quot;]
+    guards --&gt; log[&quot;Ghi activity_logs cho APPROVED / DELIVERED / COMPLETED / CANCELLED / REJECTED&quot;]
+
+    classDef root fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef snap fill:#faf5ff,stroke:#6b46c1,stroke-width:1px;
+    classDef detail fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef ref fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef ok fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    class aid root;
+    class snapshots,bsnap,csnap,brsnap snap;
+    class detail,money,items,service,mixed,proofs detail;
+    class branch,campaign,beneficiary ref;
+    class guards,summary,log ok;</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-09">
+  <div class="card-header">
+    <div>
+      <h2>09. Luồng cập nhật nguồn lực đầu vào</h2>
+      <p>Luồng tạo/xác nhận contribution, build snapshot, cập nhật summaryStats và activity_logs trong transaction/session khi có replica set.</p>
+    </div>
+    <div class="filename">mermail/09-luong-contribution-dau-vao.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">sequenceDiagram
+    autonumber
+    participant FE as Frontend / Admin / Public
+    participant API as Backend API
+    participant SVC as Contribution Service
+    participant DB as MongoDB session / transaction
+    participant LOG as activity_logs
+
+    FE-&gt;&gt;API: Create contribution request
+    API-&gt;&gt;SVC: Validate auth + branch scope
+    SVC-&gt;&gt;SVC: Validate type-specific detail
+    SVC-&gt;&gt;DB: Check campaign exists and branchId matches
+    SVC-&gt;&gt;DB: Load contributor, campaign, branch minimal fields
+    SVC-&gt;&gt;SVC: Build contributorSnapshot, campaignSnapshot, branchSnapshot
+
+    SVC-&gt;&gt;DB: Start transaction/session
+    SVC-&gt;&gt;DB: Insert contributions document
+    alt status becomes CONFIRMED or RECEIVED first time
+        SVC-&gt;&gt;DB: Increment campaigns.summaryStats by delta
+        SVC-&gt;&gt;DB: Increment contributors.totalContributionStats by delta
+    else pending/rejected/no status change
+        SVC-&gt;&gt;DB: Do not change summary totals
+    end
+    SVC-&gt;&gt;LOG: Insert audit log with actor, entity, before, after
+    SVC-&gt;&gt;DB: Commit transaction
+    DB--&gt;&gt;SVC: Committed
+    SVC--&gt;&gt;API: Contribution document with snapshots
+    API--&gt;&gt;FE: Response
+
+    Note over SVC,DB: transactionCode unique sparse prevents duplicate money payment records
+    Note over SVC,DB: Never add summary twice for CONFIRMED -&gt; RECEIVED if already counted</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>sequenceDiagram
+    autonumber
+    participant FE as Frontend / Admin / Public
+    participant API as Backend API
+    participant SVC as Contribution Service
+    participant DB as MongoDB session / transaction
+    participant LOG as activity_logs
+
+    FE-&gt;&gt;API: Create contribution request
+    API-&gt;&gt;SVC: Validate auth + branch scope
+    SVC-&gt;&gt;SVC: Validate type-specific detail
+    SVC-&gt;&gt;DB: Check campaign exists and branchId matches
+    SVC-&gt;&gt;DB: Load contributor, campaign, branch minimal fields
+    SVC-&gt;&gt;SVC: Build contributorSnapshot, campaignSnapshot, branchSnapshot
+
+    SVC-&gt;&gt;DB: Start transaction/session
+    SVC-&gt;&gt;DB: Insert contributions document
+    alt status becomes CONFIRMED or RECEIVED first time
+        SVC-&gt;&gt;DB: Increment campaigns.summaryStats by delta
+        SVC-&gt;&gt;DB: Increment contributors.totalContributionStats by delta
+    else pending/rejected/no status change
+        SVC-&gt;&gt;DB: Do not change summary totals
+    end
+    SVC-&gt;&gt;LOG: Insert audit log with actor, entity, before, after
+    SVC-&gt;&gt;DB: Commit transaction
+    DB--&gt;&gt;SVC: Committed
+    SVC--&gt;&gt;API: Contribution document with snapshots
+    API--&gt;&gt;FE: Response
+
+    Note over SVC,DB: transactionCode unique sparse prevents duplicate money payment records
+    Note over SVC,DB: Never add summary twice for CONFIRMED -&gt; RECEIVED if already counted</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-10">
+  <div class="card-header">
+    <div>
+      <h2>10. Luồng cập nhật nguồn lực đầu ra</h2>
+      <p>Luồng lập kế hoạch, approve, deliver và complete hỗ trợ, có kiểm soát nguồn lực và chống cộng thống kê lặp.</p>
+    </div>
+    <div class="filename">mermail/10-luong-aid-distribution-dau-ra.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">sequenceDiagram
+    autonumber
+    participant Staff as Branch Admin / Staff
+    participant API as Backend API
+    participant SVC as Aid Distribution Service
+    participant DB as MongoDB session / transaction
+    participant LOG as activity_logs
+
+    Staff-&gt;&gt;API: Create / update aid distribution plan
+    API-&gt;&gt;SVC: Verify JWT + permission
+    SVC-&gt;&gt;SVC: Check branch scope
+    SVC-&gt;&gt;DB: Validate campaignId, beneficiaryId, branchId
+    SVC-&gt;&gt;DB: Check available resources if resource control is enabled
+    SVC-&gt;&gt;DB: Load beneficiary, campaign, branch minimal fields
+    SVC-&gt;&gt;SVC: Build beneficiarySnapshot, campaignSnapshot, branchSnapshot
+
+    SVC-&gt;&gt;DB: Start transaction/session
+    SVC-&gt;&gt;DB: Insert or update aid_distributions
+    alt transition to APPROVED
+        SVC-&gt;&gt;DB: Set approvedBy, approvedAt
+    else transition to DELIVERED
+        SVC-&gt;&gt;DB: Set deliveredAt
+    else transition to COMPLETED first time
+        SVC-&gt;&gt;DB: Set completedAt
+        SVC-&gt;&gt;DB: Update campaigns.summaryStats by support delta
+        SVC-&gt;&gt;DB: Update beneficiaryCount if first completed support
+    else CANCELLED or REJECTED
+        SVC-&gt;&gt;DB: Mark status, do not hard delete history
+    end
+    SVC-&gt;&gt;LOG: Insert audit log for critical transition
+    SVC-&gt;&gt;DB: Commit transaction
+    DB--&gt;&gt;SVC: Committed
+    SVC--&gt;&gt;API: Aid distribution document with snapshots
+    API--&gt;&gt;Staff: Response
+
+    Note over SVC,DB: COMPLETED cannot exceed available resources when inventory control is enabled
+    Note over SVC,DB: COMPLETED repeated call must not add totalMoneyDistributed twice</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>sequenceDiagram
+    autonumber
+    participant Staff as Branch Admin / Staff
+    participant API as Backend API
+    participant SVC as Aid Distribution Service
+    participant DB as MongoDB session / transaction
+    participant LOG as activity_logs
+
+    Staff-&gt;&gt;API: Create / update aid distribution plan
+    API-&gt;&gt;SVC: Verify JWT + permission
+    SVC-&gt;&gt;SVC: Check branch scope
+    SVC-&gt;&gt;DB: Validate campaignId, beneficiaryId, branchId
+    SVC-&gt;&gt;DB: Check available resources if resource control is enabled
+    SVC-&gt;&gt;DB: Load beneficiary, campaign, branch minimal fields
+    SVC-&gt;&gt;SVC: Build beneficiarySnapshot, campaignSnapshot, branchSnapshot
+
+    SVC-&gt;&gt;DB: Start transaction/session
+    SVC-&gt;&gt;DB: Insert or update aid_distributions
+    alt transition to APPROVED
+        SVC-&gt;&gt;DB: Set approvedBy, approvedAt
+    else transition to DELIVERED
+        SVC-&gt;&gt;DB: Set deliveredAt
+    else transition to COMPLETED first time
+        SVC-&gt;&gt;DB: Set completedAt
+        SVC-&gt;&gt;DB: Update campaigns.summaryStats by support delta
+        SVC-&gt;&gt;DB: Update beneficiaryCount if first completed support
+    else CANCELLED or REJECTED
+        SVC-&gt;&gt;DB: Mark status, do not hard delete history
+    end
+    SVC-&gt;&gt;LOG: Insert audit log for critical transition
+    SVC-&gt;&gt;DB: Commit transaction
+    DB--&gt;&gt;SVC: Committed
+    SVC--&gt;&gt;API: Aid distribution document with snapshots
+    API--&gt;&gt;Staff: Response
+
+    Note over SVC,DB: COMPLETED cannot exceed available resources when inventory control is enabled
+    Note over SVC,DB: COMPLETED repeated call must not add totalMoneyDistributed twice</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-11">
+  <div class="card-header">
+    <div>
+      <h2>11. State transition của contributions và delta thống kê</h2>
+      <p>Trạng thái nguồn lực đầu vào và thời điểm cộng/trừ summaryStats để chống ghi nhận trùng.</p>
+    </div>
+    <div class="filename">mermail/11-state-contribution-summary-delta.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">stateDiagram-v2
+    [*] --&gt; PENDING: create request
+
+    PENDING --&gt; CONFIRMED: approve / +resource delta
+    PENDING --&gt; RECEIVED: receive directly / +resource delta
+    PENDING --&gt; REJECTED: reject / no delta
+
+    CONFIRMED --&gt; RECEIVED: physical receive / no extra delta
+    CONFIRMED --&gt; CANCELLED: cancel / -resource delta
+    CONFIRMED --&gt; REFUNDED: refund / -resource delta
+
+    RECEIVED --&gt; CANCELLED: cancel / -resource delta
+    RECEIVED --&gt; REFUNDED: refund money / -resource delta
+
+    REJECTED --&gt; [*]
+    CANCELLED --&gt; [*]
+    REFUNDED --&gt; [*]
+    RECEIVED --&gt; [*]
+
+    note right of CONFIRMED
+      Đã ghi nhận vào campaigns.summaryStats
+      và contributors.totalContributionStats
+    end note
+
+    note right of RECEIVED
+      Nếu đã cộng ở CONFIRMED
+      thì CONFIRMED -&gt; RECEIVED không cộng lại
+    end note
+
+    note right of CANCELLED
+      Không xóa cứng contribution lịch sử
+      chỉ đổi trạng thái và ghi activity_logs
+    end note</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>stateDiagram-v2
+    [*] --&gt; PENDING: create request
+
+    PENDING --&gt; CONFIRMED: approve / +resource delta
+    PENDING --&gt; RECEIVED: receive directly / +resource delta
+    PENDING --&gt; REJECTED: reject / no delta
+
+    CONFIRMED --&gt; RECEIVED: physical receive / no extra delta
+    CONFIRMED --&gt; CANCELLED: cancel / -resource delta
+    CONFIRMED --&gt; REFUNDED: refund / -resource delta
+
+    RECEIVED --&gt; CANCELLED: cancel / -resource delta
+    RECEIVED --&gt; REFUNDED: refund money / -resource delta
+
+    REJECTED --&gt; [*]
+    CANCELLED --&gt; [*]
+    REFUNDED --&gt; [*]
+    RECEIVED --&gt; [*]
+
+    note right of CONFIRMED
+      Đã ghi nhận vào campaigns.summaryStats
+      và contributors.totalContributionStats
+    end note
+
+    note right of RECEIVED
+      Nếu đã cộng ở CONFIRMED
+      thì CONFIRMED -&gt; RECEIVED không cộng lại
+    end note
+
+    note right of CANCELLED
+      Không xóa cứng contribution lịch sử
+      chỉ đổi trạng thái và ghi activity_logs
+    end note</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-12">
+  <div class="card-header">
+    <div>
+      <h2>12. State transition của aid_distributions</h2>
+      <p>Trạng thái nguồn lực đầu ra từ kế hoạch đến hoàn tất, kèm audit log và cập nhật summaryStats khi COMPLETED.</p>
+    </div>
+    <div class="filename">mermail/12-state-aid-distribution.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">stateDiagram-v2
+    [*] --&gt; PLANNED: create plan
+
+    PLANNED --&gt; APPROVED: approve / set approvedBy, approvedAt
+    PLANNED --&gt; REJECTED: reject / audit log
+    PLANNED --&gt; CANCELLED: cancel / audit log
+
+    APPROVED --&gt; DELIVERED: deliver / set deliveredAt
+    APPROVED --&gt; CANCELLED: cancel before delivery / audit log
+    APPROVED --&gt; REJECTED: reject after review / audit log
+
+    DELIVERED --&gt; COMPLETED: confirm proof / +support delta
+    DELIVERED --&gt; CANCELLED: cancel with reason / audit log
+
+    COMPLETED --&gt; [*]
+    REJECTED --&gt; [*]
+    CANCELLED --&gt; [*]
+
+    note right of COMPLETED
+      Cập nhật campaigns.summaryStats
+      totalMoneyDistributed, totalEstimatedAidValue
+      beneficiaryCount nếu là lần hỗ trợ hoàn tất đầu tiên
+    end note
+
+    note right of DELIVERED
+      Proof ảnh/giấy xác nhận nên được upload
+      trước hoặc khi chuyển sang COMPLETED
+    end note
+
+    note right of CANCELLED
+      Không xóa cứng dữ liệu đầu ra
+      để giữ audit và báo cáo lịch sử
+    end note</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>stateDiagram-v2
+    [*] --&gt; PLANNED: create plan
+
+    PLANNED --&gt; APPROVED: approve / set approvedBy, approvedAt
+    PLANNED --&gt; REJECTED: reject / audit log
+    PLANNED --&gt; CANCELLED: cancel / audit log
+
+    APPROVED --&gt; DELIVERED: deliver / set deliveredAt
+    APPROVED --&gt; CANCELLED: cancel before delivery / audit log
+    APPROVED --&gt; REJECTED: reject after review / audit log
+
+    DELIVERED --&gt; COMPLETED: confirm proof / +support delta
+    DELIVERED --&gt; CANCELLED: cancel with reason / audit log
+
+    COMPLETED --&gt; [*]
+    REJECTED --&gt; [*]
+    CANCELLED --&gt; [*]
+
+    note right of COMPLETED
+      Cập nhật campaigns.summaryStats
+      totalMoneyDistributed, totalEstimatedAidValue
+      beneficiaryCount nếu là lần hỗ trợ hoàn tất đầu tiên
+    end note
+
+    note right of DELIVERED
+      Proof ảnh/giấy xác nhận nên được upload
+      trước hoặc khi chuyển sang COMPLETED
+    end note
+
+    note right of CANCELLED
+      Không xóa cứng dữ liệu đầu ra
+      để giữ audit và báo cáo lịch sử
+    end note</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-13">
+  <div class="card-header">
+    <div>
+      <h2>13. Sharding strategy cho 4 shard</h2>
+      <p>Sơ đồ shard key đề xuất, collection nên shard trong bản demo và cách hashed shard key phân bổ dữ liệu.</p>
+    </div>
+    <div class="filename">mermail/13-sharding-strategy-4-shard.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">flowchart TB
+    db[&quot;Database logic: charity_distributed&quot;] --&gt; choose[&quot;Chọn shard key theo truy vấn chính&quot;]
+
+    choose --&gt; bkey[&quot;branchId hashed&lt;br/&gt;tốt cho branch admin, phân quyền, dashboard chi nhánh&quot;]
+    choose --&gt; ckey[&quot;campaignId hashed&lt;br/&gt;tốt khi màn hình chính xoay quanh chiến dịch&quot;]
+    choose --&gt; timekey[&quot;{ branchId, createdAt }&lt;br/&gt;tốt cho audit range theo thời gian trong từng branch&quot;]
+
+    bkey --&gt; sharded1[&quot;contributions&lt;br/&gt;db.contributions.createIndex({ branchId: hashed })&quot;]
+    bkey --&gt; sharded2[&quot;aid_distributions&lt;br/&gt;db.aid_distributions.createIndex({ branchId: hashed })&quot;]
+    bkey --&gt; sharded3[&quot;activity_logs&lt;br/&gt;db.activity_logs.createIndex({ branchId: hashed })&quot;]
+
+    ckey -. tùy chọn .-&gt; alt1[&quot;contributions&lt;br/&gt;{ campaignId: hashed } nếu campaign là trục truy vấn chính&quot;]
+    timekey -. tùy chọn .-&gt; alt2[&quot;activity_logs&lt;br/&gt;{ branchId: 1, createdAt: 1 } nếu cần range time target tốt&quot;]
+
+    sharded1 --&gt; hash[&quot;hash(shardKey) -&gt; hash space -&gt; chunks&quot;]
+    sharded2 --&gt; hash
+    sharded3 --&gt; hash
+
+    hash --&gt; balancer[&quot;Balancer phân bổ chunk tương đối đều&quot;]
+    balancer --&gt; s1[&quot;shard01&lt;br/&gt;~25% chunks&quot;]
+    balancer --&gt; s2[&quot;shard02&lt;br/&gt;~25% chunks&quot;]
+    balancer --&gt; s3[&quot;shard03&lt;br/&gt;~25% chunks&quot;]
+    balancer --&gt; s4[&quot;shard04&lt;br/&gt;~25% chunks&quot;]
+
+    no_shard[&quot;Không cần shard ở demo:&lt;br/&gt;branches, users, contributors&lt;br/&gt;campaigns chỉ shard khi rất lớn&quot;]
+    db --&gt; no_shard
+
+    warning[&quot;Tránh shard key chỉ là createdAt&lt;br/&gt;vì ghi mới tăng dần có thể dồn vào một shard&quot;]
+    choose --&gt; warning
+
+    classDef shard fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef key fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef warn fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    class bkey,ckey,timekey,key,choose key;
+    class sharded1,sharded2,sharded3,hash,balancer,s1,s2,s3,s4 shard;
+    class warning warn;</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>flowchart TB
+    db[&quot;Database logic: charity_distributed&quot;] --&gt; choose[&quot;Chọn shard key theo truy vấn chính&quot;]
+
+    choose --&gt; bkey[&quot;branchId hashed&lt;br/&gt;tốt cho branch admin, phân quyền, dashboard chi nhánh&quot;]
+    choose --&gt; ckey[&quot;campaignId hashed&lt;br/&gt;tốt khi màn hình chính xoay quanh chiến dịch&quot;]
+    choose --&gt; timekey[&quot;{ branchId, createdAt }&lt;br/&gt;tốt cho audit range theo thời gian trong từng branch&quot;]
+
+    bkey --&gt; sharded1[&quot;contributions&lt;br/&gt;db.contributions.createIndex({ branchId: hashed })&quot;]
+    bkey --&gt; sharded2[&quot;aid_distributions&lt;br/&gt;db.aid_distributions.createIndex({ branchId: hashed })&quot;]
+    bkey --&gt; sharded3[&quot;activity_logs&lt;br/&gt;db.activity_logs.createIndex({ branchId: hashed })&quot;]
+
+    ckey -. tùy chọn .-&gt; alt1[&quot;contributions&lt;br/&gt;{ campaignId: hashed } nếu campaign là trục truy vấn chính&quot;]
+    timekey -. tùy chọn .-&gt; alt2[&quot;activity_logs&lt;br/&gt;{ branchId: 1, createdAt: 1 } nếu cần range time target tốt&quot;]
+
+    sharded1 --&gt; hash[&quot;hash(shardKey) -&gt; hash space -&gt; chunks&quot;]
+    sharded2 --&gt; hash
+    sharded3 --&gt; hash
+
+    hash --&gt; balancer[&quot;Balancer phân bổ chunk tương đối đều&quot;]
+    balancer --&gt; s1[&quot;shard01&lt;br/&gt;~25% chunks&quot;]
+    balancer --&gt; s2[&quot;shard02&lt;br/&gt;~25% chunks&quot;]
+    balancer --&gt; s3[&quot;shard03&lt;br/&gt;~25% chunks&quot;]
+    balancer --&gt; s4[&quot;shard04&lt;br/&gt;~25% chunks&quot;]
+
+    no_shard[&quot;Không cần shard ở demo:&lt;br/&gt;branches, users, contributors&lt;br/&gt;campaigns chỉ shard khi rất lớn&quot;]
+    db --&gt; no_shard
+
+    warning[&quot;Tránh shard key chỉ là createdAt&lt;br/&gt;vì ghi mới tăng dần có thể dồn vào một shard&quot;]
+    choose --&gt; warning
+
+    classDef shard fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef key fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef warn fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    class bkey,ckey,timekey,key,choose key;
+    class sharded1,sharded2,sharded3,hash,balancer,s1,s2,s3,s4 shard;
+    class warning warn;</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-14">
+  <div class="card-header">
+    <div>
+      <h2>14. Index theo use case chính</h2>
+      <p>Các index quan trọng bám theo truy vấn public, branch admin, dashboard, lịch sử contributor, audit log và idempotency thanh toán.</p>
+    </div>
+    <div class="filename">mermail/14-index-theo-use-case.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">flowchart TB
+    root[&quot;Index theo use case&lt;br/&gt;thiết kế index từ query thật, không tạo tùy tiện&quot;]
+
+    subgraph campaigns[&quot;campaigns&quot;]
+        c1[&quot;Public active campaigns&lt;br/&gt;{ visibility: 1, status: 1, createdAt: -1 }&quot;]
+        c2[&quot;Branch admin list&lt;br/&gt;{ branchId: 1, status: 1, createdAt: -1 }&quot;]
+        c3[&quot;Dashboard theo loại&lt;br/&gt;{ branchId: 1, type: 1, createdAt: -1 }&quot;]
+        c4[&quot;Search địa phương&lt;br/&gt;{ location.province: 1, status: 1 }&quot;]
+    end
+
+    subgraph contributions[&quot;contributions&quot;]
+        ct1[&quot;Contribution theo campaign&lt;br/&gt;{ branchId: 1, campaignId: 1, createdAt: -1 }&quot;]
+        ct2[&quot;Duyệt pending&lt;br/&gt;{ campaignId: 1, status: 1, createdAt: -1 }&quot;]
+        ct3[&quot;Lịch sử contributor&lt;br/&gt;{ contributorId: 1, createdAt: -1 }&quot;]
+        ct4[&quot;Lọc type/status trong branch&lt;br/&gt;{ branchId: 1, type: 1, status: 1, createdAt: -1 }&quot;]
+        ct5[&quot;Idempotency thanh toán&lt;br/&gt;{ moneyDetail.transactionCode: 1 } unique sparse&quot;]
+    end
+
+    subgraph beneficiaries[&quot;beneficiaries&quot;]
+        b1[&quot;Xác minh theo campaign&lt;br/&gt;{ branchId: 1, campaignId: 1, verification.status: 1 }&quot;]
+        b2[&quot;Theo tỉnh/thành&lt;br/&gt;{ address.province: 1 }&quot;]
+        b3[&quot;Tìm nhanh&lt;br/&gt;{ name: text, phone: text }&quot;]
+    end
+
+    subgraph aid[&quot;aid_distributions&quot;]
+        a1[&quot;Đầu ra theo campaign&lt;br/&gt;{ branchId: 1, campaignId: 1, status: 1, createdAt: -1 }&quot;]
+        a2[&quot;Lịch sử hỗ trợ beneficiary&lt;br/&gt;{ branchId: 1, beneficiaryId: 1, status: 1 }&quot;]
+        a3[&quot;Báo cáo hoàn tất&lt;br/&gt;{ campaignId: 1, completedAt: -1 }&quot;]
+        a4[&quot;Lọc type/status&lt;br/&gt;{ branchId: 1, type: 1, status: 1 }&quot;]
+    end
+
+    subgraph logs[&quot;activity_logs&quot;]
+        l1[&quot;Audit theo branch&lt;br/&gt;{ branchId: 1, createdAt: -1 }&quot;]
+        l2[&quot;Audit theo entity&lt;br/&gt;{ entity.entityType: 1, entity.entityId: 1, createdAt: -1 }&quot;]
+        l3[&quot;Audit theo actor&lt;br/&gt;{ actor.actorId: 1, createdAt: -1 }&quot;]
+    end
+
+    root --&gt; c1
+    root --&gt; ct1
+    root --&gt; b1
+    root --&gt; a1
+    root --&gt; l1
+
+    classDef idx fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef hot fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef rootcls fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    class root rootcls;
+    class c1,c2,c3,c4,b1,b2,b3,a1,a2,a3,a4,l1,l2,l3 idx;
+    class ct1,ct2,ct3,ct4,ct5 hot;</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>flowchart TB
+    root[&quot;Index theo use case&lt;br/&gt;thiết kế index từ query thật, không tạo tùy tiện&quot;]
+
+    subgraph campaigns[&quot;campaigns&quot;]
+        c1[&quot;Public active campaigns&lt;br/&gt;{ visibility: 1, status: 1, createdAt: -1 }&quot;]
+        c2[&quot;Branch admin list&lt;br/&gt;{ branchId: 1, status: 1, createdAt: -1 }&quot;]
+        c3[&quot;Dashboard theo loại&lt;br/&gt;{ branchId: 1, type: 1, createdAt: -1 }&quot;]
+        c4[&quot;Search địa phương&lt;br/&gt;{ location.province: 1, status: 1 }&quot;]
+    end
+
+    subgraph contributions[&quot;contributions&quot;]
+        ct1[&quot;Contribution theo campaign&lt;br/&gt;{ branchId: 1, campaignId: 1, createdAt: -1 }&quot;]
+        ct2[&quot;Duyệt pending&lt;br/&gt;{ campaignId: 1, status: 1, createdAt: -1 }&quot;]
+        ct3[&quot;Lịch sử contributor&lt;br/&gt;{ contributorId: 1, createdAt: -1 }&quot;]
+        ct4[&quot;Lọc type/status trong branch&lt;br/&gt;{ branchId: 1, type: 1, status: 1, createdAt: -1 }&quot;]
+        ct5[&quot;Idempotency thanh toán&lt;br/&gt;{ moneyDetail.transactionCode: 1 } unique sparse&quot;]
+    end
+
+    subgraph beneficiaries[&quot;beneficiaries&quot;]
+        b1[&quot;Xác minh theo campaign&lt;br/&gt;{ branchId: 1, campaignId: 1, verification.status: 1 }&quot;]
+        b2[&quot;Theo tỉnh/thành&lt;br/&gt;{ address.province: 1 }&quot;]
+        b3[&quot;Tìm nhanh&lt;br/&gt;{ name: text, phone: text }&quot;]
+    end
+
+    subgraph aid[&quot;aid_distributions&quot;]
+        a1[&quot;Đầu ra theo campaign&lt;br/&gt;{ branchId: 1, campaignId: 1, status: 1, createdAt: -1 }&quot;]
+        a2[&quot;Lịch sử hỗ trợ beneficiary&lt;br/&gt;{ branchId: 1, beneficiaryId: 1, status: 1 }&quot;]
+        a3[&quot;Báo cáo hoàn tất&lt;br/&gt;{ campaignId: 1, completedAt: -1 }&quot;]
+        a4[&quot;Lọc type/status&lt;br/&gt;{ branchId: 1, type: 1, status: 1 }&quot;]
+    end
+
+    subgraph logs[&quot;activity_logs&quot;]
+        l1[&quot;Audit theo branch&lt;br/&gt;{ branchId: 1, createdAt: -1 }&quot;]
+        l2[&quot;Audit theo entity&lt;br/&gt;{ entity.entityType: 1, entity.entityId: 1, createdAt: -1 }&quot;]
+        l3[&quot;Audit theo actor&lt;br/&gt;{ actor.actorId: 1, createdAt: -1 }&quot;]
+    end
+
+    root --&gt; c1
+    root --&gt; ct1
+    root --&gt; b1
+    root --&gt; a1
+    root --&gt; l1
+
+    classDef idx fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef hot fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef rootcls fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    class root rootcls;
+    class c1,c2,c3,c4,b1,b2,b3,a1,a2,a3,a4,l1,l2,l3 idx;
+    class ct1,ct2,ct3,ct4,ct5 hot;</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-15">
+  <div class="card-header">
+    <div>
+      <h2>15. Toàn vẹn dữ liệu, transaction và audit</h2>
+      <p>Các chốt bảo vệ dữ liệu khi MongoDB không có foreign key như RDBMS: validate reference, branch scope, transaction/idempotency và audit log.</p>
+    </div>
+    <div class="filename">mermail/15-toan-ven-du-lieu-audit-transaction.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">flowchart TD
+    start[&quot;Create / Update / Cancel request&quot;] --&gt; auth[&quot;Auth + permission check&quot;]
+    auth --&gt; scope[&quot;Build branchScopedFilter&lt;br/&gt;SUPER_ADMIN: toàn hệ thống&lt;br/&gt;Branch role: branchId hiện tại&quot;]
+
+    scope --&gt; read[&quot;Read current document&lt;br/&gt;trước update/delete&quot;]
+    read --&gt; branch_guard{Branch scope hợp lệ?}
+    branch_guard --&gt;|&quot;Không&quot;| deny[&quot;403 Forbidden&quot;]
+    branch_guard --&gt;|&quot;Có&quot;| ref_check[&quot;Validate references&lt;br/&gt;campaignId, branchId, contributorId / beneficiaryId&quot;]
+
+    ref_check --&gt; schema[&quot;Validate schema theo type&lt;br/&gt;MONEY, ITEM, SERVICE, VOLUNTEER_WORK, MIXED&quot;]
+    schema --&gt; transition[&quot;Validate state transition&lt;br/&gt;chống cộng/trừ summary lặp&quot;]
+    transition --&gt; idempotency[&quot;Idempotency&lt;br/&gt;transactionCode unique sparse&lt;br/&gt;hoặc requestId/idempotencyKey&quot;]
+
+    idempotency --&gt; txn{Replica set có transaction?}
+    txn --&gt;|&quot;Có&quot;| txwrite[&quot;MongoDB transaction/session&lt;br/&gt;write main document&lt;br/&gt;update summaryStats&lt;br/&gt;update totalContributionStats&lt;br/&gt;insert activity_logs&quot;]
+    txn --&gt;|&quot;Chưa có&quot;| safe_write[&quot;Fallback an toàn&lt;br/&gt;state transition atomic&lt;br/&gt;idempotency key&lt;br/&gt;audit log bắt buộc&quot;]
+
+    txwrite --&gt; commit[&quot;Commit&quot;]
+    safe_write --&gt; commit
+    commit --&gt; response[&quot;Return document có snapshot&quot;]
+
+    transition --&gt; no_hard_delete[&quot;Không xóa cứng dữ liệu tài chính/lịch sử&lt;br/&gt;dùng CANCELLED / REJECTED / REFUNDED&quot;]
+    no_hard_delete --&gt; commit
+
+    classDef guard fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef stop fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef ok fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef data fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    class auth,scope,branch_guard,ref_check,schema,transition,idempotency,txn guard;
+    class deny stop;
+    class txwrite,safe_write,commit,response ok;
+    class read,no_hard_delete data;</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>flowchart TD
+    start[&quot;Create / Update / Cancel request&quot;] --&gt; auth[&quot;Auth + permission check&quot;]
+    auth --&gt; scope[&quot;Build branchScopedFilter&lt;br/&gt;SUPER_ADMIN: toàn hệ thống&lt;br/&gt;Branch role: branchId hiện tại&quot;]
+
+    scope --&gt; read[&quot;Read current document&lt;br/&gt;trước update/delete&quot;]
+    read --&gt; branch_guard{Branch scope hợp lệ?}
+    branch_guard --&gt;|&quot;Không&quot;| deny[&quot;403 Forbidden&quot;]
+    branch_guard --&gt;|&quot;Có&quot;| ref_check[&quot;Validate references&lt;br/&gt;campaignId, branchId, contributorId / beneficiaryId&quot;]
+
+    ref_check --&gt; schema[&quot;Validate schema theo type&lt;br/&gt;MONEY, ITEM, SERVICE, VOLUNTEER_WORK, MIXED&quot;]
+    schema --&gt; transition[&quot;Validate state transition&lt;br/&gt;chống cộng/trừ summary lặp&quot;]
+    transition --&gt; idempotency[&quot;Idempotency&lt;br/&gt;transactionCode unique sparse&lt;br/&gt;hoặc requestId/idempotencyKey&quot;]
+
+    idempotency --&gt; txn{Replica set có transaction?}
+    txn --&gt;|&quot;Có&quot;| txwrite[&quot;MongoDB transaction/session&lt;br/&gt;write main document&lt;br/&gt;update summaryStats&lt;br/&gt;update totalContributionStats&lt;br/&gt;insert activity_logs&quot;]
+    txn --&gt;|&quot;Chưa có&quot;| safe_write[&quot;Fallback an toàn&lt;br/&gt;state transition atomic&lt;br/&gt;idempotency key&lt;br/&gt;audit log bắt buộc&quot;]
+
+    txwrite --&gt; commit[&quot;Commit&quot;]
+    safe_write --&gt; commit
+    commit --&gt; response[&quot;Return document có snapshot&quot;]
+
+    transition --&gt; no_hard_delete[&quot;Không xóa cứng dữ liệu tài chính/lịch sử&lt;br/&gt;dùng CANCELLED / REJECTED / REFUNDED&quot;]
+    no_hard_delete --&gt; commit
+
+    classDef guard fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef stop fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef ok fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef data fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    class auth,scope,branch_guard,ref_check,schema,transition,idempotency,txn guard;
+    class deny stop;
+    class txwrite,safe_write,commit,response ok;
+    class read,no_hard_delete data;</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-16">
+  <div class="card-header">
+    <div>
+      <h2>16. API/module map sang collection MongoDB</h2>
+      <p>Ánh xạ các endpoint/module chính sang collection, bao gồm cách giữ API cũ donations/disbursements để tương thích.</p>
+    </div>
+    <div class="filename">mermail/16-api-to-collection-map.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">flowchart LR
+    subgraph api[&quot;API / Backend modules&quot;]
+        auth[&quot;/api/auth&quot;]
+        users_api[&quot;/api/users&quot;]
+        branches_api[&quot;/api/branches&quot;]
+        campaigns_api[&quot;/api/campaigns&quot;]
+        contributors_api[&quot;/api/contributors&quot;]
+        contributions_api[&quot;/api/contributions&quot;]
+        donations_api[&quot;/api/donations&lt;br/&gt;compatibility&quot;]
+        beneficiaries_api[&quot;/api/beneficiaries&quot;]
+        aid_api[&quot;/api/aid-distributions&quot;]
+        disburse_api[&quot;/api/disbursements&lt;br/&gt;compatibility&quot;]
+        volunteers_api[&quot;/api/volunteers&quot;]
+        logs_api[&quot;/api/activity-logs&quot;]
+        reports_api[&quot;/api/reports / /api/stats&quot;]
+    end
+
+    subgraph db[&quot;MongoDB collections&quot;]
+        users[&quot;users&quot;]
+        branches[&quot;branches&quot;]
+        campaigns[&quot;campaigns&quot;]
+        contributors[&quot;contributors&quot;]
+        contributions[&quot;contributions&quot;]
+        beneficiaries[&quot;beneficiaries&quot;]
+        aid[&quot;aid_distributions&quot;]
+        volunteers[&quot;volunteers&quot;]
+        logs[&quot;activity_logs&quot;]
+        stats[&quot;stats_snapshots&quot;]
+    end
+
+    auth --&gt; users
+    users_api --&gt; users
+    users_api --&gt; branches
+    branches_api --&gt; branches
+    campaigns_api --&gt; campaigns
+    campaigns_api --&gt; branches
+    contributors_api --&gt; contributors
+    contributions_api --&gt; contributions
+    contributions_api --&gt; campaigns
+    contributions_api --&gt; contributors
+    donations_api --&gt;|&quot;map type = MONEY&quot;| contributions
+    beneficiaries_api --&gt; beneficiaries
+    beneficiaries_api --&gt; campaigns
+    aid_api --&gt; aid
+    aid_api --&gt; beneficiaries
+    aid_api --&gt; campaigns
+    disburse_api --&gt;|&quot;map type = MONEY&quot;| aid
+    volunteers_api --&gt; volunteers
+    volunteers_api --&gt; users
+    logs_api --&gt; logs
+    reports_api --&gt; campaigns
+    reports_api --&gt; contributions
+    reports_api --&gt; aid
+    reports_api --&gt; stats
+
+    classDef apiCls fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef dbCls fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef compat fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    class auth,users_api,branches_api,campaigns_api,contributors_api,contributions_api,beneficiaries_api,aid_api,volunteers_api,logs_api,reports_api apiCls;
+    class donations_api,disburse_api compat;
+    class users,branches,campaigns,contributors,contributions,beneficiaries,aid,volunteers,logs,stats dbCls;</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>flowchart LR
+    subgraph api[&quot;API / Backend modules&quot;]
+        auth[&quot;/api/auth&quot;]
+        users_api[&quot;/api/users&quot;]
+        branches_api[&quot;/api/branches&quot;]
+        campaigns_api[&quot;/api/campaigns&quot;]
+        contributors_api[&quot;/api/contributors&quot;]
+        contributions_api[&quot;/api/contributions&quot;]
+        donations_api[&quot;/api/donations&lt;br/&gt;compatibility&quot;]
+        beneficiaries_api[&quot;/api/beneficiaries&quot;]
+        aid_api[&quot;/api/aid-distributions&quot;]
+        disburse_api[&quot;/api/disbursements&lt;br/&gt;compatibility&quot;]
+        volunteers_api[&quot;/api/volunteers&quot;]
+        logs_api[&quot;/api/activity-logs&quot;]
+        reports_api[&quot;/api/reports / /api/stats&quot;]
+    end
+
+    subgraph db[&quot;MongoDB collections&quot;]
+        users[&quot;users&quot;]
+        branches[&quot;branches&quot;]
+        campaigns[&quot;campaigns&quot;]
+        contributors[&quot;contributors&quot;]
+        contributions[&quot;contributions&quot;]
+        beneficiaries[&quot;beneficiaries&quot;]
+        aid[&quot;aid_distributions&quot;]
+        volunteers[&quot;volunteers&quot;]
+        logs[&quot;activity_logs&quot;]
+        stats[&quot;stats_snapshots&quot;]
+    end
+
+    auth --&gt; users
+    users_api --&gt; users
+    users_api --&gt; branches
+    branches_api --&gt; branches
+    campaigns_api --&gt; campaigns
+    campaigns_api --&gt; branches
+    contributors_api --&gt; contributors
+    contributions_api --&gt; contributions
+    contributions_api --&gt; campaigns
+    contributions_api --&gt; contributors
+    donations_api --&gt;|&quot;map type = MONEY&quot;| contributions
+    beneficiaries_api --&gt; beneficiaries
+    beneficiaries_api --&gt; campaigns
+    aid_api --&gt; aid
+    aid_api --&gt; beneficiaries
+    aid_api --&gt; campaigns
+    disburse_api --&gt;|&quot;map type = MONEY&quot;| aid
+    volunteers_api --&gt; volunteers
+    volunteers_api --&gt; users
+    logs_api --&gt; logs
+    reports_api --&gt; campaigns
+    reports_api --&gt; contributions
+    reports_api --&gt; aid
+    reports_api --&gt; stats
+
+    classDef apiCls fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef dbCls fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef compat fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    class auth,users_api,branches_api,campaigns_api,contributors_api,contributions_api,beneficiaries_api,aid_api,volunteers_api,logs_api,reports_api apiCls;
+    class donations_api,disburse_api compat;
+    class users,branches,campaigns,contributors,contributions,beneficiaries,aid,volunteers,logs,stats dbCls;</code></pre>
+  </details>
+</section>
+<section class="card" id="diagram-17">
+  <div class="card-header">
+    <div>
+      <h2>17. Dashboard và summaryStats denormalized</h2>
+      <p>Cách contributions và aid_distributions cập nhật summaryStats/stats_snapshots để dashboard không phải aggregate nặng liên tục.</p>
+    </div>
+    <div class="filename">mermail/17-dashboard-summary-stats.mmd</div>
+  </div>
+  <div class="diagram-wrap">
+    <pre class="mermaid">flowchart TB
+    contribution[&quot;contributions&lt;br/&gt;nguồn lực đầu vào&quot;] --&gt; cdelta[&quot;Compute inbound delta&lt;br/&gt;money, estimated item value, item count, volunteer hours&quot;]
+    aid[&quot;aid_distributions&lt;br/&gt;nguồn lực đầu ra&quot;] --&gt; adelta[&quot;Compute outbound delta&lt;br/&gt;money distributed, estimated aid value, beneficiary count&quot;]
+
+    cdelta --&gt; guard1{Status chuyển sang&lt;br/&gt;CONFIRMED / RECEIVED lần đầu?}
+    adelta --&gt; guard2{Status chuyển sang&lt;br/&gt;COMPLETED lần đầu?}
+
+    guard1 --&gt;|&quot;Có&quot;| campaign_stats[&quot;campaigns.summaryStats&lt;br/&gt;source of truth nhanh cho campaign dashboard&quot;]
+    guard1 --&gt;|&quot;Không&quot;| nochange1[&quot;Không thay đổi summary&quot;]
+
+    guard2 --&gt;|&quot;Có&quot;| campaign_stats
+    guard2 --&gt;|&quot;Không&quot;| nochange2[&quot;Không thay đổi summary&quot;]
+
+    campaign_stats --&gt; snapshot_job[&quot;Optional scheduled job / event handler&lt;br/&gt;build stats_snapshots&quot;]
+    snapshot_job --&gt; branch_dash[&quot;Branch dashboard&lt;br/&gt;filter by branchId&quot;]
+    snapshot_job --&gt; hq_dash[&quot;Headquarter dashboard&lt;br/&gt;system-wide aggregate&quot;]
+    snapshot_job --&gt; campaign_dash[&quot;Campaign dashboard&lt;br/&gt;progress, received, distributed, beneficiaries&quot;]
+
+    raw_query[&quot;Báo cáo chuyên sâu ít tần suất&lt;br/&gt;có thể aggregate trực tiếp từ raw collections&quot;]
+    contribution -.-&gt; raw_query
+    aid -.-&gt; raw_query
+    raw_query -.-&gt; hq_dash
+
+    warning[&quot;Không dùng lookup/aggregate nặng cho mọi lần mở dashboard&lt;br/&gt;ưu tiên đọc summaryStats và stats_snapshots&quot;]
+    campaign_stats --&gt; warning
+
+    classDef txn fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef stat fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef guard fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef dash fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    class contribution,aid txn;
+    class campaign_stats,snapshot_job stat;
+    class guard1,guard2,warning guard;
+    class branch_dash,hq_dash,campaign_dash,raw_query dash;</pre>
+  </div>
+  <details>
+    <summary>Xem Mermaid source</summary>
+    <pre class="source"><code>flowchart TB
+    contribution[&quot;contributions&lt;br/&gt;nguồn lực đầu vào&quot;] --&gt; cdelta[&quot;Compute inbound delta&lt;br/&gt;money, estimated item value, item count, volunteer hours&quot;]
+    aid[&quot;aid_distributions&lt;br/&gt;nguồn lực đầu ra&quot;] --&gt; adelta[&quot;Compute outbound delta&lt;br/&gt;money distributed, estimated aid value, beneficiary count&quot;]
+
+    cdelta --&gt; guard1{Status chuyển sang&lt;br/&gt;CONFIRMED / RECEIVED lần đầu?}
+    adelta --&gt; guard2{Status chuyển sang&lt;br/&gt;COMPLETED lần đầu?}
+
+    guard1 --&gt;|&quot;Có&quot;| campaign_stats[&quot;campaigns.summaryStats&lt;br/&gt;source of truth nhanh cho campaign dashboard&quot;]
+    guard1 --&gt;|&quot;Không&quot;| nochange1[&quot;Không thay đổi summary&quot;]
+
+    guard2 --&gt;|&quot;Có&quot;| campaign_stats
+    guard2 --&gt;|&quot;Không&quot;| nochange2[&quot;Không thay đổi summary&quot;]
+
+    campaign_stats --&gt; snapshot_job[&quot;Optional scheduled job / event handler&lt;br/&gt;build stats_snapshots&quot;]
+    snapshot_job --&gt; branch_dash[&quot;Branch dashboard&lt;br/&gt;filter by branchId&quot;]
+    snapshot_job --&gt; hq_dash[&quot;Headquarter dashboard&lt;br/&gt;system-wide aggregate&quot;]
+    snapshot_job --&gt; campaign_dash[&quot;Campaign dashboard&lt;br/&gt;progress, received, distributed, beneficiaries&quot;]
+
+    raw_query[&quot;Báo cáo chuyên sâu ít tần suất&lt;br/&gt;có thể aggregate trực tiếp từ raw collections&quot;]
+    contribution -.-&gt; raw_query
+    aid -.-&gt; raw_query
+    raw_query -.-&gt; hq_dash
+
+    warning[&quot;Không dùng lookup/aggregate nặng cho mọi lần mở dashboard&lt;br/&gt;ưu tiên đọc summaryStats và stats_snapshots&quot;]
+    campaign_stats --&gt; warning
+
+    classDef txn fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef stat fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef guard fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef dash fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    class contribution,aid txn;
+    class campaign_stats,snapshot_job stat;
+    class guard1,guard2,warning guard;
+    class branch_dash,hq_dash,campaign_dash,raw_query dash;</code></pre>
+  </details>
+</section>
+    </main>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis' },
+      sequence: { mirrorActors: false }
+    });
+  </script>
+</body>
+</html>

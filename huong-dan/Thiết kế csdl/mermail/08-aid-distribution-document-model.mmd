@@ -1,0 +1,33 @@
+flowchart TB
+    aid["aid_distributions document<br/>_id, branchId, campaignId, beneficiaryId<br/>type, status, approvedBy, deliveredAt, completedAt<br/>createdBy, createdAt, updatedAt"]
+
+    aid -.->|"branchId"| branch["branches"]
+    aid -.->|"campaignId"| campaign["campaigns"]
+    aid -.->|"beneficiaryId"| beneficiary["beneficiaries"]
+
+    aid --> snapshots["Snapshots để audit lịch sử"]
+    snapshots --> bsnap["beneficiarySnapshot<br/>name, type, phone, addressSummary"]
+    snapshots --> csnap["campaignSnapshot<br/>code, title"]
+    snapshots --> brsnap["branchSnapshot<br/>code, name"]
+
+    aid --> detail{type quyết định support nào bắt buộc}
+    detail -->|"MONEY"| money["moneySupport<br/>amount, currency, method"]
+    detail -->|"ITEM / MEDICINE / CLOTHES / BOOK"| items["itemSupports[]<br/>name, category, quantity, unit<br/>estimatedValue, note"]
+    detail -->|"SERVICE"| service["serviceSupport<br/>serviceName, provider, estimatedHours<br/>estimatedValue, note"]
+    detail -->|"MIXED"| mixed["moneySupport + itemSupports[] + serviceSupport<br/>hỗ trợ hỗn hợp"]
+
+    aid --> proofs["proofs[]<br/>ảnh bàn giao / giấy xác nhận<br/>uploadedAt, uploadedBy"]
+    aid --> guards["Guard khi COMPLETE<br/>không vượt nguồn lực khả dụng<br/>không cộng summary lặp"]
+    guards --> summary["Update campaigns.summaryStats<br/>totalMoneyDistributed<br/>totalEstimatedAidValue<br/>beneficiaryCount nếu lần đầu"]
+    guards --> log["Ghi activity_logs cho APPROVED / DELIVERED / COMPLETED / CANCELLED / REJECTED"]
+
+    classDef root fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef snap fill:#faf5ff,stroke:#6b46c1,stroke-width:1px;
+    classDef detail fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef ref fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef ok fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    class aid root;
+    class snapshots,bsnap,csnap,brsnap snap;
+    class detail,money,items,service,mixed,proofs detail;
+    class branch,campaign,beneficiary ref;
+    class guards,summary,log ok;

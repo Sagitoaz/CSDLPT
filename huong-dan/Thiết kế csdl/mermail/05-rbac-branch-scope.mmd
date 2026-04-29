@@ -1,0 +1,32 @@
+flowchart TD
+    req["Request vào API<br/>JWT chứa userId, role, branchId"] --> auth["Auth middleware<br/>verify token + load currentUser"]
+    auth --> role{Role là gì?}
+
+    role -->|"SUPER_ADMIN"| super_filter["filter = {}<br/>được xem toàn hệ thống"]
+    role -->|"BRANCH_ADMIN / STAFF"| branch_filter["filter = { branchId: currentUser.branchId }<br/>chỉ dữ liệu chi nhánh mình"]
+    role -->|"CONTRIBUTOR / DONOR"| own_filter["public campaign<br/>hoặc own data theo userId/contributorId"]
+    role -->|"VOLUNTEER"| vol_filter["public campaign<br/>hoặc hồ sơ volunteer của chính mình"]
+
+    branch_filter --> read_doc["Read document hiện tại trước update/delete"]
+    read_doc --> compare{document.branchId == currentUser.branchId?}
+    compare -->|"Đúng"| allow["Allow action"]
+    compare -->|"Sai"| forbidden["403 Forbidden"]
+
+    super_filter --> allow
+    own_filter --> allow
+    vol_filter --> allow
+
+    allow --> service["Service nghiệp vụ<br/>validate state + schema"]
+    service --> write["Write MongoDB"]
+    write --> log["Insert activity_logs<br/>actor, entity, before, after"]
+
+    helper["Dùng branchScopedFilter/helper/service chung<br/>không rải logic scope trong từng controller"]
+    branch_filter -.-> helper
+    helper -.-> service
+
+    classDef guard fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef ok fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef stop fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    class role,compare,branch_filter,helper guard;
+    class allow,service,write,log ok;
+    class forbidden stop;

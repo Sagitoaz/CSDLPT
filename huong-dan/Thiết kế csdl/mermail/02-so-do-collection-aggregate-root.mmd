@@ -1,0 +1,56 @@
+flowchart LR
+    subgraph identity["Identity / Branch scope"]
+        branches["branches<br/>aggregate root<br/>location, contact embedded"]
+        users["users<br/>aggregate root<br/>permissions, profile embedded"]
+    end
+
+    subgraph campaign_group["Campaign domain"]
+        campaigns["campaigns<br/>aggregate root trung tâm<br/>goals, requiredResources, summaryStats embedded"]
+        beneficiaries["beneficiaries<br/>hồ sơ người/đơn vị nhận hỗ trợ"]
+        volunteers["volunteers<br/>skills, availability, stats embedded"]
+    end
+
+    subgraph inbound["Nguồn lực đầu vào"]
+        contributors["contributors<br/>cá nhân / tổ chức / người góp dịch vụ"]
+        contributions["contributions<br/>tiền, hiện vật, thuốc, sách, dịch vụ, giờ công"]
+    end
+
+    subgraph outbound["Nguồn lực đầu ra"]
+        aid["aid_distributions<br/>phát tiền, trao hàng, dịch vụ, hỗn hợp"]
+    end
+
+    subgraph audit_dashboard["Audit / Dashboard"]
+        logs["activity_logs<br/>actor, entity, before, after embedded"]
+        stats["stats_snapshots<br/>dashboard đọc nhanh"]
+    end
+
+    users -->|"branchId"| branches
+    campaigns -->|"branchId"| branches
+    campaigns -->|"createdBy"| users
+    beneficiaries -->|"branchId"| branches
+    beneficiaries -->|"campaignId"| campaigns
+    volunteers -->|"branchId"| branches
+    volunteers -.->|"userId optional"| users
+
+    contributions -->|"branchId"| branches
+    contributions -->|"campaignId"| campaigns
+    contributions -->|"contributorId"| contributors
+
+    aid -->|"branchId"| branches
+    aid -->|"campaignId"| campaigns
+    aid -->|"beneficiaryId"| beneficiaries
+
+    logs -->|"branchId nullable"| branches
+    logs -->|"entity.entityId"| campaigns
+    logs -->|"entity.entityId"| contributions
+    logs -->|"entity.entityId"| aid
+
+    stats -->|"branchId / scopeKey"| branches
+    stats -->|"campaignId optional"| campaigns
+
+    classDef root fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef txn fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef audit fill:#faf5ff,stroke:#6b46c1,stroke-width:1px;
+    class branches,users,campaigns,contributors,beneficiaries,volunteers root;
+    class contributions,aid txn;
+    class logs,stats audit;

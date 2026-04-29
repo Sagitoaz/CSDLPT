@@ -1,0 +1,36 @@
+flowchart TB
+    db["Database logic: charity_distributed"] --> choose["Chọn shard key theo truy vấn chính"]
+
+    choose --> bkey["branchId hashed<br/>tốt cho branch admin, phân quyền, dashboard chi nhánh"]
+    choose --> ckey["campaignId hashed<br/>tốt khi màn hình chính xoay quanh chiến dịch"]
+    choose --> timekey["{ branchId, createdAt }<br/>tốt cho audit range theo thời gian trong từng branch"]
+
+    bkey --> sharded1["contributions<br/>db.contributions.createIndex({ branchId: hashed })"]
+    bkey --> sharded2["aid_distributions<br/>db.aid_distributions.createIndex({ branchId: hashed })"]
+    bkey --> sharded3["activity_logs<br/>db.activity_logs.createIndex({ branchId: hashed })"]
+
+    ckey -. tùy chọn .-> alt1["contributions<br/>{ campaignId: hashed } nếu campaign là trục truy vấn chính"]
+    timekey -. tùy chọn .-> alt2["activity_logs<br/>{ branchId: 1, createdAt: 1 } nếu cần range time target tốt"]
+
+    sharded1 --> hash["hash(shardKey) -> hash space -> chunks"]
+    sharded2 --> hash
+    sharded3 --> hash
+
+    hash --> balancer["Balancer phân bổ chunk tương đối đều"]
+    balancer --> s1["shard01<br/>~25% chunks"]
+    balancer --> s2["shard02<br/>~25% chunks"]
+    balancer --> s3["shard03<br/>~25% chunks"]
+    balancer --> s4["shard04<br/>~25% chunks"]
+
+    no_shard["Không cần shard ở demo:<br/>branches, users, contributors<br/>campaigns chỉ shard khi rất lớn"]
+    db --> no_shard
+
+    warning["Tránh shard key chỉ là createdAt<br/>vì ghi mới tăng dần có thể dồn vào một shard"]
+    choose --> warning
+
+    classDef shard fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef key fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef warn fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    class bkey,ckey,timekey,key,choose key;
+    class sharded1,sharded2,sharded3,hash,balancer,s1,s2,s3,s4 shard;
+    class warning warn;

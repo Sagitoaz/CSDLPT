@@ -1,0 +1,31 @@
+sequenceDiagram
+    autonumber
+    participant FE as Frontend / Admin / Public
+    participant API as Backend API
+    participant SVC as Contribution Service
+    participant DB as MongoDB session / transaction
+    participant LOG as activity_logs
+
+    FE->>API: Create contribution request
+    API->>SVC: Validate auth + branch scope
+    SVC->>SVC: Validate type-specific detail
+    SVC->>DB: Check campaign exists and branchId matches
+    SVC->>DB: Load contributor, campaign, branch minimal fields
+    SVC->>SVC: Build contributorSnapshot, campaignSnapshot, branchSnapshot
+
+    SVC->>DB: Start transaction/session
+    SVC->>DB: Insert contributions document
+    alt status becomes CONFIRMED or RECEIVED first time
+        SVC->>DB: Increment campaigns.summaryStats by delta
+        SVC->>DB: Increment contributors.totalContributionStats by delta
+    else pending/rejected/no status change
+        SVC->>DB: Do not change summary totals
+    end
+    SVC->>LOG: Insert audit log with actor, entity, before, after
+    SVC->>DB: Commit transaction
+    DB-->>SVC: Committed
+    SVC-->>API: Contribution document with snapshots
+    API-->>FE: Response
+
+    Note over SVC,DB: transactionCode unique sparse prevents duplicate money payment records
+    Note over SVC,DB: Never add summary twice for CONFIRMED -> RECEIVED if already counted

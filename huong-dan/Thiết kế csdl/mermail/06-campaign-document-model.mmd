@@ -1,0 +1,26 @@
+flowchart TB
+    campaign["campaigns document<br/>_id, code, title, description, type<br/>status, visibility, createdAt, updatedAt"]
+
+    campaign --> embedded["Embedded trong campaign"]
+    embedded --> location["location<br/>province, district, ward, address"]
+    embedded --> timeRange["timeRange<br/>startDate, endDate"]
+    embedded --> goals["goals<br/>targetMoneyAmount<br/>targetItemSummary[]<br/>targetVolunteerCount"]
+    embedded --> resources["requiredResources[]<br/>resourceType, name, quantity, unit<br/>estimatedValue, note"]
+    embedded --> summary["summaryStats<br/>totalMoneyReceived<br/>totalEstimatedItemValue<br/>totalVolunteerHours<br/>totalMoneyDistributed<br/>totalEstimatedAidValue<br/>beneficiaryCount"]
+    embedded --> media["images[] + documents[]<br/>url, caption/name, type"]
+
+    campaign -.->|"branchId"| branch["branches<br/>vòng đời độc lập<br/>scope phân quyền + shard"]
+    campaign -.->|"createdBy"| user["users<br/>người tạo chiến dịch"]
+
+    public_query["Public query<br/>{ visibility: PUBLIC, status: ACTIVE }<br/>sort createdAt desc"] --> campaign
+    branch_query["Branch admin query<br/>{ branchId, status }<br/>sort createdAt desc"] --> campaign
+    dashboard["Dashboard đọc nhanh<br/>ưu tiên summaryStats đã denormalize"] --> summary
+
+    classDef root fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef embed fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef ref fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef query fill:#faf5ff,stroke:#6b46c1,stroke-width:1px;
+    class campaign root;
+    class embedded,location,timeRange,goals,resources,summary,media embed;
+    class branch,user ref;
+    class public_query,branch_query,dashboard query;

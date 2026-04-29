@@ -1,0 +1,35 @@
+flowchart TB
+    contribution["contributions document<br/>_id, branchId, campaignId, contributorId<br/>type, status, receivedAt, createdBy<br/>createdAt, updatedAt"]
+
+    contribution -.->|"branchId"| branch["branches"]
+    contribution -.->|"campaignId"| campaign["campaigns"]
+    contribution -.->|"contributorId"| contributor["contributors"]
+
+    contribution --> snapshots["Snapshots để đọc lịch sử không lookup"]
+    snapshots --> cs["contributorSnapshot<br/>fullName, organizationName, phone, email, type"]
+    snapshots --> cps["campaignSnapshot<br/>code, title"]
+    snapshots --> bs["branchSnapshot<br/>code, name"]
+
+    contribution --> detail{type quyết định detail nào bắt buộc}
+    detail -->|"MONEY"| money["moneyDetail<br/>amount, currency, paymentMethod<br/>paymentStatus, transactionCode, paidAt"]
+    detail -->|"ITEM / MEDICINE / CLOTHES / BOOK"| item["itemDetails[]<br/>name, category, quantity, unit<br/>condition, estimatedValue, note"]
+    detail -->|"SERVICE"| service["serviceDetail<br/>serviceName, provider, estimatedHours<br/>estimatedValue, note"]
+    detail -->|"VOLUNTEER_WORK"| volunteer["volunteerWorkDetail<br/>skill, hours, workDate, description"]
+    detail -->|"OTHER"| other["custom note / metadata<br/>validate theo business rule"]
+
+    contribution --> proofs["proofs[]<br/>type, url, description<br/>uploadedAt, uploadedBy"]
+
+    unique["Idempotency thanh toán:<br/>moneyDetail.transactionCode unique sparse"]
+    stats["Chỉ cộng campaigns.summaryStats<br/>và contributors.totalContributionStats<br/>khi status chuyển sang CONFIRMED/RECEIVED lần đầu"]
+
+    money --> unique
+    contribution --> stats
+
+    classDef root fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef snap fill:#faf5ff,stroke:#6b46c1,stroke-width:1px;
+    classDef detail fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef ref fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    class contribution root;
+    class snapshots,cs,cps,bs snap;
+    class detail,money,item,service,volunteer,other,proofs,unique,stats detail;
+    class branch,campaign,contributor ref;

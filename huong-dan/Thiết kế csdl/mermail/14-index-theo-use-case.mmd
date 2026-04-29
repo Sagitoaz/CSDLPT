@@ -1,0 +1,49 @@
+flowchart TB
+    root["Index theo use case<br/>thiết kế index từ query thật, không tạo tùy tiện"]
+
+    subgraph campaigns["campaigns"]
+        c1["Public active campaigns<br/>{ visibility: 1, status: 1, createdAt: -1 }"]
+        c2["Branch admin list<br/>{ branchId: 1, status: 1, createdAt: -1 }"]
+        c3["Dashboard theo loại<br/>{ branchId: 1, type: 1, createdAt: -1 }"]
+        c4["Search địa phương<br/>{ location.province: 1, status: 1 }"]
+    end
+
+    subgraph contributions["contributions"]
+        ct1["Contribution theo campaign<br/>{ branchId: 1, campaignId: 1, createdAt: -1 }"]
+        ct2["Duyệt pending<br/>{ campaignId: 1, status: 1, createdAt: -1 }"]
+        ct3["Lịch sử contributor<br/>{ contributorId: 1, createdAt: -1 }"]
+        ct4["Lọc type/status trong branch<br/>{ branchId: 1, type: 1, status: 1, createdAt: -1 }"]
+        ct5["Idempotency thanh toán<br/>{ moneyDetail.transactionCode: 1 } unique sparse"]
+    end
+
+    subgraph beneficiaries["beneficiaries"]
+        b1["Xác minh theo campaign<br/>{ branchId: 1, campaignId: 1, verification.status: 1 }"]
+        b2["Theo tỉnh/thành<br/>{ address.province: 1 }"]
+        b3["Tìm nhanh<br/>{ name: text, phone: text }"]
+    end
+
+    subgraph aid["aid_distributions"]
+        a1["Đầu ra theo campaign<br/>{ branchId: 1, campaignId: 1, status: 1, createdAt: -1 }"]
+        a2["Lịch sử hỗ trợ beneficiary<br/>{ branchId: 1, beneficiaryId: 1, status: 1 }"]
+        a3["Báo cáo hoàn tất<br/>{ campaignId: 1, completedAt: -1 }"]
+        a4["Lọc type/status<br/>{ branchId: 1, type: 1, status: 1 }"]
+    end
+
+    subgraph logs["activity_logs"]
+        l1["Audit theo branch<br/>{ branchId: 1, createdAt: -1 }"]
+        l2["Audit theo entity<br/>{ entity.entityType: 1, entity.entityId: 1, createdAt: -1 }"]
+        l3["Audit theo actor<br/>{ actor.actorId: 1, createdAt: -1 }"]
+    end
+
+    root --> c1
+    root --> ct1
+    root --> b1
+    root --> a1
+    root --> l1
+
+    classDef idx fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef hot fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef rootcls fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    class root rootcls;
+    class c1,c2,c3,c4,b1,b2,b3,a1,a2,a3,a4,l1,l2,l3 idx;
+    class ct1,ct2,ct3,ct4,ct5 hot;

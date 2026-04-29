@@ -1,0 +1,32 @@
+flowchart TD
+    start["Create / Update / Cancel request"] --> auth["Auth + permission check"]
+    auth --> scope["Build branchScopedFilter<br/>SUPER_ADMIN: toàn hệ thống<br/>Branch role: branchId hiện tại"]
+
+    scope --> read["Read current document<br/>trước update/delete"]
+    read --> branch_guard{Branch scope hợp lệ?}
+    branch_guard -->|"Không"| deny["403 Forbidden"]
+    branch_guard -->|"Có"| ref_check["Validate references<br/>campaignId, branchId, contributorId / beneficiaryId"]
+
+    ref_check --> schema["Validate schema theo type<br/>MONEY, ITEM, SERVICE, VOLUNTEER_WORK, MIXED"]
+    schema --> transition["Validate state transition<br/>chống cộng/trừ summary lặp"]
+    transition --> idempotency["Idempotency<br/>transactionCode unique sparse<br/>hoặc requestId/idempotencyKey"]
+
+    idempotency --> txn{Replica set có transaction?}
+    txn -->|"Có"| txwrite["MongoDB transaction/session<br/>write main document<br/>update summaryStats<br/>update totalContributionStats<br/>insert activity_logs"]
+    txn -->|"Chưa có"| safe_write["Fallback an toàn<br/>state transition atomic<br/>idempotency key<br/>audit log bắt buộc"]
+
+    txwrite --> commit["Commit"]
+    safe_write --> commit
+    commit --> response["Return document có snapshot"]
+
+    transition --> no_hard_delete["Không xóa cứng dữ liệu tài chính/lịch sử<br/>dùng CANCELLED / REJECTED / REFUNDED"]
+    no_hard_delete --> commit
+
+    classDef guard fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef stop fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef ok fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef data fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    class auth,scope,branch_guard,ref_check,schema,transition,idempotency,txn guard;
+    class deny stop;
+    class txwrite,safe_write,commit,response ok;
+    class read,no_hard_delete data;

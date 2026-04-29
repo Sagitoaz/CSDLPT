@@ -1,0 +1,37 @@
+sequenceDiagram
+    autonumber
+    participant Staff as Branch Admin / Staff
+    participant API as Backend API
+    participant SVC as Aid Distribution Service
+    participant DB as MongoDB session / transaction
+    participant LOG as activity_logs
+
+    Staff->>API: Create / update aid distribution plan
+    API->>SVC: Verify JWT + permission
+    SVC->>SVC: Check branch scope
+    SVC->>DB: Validate campaignId, beneficiaryId, branchId
+    SVC->>DB: Check available resources if resource control is enabled
+    SVC->>DB: Load beneficiary, campaign, branch minimal fields
+    SVC->>SVC: Build beneficiarySnapshot, campaignSnapshot, branchSnapshot
+
+    SVC->>DB: Start transaction/session
+    SVC->>DB: Insert or update aid_distributions
+    alt transition to APPROVED
+        SVC->>DB: Set approvedBy, approvedAt
+    else transition to DELIVERED
+        SVC->>DB: Set deliveredAt
+    else transition to COMPLETED first time
+        SVC->>DB: Set completedAt
+        SVC->>DB: Update campaigns.summaryStats by support delta
+        SVC->>DB: Update beneficiaryCount if first completed support
+    else CANCELLED or REJECTED
+        SVC->>DB: Mark status, do not hard delete history
+    end
+    SVC->>LOG: Insert audit log for critical transition
+    SVC->>DB: Commit transaction
+    DB-->>SVC: Committed
+    SVC-->>API: Aid distribution document with snapshots
+    API-->>Staff: Response
+
+    Note over SVC,DB: COMPLETED cannot exceed available resources when inventory control is enabled
+    Note over SVC,DB: COMPLETED repeated call must not add totalMoneyDistributed twice

@@ -1,0 +1,34 @@
+flowchart TB
+    contribution["contributions<br/>nguồn lực đầu vào"] --> cdelta["Compute inbound delta<br/>money, estimated item value, item count, volunteer hours"]
+    aid["aid_distributions<br/>nguồn lực đầu ra"] --> adelta["Compute outbound delta<br/>money distributed, estimated aid value, beneficiary count"]
+
+    cdelta --> guard1{Status chuyển sang<br/>CONFIRMED / RECEIVED lần đầu?}
+    adelta --> guard2{Status chuyển sang<br/>COMPLETED lần đầu?}
+
+    guard1 -->|"Có"| campaign_stats["campaigns.summaryStats<br/>source of truth nhanh cho campaign dashboard"]
+    guard1 -->|"Không"| nochange1["Không thay đổi summary"]
+
+    guard2 -->|"Có"| campaign_stats
+    guard2 -->|"Không"| nochange2["Không thay đổi summary"]
+
+    campaign_stats --> snapshot_job["Optional scheduled job / event handler<br/>build stats_snapshots"]
+    snapshot_job --> branch_dash["Branch dashboard<br/>filter by branchId"]
+    snapshot_job --> hq_dash["Headquarter dashboard<br/>system-wide aggregate"]
+    snapshot_job --> campaign_dash["Campaign dashboard<br/>progress, received, distributed, beneficiaries"]
+
+    raw_query["Báo cáo chuyên sâu ít tần suất<br/>có thể aggregate trực tiếp từ raw collections"]
+    contribution -.-> raw_query
+    aid -.-> raw_query
+    raw_query -.-> hq_dash
+
+    warning["Không dùng lookup/aggregate nặng cho mọi lần mở dashboard<br/>ưu tiên đọc summaryStats và stats_snapshots"]
+    campaign_stats --> warning
+
+    classDef txn fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef stat fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef guard fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef dash fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    class contribution,aid txn;
+    class campaign_stats,snapshot_job stat;
+    class guard1,guard2,warning guard;
+    class branch_dash,hq_dash,campaign_dash,raw_query dash;

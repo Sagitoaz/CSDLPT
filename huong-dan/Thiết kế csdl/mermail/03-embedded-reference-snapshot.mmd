@@ -1,0 +1,36 @@
+flowchart TB
+    rule["Nguyên tắc thiết kế MongoDB hướng tài liệu"]
+
+    rule --> embed["Embed<br/>dữ liệu thường đọc cùng nhau<br/>và cùng vòng đời document cha"]
+    rule --> ref["Reference<br/>đối tượng có vòng đời độc lập<br/>hoặc cần phân quyền/truy vấn riêng"]
+    rule --> snap["Snapshot lịch sử<br/>giữ đúng ngữ cảnh tại thời điểm phát sinh<br/>giảm lookup khi xem lịch sử"]
+
+    embed --> e1["campaigns.location<br/>campaigns.goals<br/>campaigns.requiredResources<br/>campaigns.summaryStats"]
+    embed --> e2["contributions.moneyDetail<br/>contributions.itemDetails[]<br/>contributions.proofs[]"]
+    embed --> e3["aid_distributions.moneySupport<br/>aid_distributions.itemSupports[]<br/>aid_distributions.proofs[]"]
+    embed --> e4["activity_logs.actor<br/>activity_logs.entity<br/>activity_logs.before / after"]
+
+    ref --> r1["branchId -> branches._id<br/>trục phân quyền, index, sharding"]
+    ref --> r2["campaignId -> campaigns._id<br/>trục nghiệp vụ chiến dịch"]
+    ref --> r3["contributorId -> contributors._id<br/>hồ sơ người/tổ chức đóng góp độc lập"]
+    ref --> r4["beneficiaryId -> beneficiaries._id<br/>hồ sơ người nhận hỗ trợ độc lập"]
+    ref --> r5["userId -> users._id optional<br/>khi contributor/volunteer có tài khoản"]
+
+    snap --> s1["contributorSnapshot<br/>tên, phone, email, type lúc đóng góp"]
+    snap --> s2["campaignSnapshot<br/>code, title lúc giao dịch"]
+    snap --> s3["branchSnapshot<br/>code, name lúc giao dịch"]
+    snap --> s4["beneficiarySnapshot<br/>name, type, phone, addressSummary lúc hỗ trợ"]
+
+    conclusion["Kết quả: document giao dịch đủ thông tin để đọc lịch sử<br/>không dùng lookup như join mặc định"]
+    embed --> conclusion
+    ref --> conclusion
+    snap --> conclusion
+
+    classDef principle fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef embedded fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef reference fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef snapshot fill:#faf5ff,stroke:#6b46c1,stroke-width:1px;
+    class rule,conclusion principle;
+    class embed,e1,e2,e3,e4 embedded;
+    class ref,r1,r2,r3,r4,r5 reference;
+    class snap,s1,s2,s3,s4 snapshot;

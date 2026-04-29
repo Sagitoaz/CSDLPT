@@ -1,0 +1,48 @@
+flowchart TB
+    client["Frontend / Admin / Public UI"] --> api["Backend API<br/>Express + TypeScript + Mongoose"]
+
+    subgraph central["Cụm máy chủ trung tâm"]
+        api --> mongos["mongos router<br/>logical database: charity_distributed"]
+        mongos <--> cfg["Config server replica set<br/>metadata sharding<br/>không lưu document nghiệp vụ chính"]
+    end
+
+    mongos --> route["MongoDB sharding routing<br/>query chứa shard key sẽ target shard tốt hơn"]
+
+    route --> s1["Shard 01 replica set<br/>~25% chunks"]
+    route --> s2["Shard 02 replica set<br/>~25% chunks"]
+    route --> s3["Shard 03 replica set<br/>~25% chunks"]
+    route --> s4["Shard 04 replica set<br/>~25% chunks"]
+
+    subgraph rs1["Replica set nội bộ Shard 01"]
+        s1 --> s1p["Primary"]
+        s1 --> s1r1["Secondary"]
+        s1 --> s1r2["Secondary"]
+    end
+
+    subgraph rs2["Replica set nội bộ Shard 02"]
+        s2 --> s2p["Primary"]
+        s2 --> s2r1["Secondary"]
+        s2 --> s2r2["Secondary"]
+    end
+
+    subgraph rs3["Replica set nội bộ Shard 03"]
+        s3 --> s3p["Primary"]
+        s3 --> s3r1["Secondary"]
+        s3 --> s3r2["Secondary"]
+    end
+
+    subgraph rs4["Replica set nội bộ Shard 04"]
+        s4 --> s4p["Primary"]
+        s4 --> s4r1["Secondary"]
+        s4 --> s4r2["Secondary"]
+    end
+
+    warn["Không dùng createdAt đơn lẻ làm shard key<br/>vì dễ hot shard do giá trị tăng dần"]
+    route -. lưu ý .-> warn
+
+    classDef central fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef shard fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef warn fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    class api,mongos,cfg,route central;
+    class s1,s2,s3,s4,s1p,s1r1,s1r2,s2p,s2r1,s2r2,s3p,s3r1,s3r2,s4p,s4r1,s4r2 shard;
+    class warn warn;

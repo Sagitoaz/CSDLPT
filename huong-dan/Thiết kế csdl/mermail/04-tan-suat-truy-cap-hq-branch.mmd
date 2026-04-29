@@ -1,0 +1,48 @@
+flowchart TB
+    note["Ký hiệu: H = cao, M = trung bình, L = thấp<br/>R = đọc, W = tạo, E = sửa, D = xóa mềm / hủy"]
+
+    subgraph hq["Trụ sở chính"]
+        hq_branches["branches<br/>H.R, L.WED"]
+        hq_users["users<br/>H.R, M.WED"]
+        hq_campaigns["campaigns<br/>H.R, M.WED"]
+        hq_contributors["contributors<br/>H.R, M.WE"]
+        hq_contributions["contributions<br/>H.WERD"]
+        hq_beneficiaries["beneficiaries<br/>H.R, M.WE"]
+        hq_aid["aid_distributions<br/>H.R, M.WED"]
+        hq_logs["activity_logs<br/>H.R"]
+        hq_stats["stats_snapshots<br/>H.R, M.W"]
+    end
+
+    subgraph branch["Chi nhánh / trung tâm"]
+        br_branches["branches<br/>H.R"]
+        br_users["users<br/>H.R, M.WE"]
+        br_campaigns["campaigns<br/>H.WER, M.D"]
+        br_contributors["contributors<br/>H.R, M.WE"]
+        br_contributions["contributions<br/>H.WERD"]
+        br_beneficiaries["beneficiaries<br/>H.WER, M.D"]
+        br_aid["aid_distributions<br/>H.WERD"]
+        br_volunteers["volunteers<br/>H.WER"]
+        br_logs["activity_logs<br/>H.R, L.W"]
+        br_stats["stats_snapshots<br/>H.R, M.W"]
+    end
+
+    note --> hq_branches
+    note --> br_branches
+
+    hot["Nhóm tăng trưởng nhanh nhất:<br/>contributions, aid_distributions, activity_logs"]
+    axis["branchId là trục phân quyền, lọc dữ liệu,<br/>index và sharding quan trọng nhất"]
+    campaign_root["campaigns là aggregate root trung tâm<br/>cho public view, admin view và dashboard"]
+
+    hq_contributions --> hot
+    br_contributions --> hot
+    br_aid --> hot
+    br_logs --> hot
+    hot --> axis
+    axis --> campaign_root
+
+    classDef high fill:#fff5f5,stroke:#c53030,stroke-width:1px;
+    classDef mid fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    classDef info fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    class hq_contributions,br_contributions,br_aid,br_logs,hot high;
+    class hq_campaigns,br_campaigns,campaign_root mid;
+    class note,axis info;

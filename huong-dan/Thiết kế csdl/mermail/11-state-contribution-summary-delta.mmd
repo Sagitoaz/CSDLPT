@@ -1,0 +1,33 @@
+stateDiagram-v2
+    [*] --> PENDING: create request
+
+    PENDING --> CONFIRMED: approve / +resource delta
+    PENDING --> RECEIVED: receive directly / +resource delta
+    PENDING --> REJECTED: reject / no delta
+
+    CONFIRMED --> RECEIVED: physical receive / no extra delta
+    CONFIRMED --> CANCELLED: cancel / -resource delta
+    CONFIRMED --> REFUNDED: refund / -resource delta
+
+    RECEIVED --> CANCELLED: cancel / -resource delta
+    RECEIVED --> REFUNDED: refund money / -resource delta
+
+    REJECTED --> [*]
+    CANCELLED --> [*]
+    REFUNDED --> [*]
+    RECEIVED --> [*]
+
+    note right of CONFIRMED
+      Đã ghi nhận vào campaigns.summaryStats
+      và contributors.totalContributionStats
+    end note
+
+    note right of RECEIVED
+      Nếu đã cộng ở CONFIRMED
+      thì CONFIRMED -> RECEIVED không cộng lại
+    end note
+
+    note right of CANCELLED
+      Không xóa cứng contribution lịch sử
+      chỉ đổi trạng thái và ghi activity_logs
+    end note

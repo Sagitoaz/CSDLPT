@@ -1,0 +1,61 @@
+flowchart LR
+    subgraph api["API / Backend modules"]
+        auth["/api/auth"]
+        users_api["/api/users"]
+        branches_api["/api/branches"]
+        campaigns_api["/api/campaigns"]
+        contributors_api["/api/contributors"]
+        contributions_api["/api/contributions"]
+        donations_api["/api/donations<br/>compatibility"]
+        beneficiaries_api["/api/beneficiaries"]
+        aid_api["/api/aid-distributions"]
+        disburse_api["/api/disbursements<br/>compatibility"]
+        volunteers_api["/api/volunteers"]
+        logs_api["/api/activity-logs"]
+        reports_api["/api/reports / /api/stats"]
+    end
+
+    subgraph db["MongoDB collections"]
+        users["users"]
+        branches["branches"]
+        campaigns["campaigns"]
+        contributors["contributors"]
+        contributions["contributions"]
+        beneficiaries["beneficiaries"]
+        aid["aid_distributions"]
+        volunteers["volunteers"]
+        logs["activity_logs"]
+        stats["stats_snapshots"]
+    end
+
+    auth --> users
+    users_api --> users
+    users_api --> branches
+    branches_api --> branches
+    campaigns_api --> campaigns
+    campaigns_api --> branches
+    contributors_api --> contributors
+    contributions_api --> contributions
+    contributions_api --> campaigns
+    contributions_api --> contributors
+    donations_api -->|"map type = MONEY"| contributions
+    beneficiaries_api --> beneficiaries
+    beneficiaries_api --> campaigns
+    aid_api --> aid
+    aid_api --> beneficiaries
+    aid_api --> campaigns
+    disburse_api -->|"map type = MONEY"| aid
+    volunteers_api --> volunteers
+    volunteers_api --> users
+    logs_api --> logs
+    reports_api --> campaigns
+    reports_api --> contributions
+    reports_api --> aid
+    reports_api --> stats
+
+    classDef apiCls fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
+    classDef dbCls fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
+    classDef compat fill:#fffaf0,stroke:#c05621,stroke-width:1px;
+    class auth,users_api,branches_api,campaigns_api,contributors_api,contributions_api,beneficiaries_api,aid_api,volunteers_api,logs_api,reports_api apiCls;
+    class donations_api,disburse_api compat;
+    class users,branches,campaigns,contributors,contributions,beneficiaries,aid,volunteers,logs,stats dbCls;

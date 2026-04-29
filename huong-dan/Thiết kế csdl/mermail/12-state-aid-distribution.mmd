@@ -1,0 +1,33 @@
+stateDiagram-v2
+    [*] --> PLANNED: create plan
+
+    PLANNED --> APPROVED: approve / set approvedBy, approvedAt
+    PLANNED --> REJECTED: reject / audit log
+    PLANNED --> CANCELLED: cancel / audit log
+
+    APPROVED --> DELIVERED: deliver / set deliveredAt
+    APPROVED --> CANCELLED: cancel before delivery / audit log
+    APPROVED --> REJECTED: reject after review / audit log
+
+    DELIVERED --> COMPLETED: confirm proof / +support delta
+    DELIVERED --> CANCELLED: cancel with reason / audit log
+
+    COMPLETED --> [*]
+    REJECTED --> [*]
+    CANCELLED --> [*]
+
+    note right of COMPLETED
+      Cập nhật campaigns.summaryStats
+      totalMoneyDistributed, totalEstimatedAidValue
+      beneficiaryCount nếu là lần hỗ trợ hoàn tất đầu tiên
+    end note
+
+    note right of DELIVERED
+      Proof ảnh/giấy xác nhận nên được upload
+      trước hoặc khi chuyển sang COMPLETED
+    end note
+
+    note right of CANCELLED
+      Không xóa cứng dữ liệu đầu ra
+      để giữ audit và báo cáo lịch sử
+    end note
