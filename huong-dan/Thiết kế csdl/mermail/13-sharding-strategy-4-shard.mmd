@@ -1,5 +1,5 @@
 flowchart TB
-    db["Database logic: charity_distributed"] --> choose["Chọn shard key theo truy vấn chính"]
+    db["Logical DB: charity_distributed"] --> choose["Choose shard key by main query"]
 
     choose --> bkey["branchId hashed<br/>tốt cho branch admin, phân quyền, dashboard chi nhánh"]
     choose --> ckey["campaignId hashed<br/>tốt khi màn hình chính xoay quanh chiến dịch"]
@@ -16,11 +16,12 @@ flowchart TB
     sharded2 --> hash
     sharded3 --> hash
 
-    hash --> balancer["Balancer phân bổ chunk tương đối đều"]
-    balancer --> s1["shard01<br/>~25% chunks"]
-    balancer --> s2["shard02<br/>~25% chunks"]
-    balancer --> s3["shard03<br/>~25% chunks"]
-    balancer --> s4["shard04<br/>~25% chunks"]
+    hash --> balancer["Balancer distributes chunks"]
+    balancer --> m2["M2 centralRS"]
+    balancer --> m3["M3 shard1RS"]
+    balancer --> m4["M4 shard2RS"]
+    balancer --> m5["M5 shard3RS"]
+    balancer --> m6["M6 shard4RS"]
 
     no_shard["Không cần shard ở demo:<br/>branches, users, contributors<br/>campaigns chỉ shard khi rất lớn"]
     db --> no_shard
@@ -32,5 +33,5 @@ flowchart TB
     classDef key fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
     classDef warn fill:#fff5f5,stroke:#c53030,stroke-width:1px;
     class bkey,ckey,timekey,key,choose key;
-    class sharded1,sharded2,sharded3,hash,balancer,s1,s2,s3,s4 shard;
+    class sharded1,sharded2,sharded3,hash,balancer,m2,m3,m4,m5,m6 shard;
     class warning warn;
