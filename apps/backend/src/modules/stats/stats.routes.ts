@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler } from "../../common/http";
+import { buildAuthContext } from "../../common/validators/auth-scope";
+import { requireAuth } from "../auth/auth.middleware";
 import { createStatsService, StatsService } from "./stats.service";
 
 const campaignCodeParamsSchema = z.object({
@@ -9,11 +11,12 @@ const campaignCodeParamsSchema = z.object({
 
 export function createStatsRoutes(service: StatsService = createStatsService()): Router {
   const router = Router();
+  router.use(requireAuth);
 
   router.get(
     "/overview",
-    asyncHandler(async (_req, res) => {
-      const stats = await service.getOverview();
+    asyncHandler(async (req, res) => {
+      const stats = await service.getOverview(buildAuthContext(req));
       return res.json(stats);
     })
   );
@@ -26,7 +29,7 @@ export function createStatsRoutes(service: StatsService = createStatsService()):
         return res.status(400).json({ error: parsedParams.error.flatten() });
       }
 
-      const stats = await service.getCampaignStats(parsedParams.data.code);
+      const stats = await service.getCampaignStats(parsedParams.data.code, buildAuthContext(req));
       if (!stats) {
         return res.status(404).json({ error: "Campaign not found" });
       }

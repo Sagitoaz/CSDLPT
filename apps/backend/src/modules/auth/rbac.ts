@@ -13,6 +13,8 @@ import { UserRole } from './auth.model';
  * Granular permissions
  */
 export enum Permission {
+  BRANCH_MANAGE = 'branch:manage',
+  USER_MANAGE = 'user:manage',
   // Campaign permissions
   CAMPAIGN_CREATE = 'campaign:create',
   CAMPAIGN_READ = 'campaign:read',
@@ -53,7 +55,9 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
    * - Can approve/reject donations
    * - Can manage users
    */
-  [UserRole.ADMIN]: [
+  [UserRole.SUPER_ADMIN]: [
+    Permission.BRANCH_MANAGE,
+    Permission.USER_MANAGE,
     Permission.CAMPAIGN_CREATE,
     Permission.CAMPAIGN_READ,
     Permission.CAMPAIGN_UPDATE,
@@ -80,6 +84,22 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
    * - Can view donation and campaign stats
    * - Limited user access (list only)
    */
+  [UserRole.BRANCH_ADMIN]: [
+    Permission.USER_MANAGE,
+    Permission.CAMPAIGN_CREATE,
+    Permission.CAMPAIGN_READ,
+    Permission.CAMPAIGN_UPDATE,
+    Permission.CAMPAIGN_LIST,
+    Permission.DONATION_READ,
+    Permission.DONATION_APPROVE,
+    Permission.DONATION_REJECT,
+    Permission.DONATION_LIST_ALL,
+    Permission.STATS_READ,
+    Permission.STATS_OVERVIEW,
+    Permission.USER_LIST,
+    Permission.SYSTEM_HEALTH,
+  ],
+
   [UserRole.STAFF]: [
     Permission.CAMPAIGN_CREATE,
     Permission.CAMPAIGN_READ,
@@ -165,9 +185,10 @@ export function hasAllPermissions(role: UserRole, permissions: Permission[]): bo
  * - Donor has minimal read permissions and can create donations
  */
 export const roleHierarchy: Record<UserRole, number> = {
-  [UserRole.ADMIN]: 3,
+  [UserRole.SUPER_ADMIN]: 4,
+  [UserRole.BRANCH_ADMIN]: 3,
   [UserRole.STAFF]: 2,
-  [UserRole.DONOR]: 1,
+  [UserRole.DONOR]: 1
 };
 
 /**
@@ -180,10 +201,13 @@ export const roleHierarchy: Record<UserRole, number> = {
  */
 export function canAssignRole(assignerRole: UserRole, targetRole: UserRole): boolean {
   // Only admins can assign roles
-  if (assignerRole !== UserRole.ADMIN) {
+  if (assignerRole === UserRole.SUPER_ADMIN) {
+    return true;
+  }
+
+  if (assignerRole !== UserRole.BRANCH_ADMIN) {
     return false;
   }
 
-  // Admins can assign any role except restricting themselves
-  return true;
+  return targetRole === UserRole.STAFF || targetRole === UserRole.DONOR;
 }

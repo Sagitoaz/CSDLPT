@@ -1,5 +1,10 @@
-import { DonationStatus } from "./donation.model";
-import { DonationModel } from "./donation.model";
+import mongoose from "mongoose";
+import { BadRequestError, NotFoundError } from "../../common/errors/app-error";
+import { AuthContext, branchScopedFilter, ensureBranchScope, isSuperAdmin } from "../../common/validators/auth-scope";
+import { writeActivityLog } from "../activity-logs/activity-log.service";
+import { CampaignModel } from "../campaigns/campaign.model";
+import { DonorModel } from "../donors/donor.model";
+import { DonationModel, PaymentStatuses } from "./donation.model";
 import { CreateDonationInput, DonationListQuery, UpdateDonationInput } from "./donation.schemas";
 
 export interface PaginationMeta {
@@ -14,6 +19,8 @@ export interface PaginatedResult<T> {
   pagination: PaginationMeta;
 }
 
+export type DonationStatus = (typeof PaymentStatuses)[number];
+
 export interface DonationStatusStats {
   status: DonationStatus;
   count: number;
@@ -27,43 +34,13 @@ export interface DonationOverviewStats {
 }
 
 export interface DonationService {
-  list(query: DonationListQuery): Promise<PaginatedResult<Record<string, unknown>>>;
-  getById(id: string): Promise<Record<string, unknown> | null>;
-  create(input: CreateDonationInput): Promise<Record<string, unknown>>;
-  update(id: string, input: UpdateDonationInput): Promise<Record<string, unknown> | null>;
-  updateStatus(
-    id: string,
-    status: DonationStatus
-  ): Promise<Record<string, unknown> | null>;
-  remove(id: string): Promise<boolean>;
-  aggregateOverview(match?: Record<string, unknown>): Promise<DonationOverviewStats>;
-}
-
-function escapeRegex(pattern: string): string {
-  return pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-export function buildDonationFilter(query: DonationListQuery): Record<string, unknown> {
-  const filter: Record<string, unknown> = {};
-
-  if (query.campaignCode) {
-    filter.campaignCode = query.campaignCode;
-  }
-
-  if (query.status) {
-    filter.status = query.status;
-  }
-
-  if (query.donorEmail) {
-    filter.donorEmail = query.donorEmail.toLowerCase();
-  }
-
-  if (query.search) {
-    const regex = { $regex: escapeRegex(query.search), $options: "i" };
-    filter.$or = [{ donorName: regex }, { note: regex }];
-  }
-
-  return filter;
+  list(query: DonationListQuery, auth: AuthContext): Promise<PaginatedResult<Record<string, unknown>>>;
+  getById(id: string, auth: AuthContext): Promise<Record<string, unknown> | null>;
+  create(input: CreateDonationInput, auth: AuthContext): Promise<Record<string, unknown>>;
+  update(id: string, input: UpdateDonationInput, auth: AuthContext): Promise<Record<string, unknown> | null>;
+  updateStatus(id: string, status: DonationStatus, auth: AuthContext): Promise<Record<string, unknown> | null>;
+  remove(id: string, auth: AuthContext): Promise<boolean>;
+  aggregateOverview(match: Record<string, unknown>, auth: AuthContext): Promise<DonationOverviewStats>;
 }
 
 function buildPaginationMeta(page: number, limit: number, total: number): PaginationMeta {
@@ -86,23 +63,49 @@ function mapOverview(aggregationRows: Array<Record<string, unknown>>): DonationO
 
   const totalStats = totals[0] ?? {};
 
-  const byStatus = byStatusRows.map((row) => ({
-    status: String(row.status) as DonationStatus,
-    count: Number(row.count ?? 0),
-    totalAmount: Number(row.totalAmount ?? 0)
-  }));
-
   return {
     totalDonations: Number(totalStats.totalDonations ?? 0),
     totalAmount: Number(totalStats.totalAmount ?? 0),
-    byStatus
+    byStatus: byStatusRows.map((row) => ({
+      status: String(row.status) as DonationStatus,
+      count: Number(row.count ?? 0),
+      totalAmount: Number(row.totalAmount ?? 0)
+    }))
   };
+}
+
+function nextCampaignDelta(previous: DonationStatus, next: DonationStatus, amount: number): number {
+  if (previous !== "SUCCESS" && next === "SUCCESS") {
+    return amount;
+  }
+
+  if (previous === "SUCCESS" && next === "REFUNDED") {
+    return -amount;
+  }
+
+  return 0;
 }
 
 export function createDonationService(model: any = DonationModel): DonationService {
   return {
-    async list(query) {
-      const filter = buildDonationFilter(query);
+    async list(query, auth) {
+      const filter: Record<string, unknown> = {
+        ...branchScopedFilter(auth)
+      };
+
+      if (query.campaignId) {
+        filter.campaignId = new mongoose.Types.ObjectId(query.campaignId);
+      }
+      if (query.donorId) {
+        filter.donorId = new mongoose.Types.ObjectId(query.donorId);
+      }
+      if (query.paymentStatus) {
+        filter.paymentStatus = query.paymentStatus;
+      }
+      if (query.branchId && isSuperAdmin(auth)) {
+        filter.branchId = new mongoose.Types.ObjectId(query.branchId);
+      }
+
       const skip = (query.page - 1) * query.limit;
       const sortDirection = query.sortDir === "asc" ? 1 : -1;
       const sort = { [query.sortBy]: sortDirection };
@@ -118,31 +121,219 @@ export function createDonationService(model: any = DonationModel): DonationServi
       };
     },
 
-    async getById(id) {
-      return model.findById(id).lean();
+    async getById(id, auth) {
+      const donation = await model.findById(id).lean();
+      if (!donation) {
+        return null;
+      }
+      ensureBranchScope(auth, donation.branchId);
+      return donation;
     },
 
-    async create(input) {
-      const created = await model.create(input);
-      return created.toObject ? created.toObject() : created;
+    async create(input, auth) {
+      const campaign = await CampaignModel.findById(input.campaignId).lean();
+      if (!campaign) {
+        throw new NotFoundError("Campaign not found");
+      }
+      ensureBranchScope(auth, campaign.branchId);
+
+      const donor = await DonorModel.findById(input.donorId).lean();
+      if (!donor) {
+        throw new NotFoundError("Donor not found");
+      }
+
+      const session = await mongoose.startSession();
+      try {
+        session.startTransaction();
+
+        const createdDonation = await model.create(
+          [
+            {
+              branchId: campaign.branchId,
+              campaignId: campaign._id,
+              donorId: donor._id,
+              donorSnapshot: {
+                fullName: donor.fullName,
+                phone: donor.phone,
+                email: donor.email
+              },
+              campaignSnapshot: {
+                code: campaign.code,
+                title: campaign.title
+              },
+              amount: input.amount,
+              paymentMethod: input.paymentMethod,
+              paymentStatus: input.paymentStatus ?? "PENDING",
+              donatedAt: input.donatedAt ?? new Date(),
+              transactionCode: input.transactionCode,
+              message: input.message
+            }
+          ],
+          { session }
+        );
+
+        const donation = createdDonation[0];
+
+        if (donation.paymentStatus === "SUCCESS") {
+          await CampaignModel.findByIdAndUpdate(
+            campaign._id,
+            { $inc: { currentAmount: donation.amount } },
+            { session }
+          );
+          await DonorModel.findByIdAndUpdate(donor._id, { $inc: { totalDonated: donation.amount } }, { session });
+        }
+
+        await writeActivityLog(
+          {
+            branchId: String(campaign.branchId),
+            action: "DONATION_CREATED",
+            entityType: "donation",
+            entityId: String(donation._id),
+            description: `Donation created with status ${donation.paymentStatus}`,
+            after: donation.toObject()
+          },
+          { actorId: auth.userId, actorRole: auth.role, actorBranchId: auth.branchId },
+          session
+        );
+
+        await session.commitTransaction();
+        return donation.toObject();
+      } catch (error) {
+        await session.abortTransaction();
+        throw error;
+      } finally {
+        await session.endSession();
+      }
     },
 
-    async update(id, input) {
-      return model.findByIdAndUpdate(id, input, { new: true, runValidators: true }).lean();
+    async update(id, input, auth) {
+      const existing = await model.findById(id).lean();
+      if (!existing) {
+        return null;
+      }
+      ensureBranchScope(auth, existing.branchId);
+
+      if (existing.paymentStatus === "SUCCESS") {
+        throw new BadRequestError("Cannot modify successful donation");
+      }
+
+      const updated = await model.findByIdAndUpdate(id, input, { new: true, runValidators: true }).lean();
+      if (updated) {
+        await writeActivityLog(
+          {
+            branchId: String(updated.branchId),
+            action: "DONATION_UPDATED",
+            entityType: "donation",
+            entityId: String(updated._id),
+            before: existing,
+            after: updated
+          },
+          { actorId: auth.userId, actorRole: auth.role, actorBranchId: auth.branchId }
+        );
+      }
+      return updated;
     },
 
-    async updateStatus(id, status) {
-      return model.findByIdAndUpdate(id, { status }, { new: true, runValidators: true }).lean();
+    async updateStatus(id, status, auth) {
+      const existing = await model.findById(id).lean();
+      if (!existing) {
+        return null;
+      }
+      ensureBranchScope(auth, existing.branchId);
+
+      if (existing.paymentStatus === status) {
+        return existing;
+      }
+
+      const delta = nextCampaignDelta(existing.paymentStatus, status, existing.amount);
+
+      const session = await mongoose.startSession();
+      try {
+        session.startTransaction();
+
+        const updated = await model
+          .findByIdAndUpdate(id, { paymentStatus: status }, { new: true, runValidators: true, session })
+          .lean();
+
+        if (!updated) {
+          throw new NotFoundError("Donation not found");
+        }
+
+        if (delta !== 0) {
+          const campaign = await CampaignModel.findById(updated.campaignId).session(session);
+          if (!campaign) {
+            throw new NotFoundError("Campaign not found");
+          }
+
+          if (campaign.currentAmount + delta < 0) {
+            throw new BadRequestError("Campaign currentAmount cannot be negative");
+          }
+
+          campaign.currentAmount += delta;
+          await campaign.save({ session });
+
+          await DonorModel.findByIdAndUpdate(updated.donorId, { $inc: { totalDonated: delta } }, { session });
+        }
+
+        await writeActivityLog(
+          {
+            branchId: String(updated.branchId),
+            action: "DONATION_STATUS_UPDATED",
+            entityType: "donation",
+            entityId: String(updated._id),
+            description: `${existing.paymentStatus} -> ${status}`,
+            before: existing,
+            after: updated
+          },
+          { actorId: auth.userId, actorRole: auth.role, actorBranchId: auth.branchId },
+          session
+        );
+
+        await session.commitTransaction();
+        return updated;
+      } catch (error) {
+        await session.abortTransaction();
+        throw error;
+      } finally {
+        await session.endSession();
+      }
     },
 
-    async remove(id) {
+    async remove(id, auth) {
+      const existing = await model.findById(id).lean();
+      if (!existing) {
+        return false;
+      }
+      ensureBranchScope(auth, existing.branchId);
+
+      if (existing.paymentStatus === "SUCCESS") {
+        throw new BadRequestError("Cannot delete successful donation");
+      }
+
       const deleted = await model.findByIdAndDelete(id).lean();
+      if (deleted) {
+        await writeActivityLog(
+          {
+            branchId: String(deleted.branchId),
+            action: "DONATION_DELETED",
+            entityType: "donation",
+            entityId: String(deleted._id),
+            before: deleted
+          },
+          { actorId: auth.userId, actorRole: auth.role, actorBranchId: auth.branchId }
+        );
+      }
       return Boolean(deleted);
     },
 
-    async aggregateOverview(match = {}) {
+    async aggregateOverview(match, auth) {
+      const scopedMatch = {
+        ...match,
+        ...branchScopedFilter(auth)
+      };
+
       const rows = await model.aggregate([
-        { $match: match },
+        { $match: scopedMatch },
         {
           $facet: {
             totals: [
@@ -158,7 +349,7 @@ export function createDonationService(model: any = DonationModel): DonationServi
             byStatus: [
               {
                 $group: {
-                  _id: "$status",
+                  _id: "$paymentStatus",
                   count: { $sum: 1 },
                   totalAmount: { $sum: "$amount" }
                 }

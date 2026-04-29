@@ -1,424 +1,217 @@
-<!doctype html><html><head><meta charset="utf-8"><title>Charity Mermaid V4</title><script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs"; mermaid.initialize({startOnLoad:true});</script><style>body{font-family:Arial,sans-serif;margin:24px;line-height:1.45} .block{margin-bottom:48px} pre{white-space:pre-wrap;background:#f7f7f7;padding:12px;border-radius:8px}</style></head><body><h1>Charity MongoDB Mermaid Final V4</h1><p>Ban preview cac so do Mermaid.</p><div class="block"><h2>01. 01_erd_6_collections.mmd</h2><div class="mermaid">---
-title: ERD 6 Collections
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Charity MongoDB Architecture Preview (Updated)</title>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; line-height: 1.45; }
+    .block { margin-bottom: 40px; }
+  </style>
+</head>
+<body>
+  <h1>Charity MongoDB Architecture (Branch-Centric)</h1>
+  <p>Ban cap nhat theo mo hinh quan tri tap trung + quan tri theo chi nhanh.</p>
+
+  <div class="block">
+    <h2>01. ERD Core Collections</h2>
+    <div class="mermaid">---
+title: Charity ERD (Updated)
 ---
 erDiagram
-    USERS ||--o{ CAMPAIGNS : manages_or_creates
-    USERS ||--o{ DONATIONS : donor_or_reviewer
-    USERS ||--o{ AUDIT_LOGS : actor
-    USERS ||--o{ CAMPAIGN_REPORTS : creates_or_approves
-    CAMPAIGNS ||--o{ DONATIONS : code_to_campaignCode
-    CAMPAIGNS ||--o{ CAMPAIGN_REPORTS : has_reports
-    DONATIONS ||--o{ PAYMENT_TRANSACTIONS : has_payment_attempts
+    BRANCHES ||--o{ USERS : has_members
+    BRANCHES ||--o{ CAMPAIGNS : owns
+    BRANCHES ||--o{ DONATIONS : scopes
+    BRANCHES ||--o{ BENEFICIARIES : scopes
+    BRANCHES ||--o{ DISBURSEMENTS : scopes
+    BRANCHES ||--o{ VOLUNTEERS : scopes
+    BRANCHES ||--o{ ACTIVITY_LOGS : scopes
+
+    CAMPAIGNS ||--o{ DONATIONS : receives
+    CAMPAIGNS ||--o{ BENEFICIARIES : supports
+    CAMPAIGNS ||--o{ DISBURSEMENTS : spends
+
+    DONORS ||--o{ DONATIONS : makes
+    BENEFICIARIES ||--o{ DISBURSEMENTS : receives
+
+    USERS ||--o{ ACTIVITY_LOGS : acts
+
+    BRANCHES {
+      ObjectId _id PK
+      string code UK
+      string name
+      string type
+      string province
+      string status
+      date createdAt
+      date updatedAt
+    }
 
     USERS {
-        ObjectId _id PK
-        string username UK
-        string email UK
-        string password_hash
-        string fullName
-        string role
-        string branchCode
-        boolean isActive
-        date createdAt
-        date updatedAt
+      ObjectId _id PK
+      string email UK
+      string phone UK_sparse
+      string fullName
+      string password_hash
+      string role
+      ObjectId branchId FK
+      boolean isActive
+      date createdAt
+      date updatedAt
     }
 
     CAMPAIGNS {
-        ObjectId _id PK
-        string code UK
-        string name
-        string description
-        number targetAmount
-        boolean isActive
-        string branchCode
-        date startDate
-        date endDate
-        date createdAt
-        date updatedAt
+      ObjectId _id PK
+      ObjectId branchId FK
+      string code UK
+      string title
+      string type
+      string status
+      number targetAmount
+      number currentAmount
+      number disbursedAmount
+      object location
+      date createdAt
+      date updatedAt
+    }
+
+    DONORS {
+      ObjectId _id PK
+      ObjectId userId FK
+      string fullName
+      string phone UK_sparse
+      string email UK_sparse
+      string donorType
+      number totalDonated
+      date createdAt
+      date updatedAt
     }
 
     DONATIONS {
-        ObjectId _id PK
-        string donorName
-        string donorEmail
-        number amount
-        string campaignCode FK
-        string note
-        string status
-        date createdAt
-        date updatedAt
+      ObjectId _id PK
+      ObjectId branchId FK
+      ObjectId campaignId FK
+      ObjectId donorId FK
+      object donorSnapshot
+      object campaignSnapshot
+      number amount
+      string paymentMethod
+      string paymentStatus
+      string transactionCode UK
+      date donatedAt
+      date createdAt
+      date updatedAt
     }
 
-    PAYMENT_TRANSACTIONS {
-        ObjectId _id PK
-        ObjectId donationId FK
-        string campaignCode
-        string donorEmail
-        number amount
-        string method
-        string providerTxnId
-        string status
-        date paidAt
-        date createdAt
-        date updatedAt
+    BENEFICIARIES {
+      ObjectId _id PK
+      ObjectId branchId FK
+      ObjectId campaignId FK
+      string name
+      string type
+      object location
+      string verificationStatus
+      date createdAt
+      date updatedAt
     }
 
-    CAMPAIGN_REPORTS {
-        ObjectId _id PK
-        string campaignCode FK
-        string branchCode
-        string title
-        string reportPeriod
-        string reportStatus
-        number usedAmount
-        ObjectId createdBy
-        ObjectId approvedBy
-        date createdAt
-        date updatedAt
+    DISBURSEMENTS {
+      ObjectId _id PK
+      ObjectId branchId FK
+      ObjectId campaignId FK
+      ObjectId beneficiaryId FK
+      number amount
+      string status
+      object proofs
+      date disbursedAt
+      date createdAt
+      date updatedAt
     }
 
-    AUDIT_LOGS {
-        ObjectId _id PK
-        string requestId
-        ObjectId actorId
-        string actorEmail
-        string actorRole
-        string action
-        string resource
-        string resourceId
-        string method
-        string endpoint
-        number statusCode
-        boolean success
-        number durationMs
-        date createdAt
+    VOLUNTEERS {
+      ObjectId _id PK
+      ObjectId branchId FK
+      string fullName
+      string phone
+      string email
+      array joinedCampaignIds
+      string status
+      date createdAt
+      date updatedAt
     }
-</div></div><div class="block"><h2>02. 02_overview_by_role.mmd</h2><div class="mermaid">---
-title: Overview Collections by Role
----
-flowchart LR
-    SA["System Admin"]
-    BA["Branch Admin"]
-    ST["Staff"]
-    DO["Donor"]
 
-    USERS["users<br/>tai khoan, username, role, branchCode"]
-    CAM["campaigns<br/>du lieu nen, doc nhieu"]
-    DON["donations<br/>giao dich trung tam"]
-    PAY["payment_transactions<br/>thanh toan / doi soat"]
-    REP["campaign_reports<br/>bao cao tien do, minh chung"]
-    AUD["audit_logs<br/>nhat ky truy vet"]
+    ACTIVITY_LOGS {
+      ObjectId _id PK
+      ObjectId branchId FK
+      ObjectId actorId FK
+      string actorRole
+      string action
+      string entityType
+      string entityId
+      object before
+      object after
+      date createdAt
+    }
+</div>
+  </div>
 
-    SA --> USERS
-    SA --> CAM
-    SA --> DON
-    SA --> PAY
-    SA --> REP
-    SA --> AUD
-
-    BA --> CAM
-    BA --> DON
-    BA --> PAY
-    BA --> REP
-    BA -. theo branchCode .-> USERS
-
-    ST --> CAM
-    ST --> DON
-    ST --> PAY
-    ST --> REP
-
-    DO --> CAM
-    DO --> DON
-    DO -. xem han che .-> PAY
-    DO -. xem public .-> REP
-</div></div><div class="block"><h2>03. 03_rbac_two_admins.mmd</h2><div class="mermaid">---
-title: RBAC Two Admin Types
+  <div class="block">
+    <h2>02. RBAC + Branch Scope</h2>
+    <div class="mermaid">---
+title: RBAC and Branch Scope
 ---
 flowchart TB
-    SA["system_admin<br/>toan he thong"]
-    BA["branch_admin<br/>theo branchCode"]
-    ST["staff<br/>theo phan cong"]
-    DO["donor"]
+    SA["SUPER_ADMIN"]
+    BA["BRANCH_ADMIN"]
+    ST["STAFF"]
+    DO["DONOR"]
 
-    subgraph FUNCS["Chuc nang"]
-        F1["Quan ly user"]
-        F2["Quan ly campaign"]
-        F3["Duyet donation"]
-        F4["Quan ly payment"]
-        F5["Quan ly report"]
-        F6["Xem thong ke"]
-        F7["Health/system"]
-    end
+    G["Global scope\n(all branches)"]
+    B["Branch scope\n(branchId = currentUser.branchId)"]
+    P["Public/own scope"]
 
-    SA --> F1
-    SA --> F2
-    SA --> F3
-    SA --> F4
-    SA --> F5
-    SA --> F6
-    SA --> F7
+    SA --> G
+    BA --> B
+    ST --> B
+    DO --> P
 
-    BA -. chi nhanh duoc phan cong .-> F2
-    BA -. chi nhanh duoc phan cong .-> F3
-    BA -. chi nhanh duoc phan cong .-> F4
-    BA -. chi nhanh duoc phan cong .-> F5
-    BA -. chi nhanh duoc phan cong .-> F6
-    BA -. gioi han .-> F7
+    G --> R1["Manage branches/users/campaigns/reports"]
+    B --> R2["Manage branch campaigns/beneficiaries/volunteers/disbursements"]
+    P --> R3["View active campaigns + own donations"]
+</div>
+  </div>
 
-    ST -. neu duoc phan quyen .-> F2
-    ST -. doi soat / cap nhat .-> F4
-    ST -. lap / cap nhat .-> F5
-    ST -. theo phan cong .-> F6
-
-    DO -. tao donation .-> F3
-    DO -. xem han che / public .-> F6
-</div></div><div class="block"><h2>04. 04_replica_set_3_nodes.mmd</h2><div class="mermaid">---
-title: Replica Set 3 Nodes
----
-flowchart TB
-    API["Backend API<br/>replicaSet=rsCharity"]
-
-    subgraph RS["MongoDB Replica Set rsCharity"]
-        P[("mongo1<br/>PRIMARY")]
-        S1[("mongo2<br/>SECONDARY")]
-        S2[("mongo3<br/>SECONDARY")]
-    end
-
-    API -->|write / primary read| P
-    P -->|oplog replication| S1
-    P -->|oplog replication| S2
-
-    P -. neu loi .-> E["Election"]
-    E -. bau primary moi .-> S1
-    E -. bau primary moi .-> S2
-</div></div><div class="block"><h2>05. 05_sharded_cluster_6_machines_5_data_servers_4_shards.mmd</h2><div class="mermaid">---
-title: Sharded Cluster 6 Machines 5 Data Servers 4 Shards
----
-flowchart TB
-    subgraph M1["May 1 - Dieu phoi"]
-        FE["Frontend"]
-        BE["Backend API"]
-        QA["QA / Test"]
-        MONGOS["mongos<br/>query router"]
-        FE --> BE --> MONGOS
-        QA -.-> BE
-    end
-
-    subgraph DC["Cum du lieu 5 server"]
-        CENTER[("Server du lieu trung tam<br/>users, campaigns, audit_logs<br/>bao cao tong hop / master data")]
-        SH1[("Server chi nhanh 1<br/>Shard 1<br/>donations / payments / reports CN1")]
-        SH2[("Server chi nhanh 2<br/>Shard 2<br/>donations / payments / reports CN2")]
-        SH3[("Server chi nhanh 3<br/>Shard 3<br/>donations / payments / reports CN3")]
-        SH4[("Server chi nhanh 4<br/>Shard 4<br/>donations / payments / reports CN4")]
-    end
-
-    MONGOS --> CENTER
-    MONGOS --> SH1
-    MONGOS --> SH2
-    MONGOS --> SH3
-    MONGOS --> SH4
-
-    CENTER -->|master data: campaign, user, branch| SH1
-    CENTER -->|master data: campaign, user, branch| SH2
-    CENTER -->|master data: campaign, user, branch| SH3
-    CENTER -->|master data: campaign, user, branch| SH4
-
-    SH1 -->|dong bo tong hop / audit / report ve trung tam| CENTER
-    SH2 -->|dong bo tong hop / audit / report ve trung tam| CENTER
-    SH3 -->|dong bo tong hop / audit / report ve trung tam| CENTER
-    SH4 -->|dong bo tong hop / audit / report ve trung tam| CENTER
-
-    NOTE["Tong cong: 6 may<br/>1 may dieu phoi + 5 server du lieu<br/>4 shard chi nhanh + 1 server trung tam"]
-    NOTE -.-> DC
-</div></div><div class="block"><h2>06. 06_central_sync_relationships.mmd</h2><div class="mermaid">---
-title: Branch Shards Sync with Central Server
----
-flowchart LR
-    CENTER["Server trung tam<br/>users, campaigns, audit_logs<br/>bao cao tong hop"]
-
-    subgraph B1["Chi nhanh 1 / Shard 1"]
-        D1["donations CN1"]
-        P1["payment_transactions CN1"]
-        R1["campaign_reports CN1"]
-    end
-
-    subgraph B2["Chi nhanh 2 / Shard 2"]
-        D2["donations CN2"]
-        P2["payment_transactions CN2"]
-        R2["campaign_reports CN2"]
-    end
-
-    subgraph B3["Chi nhanh 3 / Shard 3"]
-        D3["donations CN3"]
-        P3["payment_transactions CN3"]
-        R3["campaign_reports CN3"]
-    end
-
-    subgraph B4["Chi nhanh 4 / Shard 4"]
-        D4["donations CN4"]
-        P4["payment_transactions CN4"]
-        R4["campaign_reports CN4"]
-    end
-
-    CENTER -->|campaignCode, branchCode, user scope| D1
-    CENTER -->|campaignCode, branchCode, user scope| D2
-    CENTER -->|campaignCode, branchCode, user scope| D3
-    CENTER -->|campaignCode, branchCode, user scope| D4
-
-    D1 -->|tong hop donation / status| CENTER
-    P1 -->|doi soat payment| CENTER
-    R1 -->|bao cao tien do| CENTER
-
-    D2 -->|tong hop donation / status| CENTER
-    P2 -->|doi soat payment| CENTER
-    R2 -->|bao cao tien do| CENTER
-
-    D3 -->|tong hop donation / status| CENTER
-    P3 -->|doi soat payment| CENTER
-    R3 -->|bao cao tien do| CENTER
-
-    D4 -->|tong hop donation / status| CENTER
-    P4 -->|doi soat payment| CENTER
-    R4 -->|bao cao tien do| CENTER
-</div></div><div class="block"><h2>07. 07_sequence_create_donation_with_sync.mmd</h2><div class="mermaid">---
-title: Sequence Create Donation with Central Sync
+  <div class="block">
+    <h2>03. Money Consistency Flow</h2>
+    <div class="mermaid">---
+title: Donation and Disbursement Consistency
 ---
 sequenceDiagram
     autonumber
-    actor Donor
-    participant FE as Frontend
     participant API as Backend API
-    participant CORE as Central Service
-    participant CDB as Central Server
-    participant SH as Branch Shard
-    participant SYNC as Sync Worker
+    participant DB as MongoDB Replica Set
+    participant LOG as activity_logs
 
-    Donor->>FE: Nhap form quyen gop
-    FE->>API: POST /api/donations
-    API->>CORE: Validate donor, amount, campaignCode, branchCode
-    CORE->>CDB: Kiem tra campaign, user, branch hop le
-    CDB-->>CORE: Master data hop le
-    CORE->>SH: Insert donation status = pending
-    SH-->>CORE: Donation created
-    CORE->>SYNC: Tao job dong bo ve trung tam
-    SYNC->>CDB: Ghi tong hop / audit / bao cao trung tam
-    CDB-->>SYNC: Success
-    CORE-->>API: Created
-    API-->>FE: 201 Created
-</div></div><div class="block"><h2>08. 08_sequence_payment_and_sync.mmd</h2><div class="mermaid">---
-title: Sequence Payment Transaction and Sync
----
-sequenceDiagram
-    autonumber
-    actor Donor
-    participant FE as Frontend
-    participant API as Backend API
-    participant PAY as Payment Service
-    participant SH as Branch Shard
-    participant SYNC as Sync Worker
-    participant CDB as Central Server
+    Note over API,DB: Donation status update (PENDING -> SUCCESS)
+    API->>DB: Start transaction
+    API->>DB: Update donations.paymentStatus
+    API->>DB: Inc campaigns.currentAmount (idempotent rule)
+    API->>DB: Inc donors.totalDonated
+    API->>LOG: Insert DONATION_STATUS_UPDATED
+    API->>DB: Commit
 
-    Donor->>FE: Chon phuong thuc thanh toan
-    FE->>API: POST /api/payment-transactions
-    API->>PAY: Tao payment transaction pending
-    PAY->>SH: insert payment_transactions
-    SH-->>PAY: pending created
-    PAY-->>API: pending
-    API-->>FE: Cho callback / doi soat
-
-    FE->>API: Callback success / failed
-    API->>PAY: Cap nhat trang thai payment
-    PAY->>SH: update payment_transactions.status
-    SH-->>PAY: updated
-    PAY->>SYNC: Day du lieu doi soat ve trung tam
-    SYNC->>CDB: Update report tong hop / audit
-    CDB-->>SYNC: Success
-</div></div><div class="block"><h2>09. 09_sequence_approve_donation_with_sync.mmd</h2><div class="mermaid">---
-title: Sequence Approve Donation with Central Sync
----
-sequenceDiagram
-    autonumber
-    actor Staff as Staff / Branch Admin / System Admin
-    participant FE as Frontend Admin
-    participant API as Backend API
-    participant RBAC as JWT + RBAC
-    participant SH as Branch Shard
-    participant SYNC as Sync Worker
-    participant CDB as Central Server
-
-    Staff->>FE: Chon verified hoac rejected
-    FE->>API: PATCH /api/donations/:id/status
-    API->>RBAC: Kiem tra role va branchCode
-    RBAC-->>API: Cho phep
-    API->>SH: Update donation status
-    SH-->>API: Updated
-    API->>SYNC: Dong bo thay doi len trung tam
-    SYNC->>CDB: Cap nhat bao cao tong hop / audit / monitoring
-    CDB-->>SYNC: Success
-    API-->>FE: 200 OK
-</div></div><div class="block"><h2>10. 10_index_use_cases.mmd</h2><div class="mermaid">---
-title: Index Use Cases
----
-flowchart TB
-    subgraph USERS["users"]
-        U1["{ username: 1 } unique"]
-        U2["{ email: 1 } unique"]
-        U3["{ role: 1, branchCode: 1 }"]
-    end
-
-    subgraph CAMPAIGNS["campaigns"]
-        C1["{ code: 1 } unique"]
-        C2["{ isActive: 1, createdAt: -1 }"]
-        C3["{ name: text, code: text }"]
-        C4["{ branchCode: 1, createdAt: -1 }"]
-    end
-
-    subgraph DONATIONS["donations"]
-        D1["{ campaignCode: 1, createdAt: -1 }"]
-        D2["{ status: 1, createdAt: -1 }"]
-        D3["{ donorEmail: 1, createdAt: -1 }"]
-        D4["{ amount: -1 }"]
-    end
-
-    subgraph PAYS["payment_transactions"]
-        P1["{ donationId: 1, createdAt: -1 }"]
-        P2["{ campaignCode: 1, createdAt: -1 }"]
-        P3["{ status: 1, createdAt: -1 }"]
-        P4["{ providerTxnId: 1 } sparse"]
-    end
-
-    subgraph REPS["campaign_reports"]
-        R1["{ campaignCode: 1, reportPeriod: -1 }"]
-        R2["{ branchCode: 1, reportPeriod: -1 }"]
-        R3["{ reportStatus: 1, createdAt: -1 }"]
-    end
-
-    subgraph AUDS["audit_logs"]
-        A1["{ requestId: 1 }"]
-        A2["{ actorId: 1, createdAt: -1 }"]
-        A3["{ resource: 1, resourceId: 1 }"]
-        A4["{ createdAt: -1 }"]
-    end
-</div></div><div class="block"><h2>11. 11_integrity_and_sync_rules.mmd</h2><div class="mermaid">---
-title: Integrity and Sync Rules
----
-flowchart TD
-    R1["username unique"] --> C1["users.username unique index"]
-    R2["campaign code unique"] --> C2["campaigns.code unique index"]
-    R3["donation phai thuoc campaign hop le"] --> C3["Backend validate campaignCode"]
-    R4["payment phai gan voi donation hop le"] --> C4["Backend validate donationId"]
-    R5["report phai dung campaign / branch"] --> C5["Backend validate campaignCode + branchCode"]
-    R6["branch admin chi xem / sua du lieu chi nhanh"] --> C6["RBAC theo branchCode"]
-    R7["du lieu phat sinh tai shard phai dong bo ve trung tam"] --> C7["Sync worker / event bus / batch job"]
-</div></div><div class="block"><h2>12. 12_sync_pipeline_branch_to_center.mmd</h2><div class="mermaid">---
-title: Sync Pipeline Branch to Center
----
-flowchart LR
-    SHARD["Branch shard<br/>donations / payments / reports"] --> EVT["Outbox / event log<br/>create / update / approve"]
-    EVT --> WORKER["Sync worker"]
-    WORKER --> CENTER["Central server<br/>master data / audit / aggregated report"]
-    CENTER --> API["Dashboard / reporting API"]
-
-    NOTE["Ghi chu:<br/>dong bo ve trung tam la dong bo nghiep vu / tong hop,<br/>khong phai shard tu replicate truc tiep thanh 1 replica set chung."]
-    NOTE -.-> WORKER
-</div></div></body></html>
+    Note over API,DB: Disbursement COMPLETED
+    API->>DB: Start transaction
+    API->>DB: Compute availableAmount
+    API->>DB: Reject if amount > availableAmount
+    API->>DB: Update disbursement status COMPLETED
+    API->>DB: Inc campaigns.disbursedAmount
+    API->>LOG: Insert DISBURSEMENT_COMPLETED
+    API->>DB: Commit
+</div>
+  </div>
+</body>
+</html>

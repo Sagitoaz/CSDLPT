@@ -7,8 +7,15 @@ import { createDonationRoutes } from "../modules/donations/donation.routes";
 import { createDonationService, DonationService } from "../modules/donations/donation.service";
 import { createStatsRoutes } from "../modules/stats/stats.routes";
 import { createStatsService, StatsService } from "../modules/stats/stats.service";
+import { createDonorRoutes } from "../modules/donors/donor.routes";
+import { createBeneficiaryRoutes } from "../modules/beneficiaries/beneficiary.routes";
+import { createDisbursementRoutes } from "../modules/disbursements/disbursement.routes";
+import { createVolunteerRoutes } from "../modules/volunteers/volunteer.routes";
+import { createActivityLogRoutes } from "../modules/activity-logs/activity-log.routes";
+import { createBranchRoutes } from "../modules/branches/branch.routes";
 import authRoutes from "../modules/auth";
 import healthRoutes from "../modules/health/health.routes";
+import { auditLogMiddleware } from "../modules/audit/audit-logger";
 
 export interface AppServices {
   donationService?: DonationService;
@@ -24,6 +31,7 @@ export function createApp(services: AppServices = {}): express.Express {
 
   const app = express();
   applySecurity(app);
+  app.use(auditLogMiddleware);
 
   // Health check routes (public)
   app.use("/health", healthRoutes);
@@ -42,6 +50,12 @@ export function createApp(services: AppServices = {}): express.Express {
   app.use("/api/donations", createDonationRoutes(donationService));
   app.use("/api/campaigns", createCampaignRoutes(campaignService));
   app.use("/api/stats", createStatsRoutes(statsService));
+  app.use("/api/donors", createDonorRoutes());
+  app.use("/api/beneficiaries", createBeneficiaryRoutes());
+  app.use("/api/disbursements", createDisbursementRoutes());
+  app.use("/api/volunteers", createVolunteerRoutes());
+  app.use("/api/activity-logs", createActivityLogRoutes());
+  app.use("/api/branches", createBranchRoutes());
 
   registerErrorHandler(app);
   return app;

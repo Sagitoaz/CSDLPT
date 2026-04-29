@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { asyncHandler } from "../../common/http";
+import { buildAuthContext } from "../../common/validators/auth-scope";
+import { requireAuth } from "../auth/auth.middleware";
 import {
   campaignCodeParamsSchema,
   createCampaignSchema,
@@ -10,6 +12,7 @@ import { CampaignService, createCampaignService } from "./campaign.service";
 
 export function createCampaignRoutes(service: CampaignService = createCampaignService()): Router {
   const router = Router();
+  router.use(requireAuth);
 
   router.get(
     "/",
@@ -19,7 +22,7 @@ export function createCampaignRoutes(service: CampaignService = createCampaignSe
         return res.status(400).json({ error: parsed.error.flatten() });
       }
 
-      const result = await service.list(parsed.data);
+      const result = await service.list(parsed.data, buildAuthContext(req));
       return res.json(result);
     })
   );
@@ -32,7 +35,7 @@ export function createCampaignRoutes(service: CampaignService = createCampaignSe
         return res.status(400).json({ error: parsedParams.error.flatten() });
       }
 
-      const campaign = await service.getByCode(parsedParams.data.code);
+      const campaign = await service.getByCode(parsedParams.data.code, buildAuthContext(req));
       if (!campaign) {
         return res.status(404).json({ error: "Campaign not found" });
       }
@@ -49,7 +52,7 @@ export function createCampaignRoutes(service: CampaignService = createCampaignSe
         return res.status(400).json({ error: parsed.error.flatten() });
       }
 
-      const created = await service.create(parsed.data);
+      const created = await service.create(parsed.data, buildAuthContext(req));
       return res.status(201).json(created);
     })
   );
@@ -67,7 +70,11 @@ export function createCampaignRoutes(service: CampaignService = createCampaignSe
         return res.status(400).json({ error: parsedBody.error.flatten() });
       }
 
-      const updated = await service.updateByCode(parsedParams.data.code, parsedBody.data);
+      const updated = await service.updateByCode(
+        parsedParams.data.code,
+        parsedBody.data,
+        buildAuthContext(req)
+      );
       if (!updated) {
         return res.status(404).json({ error: "Campaign not found" });
       }
@@ -84,7 +91,7 @@ export function createCampaignRoutes(service: CampaignService = createCampaignSe
         return res.status(400).json({ error: parsedParams.error.flatten() });
       }
 
-      const removed = await service.removeByCode(parsedParams.data.code);
+      const removed = await service.removeByCode(parsedParams.data.code, buildAuthContext(req));
       if (!removed) {
         return res.status(404).json({ error: "Campaign not found" });
       }

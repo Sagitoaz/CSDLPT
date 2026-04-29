@@ -10,6 +10,7 @@ export interface JWTPayload {
   userId: string;
   email: string;
   role: string;
+  branchId?: string;
   type: 'access' | 'refresh';
 }
 

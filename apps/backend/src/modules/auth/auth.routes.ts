@@ -18,7 +18,10 @@ const registerSchema = z.object({
   email: z.string().email('Invalid email'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   fullName: z.string().min(2, 'Full name required'),
-  role: z.enum([UserRole.ADMIN, UserRole.STAFF, UserRole.DONOR]).optional(),
+  role: z
+    .enum([UserRole.SUPER_ADMIN, UserRole.BRANCH_ADMIN, UserRole.STAFF, UserRole.DONOR])
+    .optional(),
+  branchId: z.string().trim().optional(),
 });
 
 const loginSchema = z.object({
@@ -167,7 +170,7 @@ router.get('/me', requireAuth, async (req: Request, res: Response) => {
  * SECURITY-06: Least-privilege, admin only
  * SECURITY-08: Role-based access control
  */
-router.get('/users', requireAuth, requireRole([UserRole.ADMIN]), async (req: Request, res: Response) => {
+router.get('/users', requireAuth, requireRole([UserRole.SUPER_ADMIN, UserRole.BRANCH_ADMIN]), async (req: Request, res: Response) => {
   try {
     const users = await listUsers();
     res.status(200).json({

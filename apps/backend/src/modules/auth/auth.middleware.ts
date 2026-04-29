@@ -43,6 +43,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       req.user = {
         ...decoded,
         id: decoded.userId,
+        branchId: decoded.branchId
       };
       next();
     } catch (error) {
@@ -121,7 +122,7 @@ export function requireOwner(req: Request, res: Response, next: NextFunction): v
   const { userId } = req.params;
 
   // Allow admins to access any resource
-  if (req.user.role === UserRole.ADMIN) {
+  if (req.user.role === UserRole.SUPER_ADMIN) {
     next();
     return;
   }

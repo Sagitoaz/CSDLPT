@@ -13,6 +13,7 @@ export interface RegisterRequest {
   email: string;
   password: string;
   fullName: string;
+  branchId?: string;
   role?: UserRole;
 }
 
@@ -40,7 +41,7 @@ export interface AuthResponse {
  * @throws Error if email exists or validation fails
  */
 export async function registerUser(data: RegisterRequest): Promise<AuthResponse> {
-  const { email, password, fullName, role = UserRole.DONOR } = data;
+  const { email, password, fullName, branchId, role = UserRole.DONOR } = data;
 
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -68,6 +69,7 @@ export async function registerUser(data: RegisterRequest): Promise<AuthResponse>
     email,
     password: hashedPassword,
     fullName,
+    branchId,
     role,
     isActive: true,
   });
@@ -77,6 +79,7 @@ export async function registerUser(data: RegisterRequest): Promise<AuthResponse>
     userId: user._id?.toString(),
     email: user.email,
     role: user.role,
+    branchId: user.branchId?.toString()
   });
 
   return {
@@ -121,6 +124,7 @@ export async function loginUser(data: LoginRequest): Promise<AuthResponse> {
     userId: user._id?.toString(),
     email: user.email,
     role: user.role,
+    branchId: user.branchId?.toString()
   });
 
   return {
@@ -156,6 +160,7 @@ export async function refreshAccessToken(userId: string): Promise<{ accessToken:
     userId: user._id?.toString(),
     email: user.email,
     role: user.role,
+    branchId: user.branchId?.toString()
   });
 
   return {
@@ -174,7 +179,7 @@ export async function createAdminUser(email: string, password: string, fullName:
     email,
     password: hashedPassword,
     fullName,
-    role: UserRole.ADMIN,
+    role: UserRole.SUPER_ADMIN,
     isActive: true,
   });
 }

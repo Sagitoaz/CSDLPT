@@ -1,49 +1,56 @@
 import { z } from "zod";
 
-const donationStatus = z.enum(["pending", "verified", "rejected"]);
+const objectId = z.string().trim().regex(/^[a-f\d]{24}$/i, "Invalid ObjectId");
+const paymentStatus = z.enum(["PENDING", "SUCCESS", "FAILED", "REFUNDED"]);
 
 export const createDonationSchema = z.object({
-  donorName: z.string().trim().min(2).max(100),
-  donorEmail: z.string().trim().email().max(200),
-  amount: z.coerce.number().int().min(1000).max(500000000),
-  campaignCode: z.string().trim().min(2).max(50),
-  note: z.string().trim().max(1000).optional()
+  campaignId: objectId,
+  donorId: objectId,
+  amount: z.coerce.number().min(1).max(5000000000),
+  paymentMethod: z.string().trim().min(2).max(40),
+  paymentStatus: paymentStatus.optional(),
+  message: z.string().trim().max(1000).optional(),
+  transactionCode: z.string().trim().min(3).max(100),
+  donatedAt: z.coerce.date().optional()
 });
 
-export const updateDonationSchema = createDonationSchema
-  .partial()
-  .extend({ status: donationStatus.optional() })
+export const updateDonationSchema = z
+  .object({
+    message: z.string().trim().max(1000).optional(),
+    paymentMethod: z.string().trim().min(2).max(40).optional()
+  })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field is required"
   });
 
 export const updateDonationStatusSchema = z.object({
-  status: donationStatus
+  paymentStatus: paymentStatus,
+  note: z.string().trim().max(500).optional()
 });
 
 export const donationIdParamsSchema = z.object({
-  id: z.string().trim().min(1)
+  id: objectId
 });
 
 export const listDonationQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).optional(),
     limit: z.coerce.number().int().min(1).max(100).optional(),
-    campaignCode: z.string().trim().min(1).max(50).optional(),
-    status: donationStatus.optional(),
-    donorEmail: z.string().trim().email().max(200).optional(),
-    search: z.string().trim().min(1).max(100).optional(),
-    sortBy: z.enum(["createdAt", "amount"]).optional(),
+    campaignId: objectId.optional(),
+    donorId: objectId.optional(),
+    paymentStatus: paymentStatus.optional(),
+    branchId: objectId.optional(),
+    sortBy: z.enum(["createdAt", "amount", "donatedAt"]).optional(),
     sortDir: z.enum(["asc", "desc"]).optional()
   })
   .transform((value) => ({
     page: value.page ?? 1,
     limit: value.limit ?? 10,
-    campaignCode: value.campaignCode,
-    status: value.status,
-    donorEmail: value.donorEmail,
-    search: value.search,
-    sortBy: value.sortBy ?? "createdAt",
+    campaignId: value.campaignId,
+    donorId: value.donorId,
+    paymentStatus: value.paymentStatus,
+    branchId: value.branchId,
+    sortBy: value.sortBy ?? "donatedAt",
     sortDir: value.sortDir ?? "desc"
   }));
 

@@ -4,6 +4,7 @@ import {
   DonationOverviewStats,
   DonationService
 } from "../donations/donation.service";
+import { AuthContext } from "../../common/validators/auth-scope";
 
 export interface OverviewStats {
   donations: DonationOverviewStats;
@@ -22,8 +23,8 @@ export interface CampaignStats {
 }
 
 export interface StatsService {
-  getOverview(): Promise<OverviewStats>;
-  getCampaignStats(code: string): Promise<CampaignStats | null>;
+  getOverview(auth: AuthContext): Promise<OverviewStats>;
+  getCampaignStats(code: string, auth: AuthContext): Promise<CampaignStats | null>;
 }
 
 export function createStatsService(deps?: {
@@ -34,10 +35,10 @@ export function createStatsService(deps?: {
   const campaignService = deps?.campaignService ?? createCampaignService();
 
   return {
-    async getOverview() {
+    async getOverview(auth) {
       const [donations, campaigns] = await Promise.all([
-        donationService.aggregateOverview(),
-        campaignService.getSummary()
+        donationService.aggregateOverview({}, auth),
+        campaignService.getSummary(auth)
       ]);
 
       return {
@@ -47,13 +48,16 @@ export function createStatsService(deps?: {
       };
     },
 
-    async getCampaignStats(code) {
-      const campaign = await campaignService.getByCode(code);
+    async getCampaignStats(code, auth) {
+      const campaign = await campaignService.getByCode(code, auth);
       if (!campaign) {
         return null;
       }
 
-      const donations = await donationService.aggregateOverview({ campaignCode: code });
+      const donations = await donationService.aggregateOverview(
+        { "campaignSnapshot.code": code },
+        auth
+      );
 
       return {
         campaign,

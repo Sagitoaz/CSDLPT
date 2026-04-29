@@ -131,8 +131,8 @@ npm --prefix apps/backend run dev
 Chạy frontend:
 
 ```powershell
-npm --prefix fe install
-npm --prefix fe run dev
+npm --prefix apps/frontend install
+npm --prefix apps/frontend run dev
 ```
 
 Kiểm tra QA:
@@ -646,3 +646,5 @@ Nếu nhóm muốn mô phỏng truy vấn trung tâm, có thể làm ở Máy 1 
 - [ ] Truy vấn demo được thực hiện từ máy 1
 - [ ] Dữ liệu được phân mảnh theo `campaignCode`
 - [ ] Kịch bản phù hợp mô hình controller + replica set trung tâm + 4 replica set shard
+
+
