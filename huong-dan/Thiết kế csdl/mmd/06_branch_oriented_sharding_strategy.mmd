@@ -1,0 +1,25 @@
+flowchart LR
+    QUERY["Truy van co branchCode<br/>VD: branch_admin CN2 xem donations"]
+    KEY["Shard key khuyen nghi cho mo hinh chi nhanh<br/>{ branchCode: 1, campaignCode: hashed }"]
+    ZONE["Zone sharding<br/>CN1 -> Shard 1<br/>CN2 -> Shard 2<br/>CN3 -> Shard 3<br/>CN4 -> Shard 4"]
+
+    QUERY --> KEY --> ZONE
+
+    subgraph SHARDS["4 manh du lieu chi nhanh"]
+        S1[("Shard 1<br/>CN1")]
+        S2[("Shard 2<br/>CN2")]
+        S3[("Shard 3<br/>CN3")]
+        S4[("Shard 4<br/>CN4")]
+    end
+
+    ZONE --> S1
+    ZONE --> S2
+    ZONE --> S3
+    ZONE --> S4
+
+    C1["campaigns.branchCode"] --> D1["donations.branchCode<br/>nen denormalize de route nhanh"]
+    D1 --> P1["payment_transactions.branchCode"]
+    D1 --> R1["campaign_reports.branchCode"]
+
+    WARN["Neu chi dung { campaignCode: hashed }:<br/>phan phoi deu theo campaign,<br/>nhung khong dam bao moi branch nam dung shard rieng."]
+    WARN -.-> KEY

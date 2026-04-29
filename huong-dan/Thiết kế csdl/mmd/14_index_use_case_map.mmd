@@ -1,0 +1,32 @@
+flowchart TB
+    subgraph USERIDX["users"]
+        U1["username unique<br/>login / anti-duplicate"]
+        U2["email unique<br/>login / anti-duplicate"]
+        U3["role + branchCode<br/>RBAC filtering"]
+    end
+
+    subgraph CAMPIDX["campaigns"]
+        C1["code unique<br/>campaign lookup"]
+        C2["isActive + createdAt<br/>public list"]
+        C3["name text + code text<br/>search"]
+        C4["branchCode + createdAt<br/>branch admin"]
+    end
+
+    subgraph DONIDX["donations"]
+        D1["campaignCode + createdAt<br/>campaign donations"]
+        D2["status + createdAt<br/>pending review"]
+        D3["donorEmail + createdAt<br/>donor history"]
+        D4["branchCode + campaignCode hashed<br/>branch sharding option"]
+    end
+
+    subgraph PAYIDX["payment_transactions"]
+        P1["donationId + createdAt<br/>payment attempts"]
+        P2["status + createdAt<br/>reconciliation"]
+        P3["providerTxnId sparse<br/>provider lookup"]
+    end
+
+    subgraph REPORTIDX["campaign_reports"]
+        R1["campaignCode + reportPeriod<br/>campaign reports"]
+        R2["branchCode + reportPeriod<br/>branch reports"]
+        R3["reportStatus + createdAt<br/>approval queue"]
+    end

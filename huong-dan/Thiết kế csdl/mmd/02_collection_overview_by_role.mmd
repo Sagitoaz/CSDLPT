@@ -1,0 +1,50 @@
+flowchart LR
+    subgraph ROLES["Roles / Pham vi truy cap"]
+        SA["system_admin<br/>Toan he thong"]
+        BA["branch_admin<br/>Theo branchCode"]
+        ST["staff<br/>Theo phan cong"]
+        DO["donor<br/>Public / du lieu cua minh"]
+    end
+
+    subgraph COLS["7 Collections"]
+        U[("users<br/>tai khoan, role, branch")]
+        C[("campaigns<br/>chien dich")]
+        D[("donations<br/>giao dich trung tam")]
+        P[("payment_transactions<br/>doi soat thanh toan")]
+        R[("campaign_reports<br/>bao cao minh bach")]
+        A[("audit_logs<br/>truy vet thao tac")]
+        S[("stats_snapshots<br/>dashboard nhanh")]
+    end
+
+    SA -->|RW all| U
+    SA -->|RW all| C
+    SA -->|RW all| D
+    SA -->|RW all| P
+    SA -->|RW all| R
+    SA -->|R audit| A
+    SA -->|R dashboard| S
+
+    BA -->|RW branch users limited| U
+    BA -->|RW branch| C
+    BA -->|R/approve branch| D
+    BA -->|R/reconcile branch| P
+    BA -->|RW branch| R
+    BA -->|R branch| S
+
+    ST -->|R assigned| C
+    ST -->|verify/reject assigned| D
+    ST -->|reconcile| P
+    ST -->|create/update report| R
+    ST -->|R assigned stats| S
+
+    DO -->|R public| C
+    DO -->|create / own email| D
+    DO -->|own payment status| P
+    DO -->|R public report| R
+
+    classDef central fill:#eef,stroke:#447,stroke-width:1px;
+    classDef transaction fill:#efe,stroke:#484,stroke-width:1px;
+    classDef admin fill:#fff4dd,stroke:#a66,stroke-width:1px;
+    class U,C,S,A central;
+    class D,P,R transaction;
+    class SA,BA,ST,DO admin;

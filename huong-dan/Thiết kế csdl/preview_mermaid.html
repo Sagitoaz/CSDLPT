@@ -1,41 +1,32 @@
 <!doctype html>
-<html lang="vi">
+<html lang='vi'>
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Mermaid diagrams - Charity MongoDB</title>
-<style>
-body{font-family:Arial,Helvetica,sans-serif;margin:32px;line-height:1.45;background:#fafafa;color:#222}
-h1{margin-bottom:8px} h2{margin-top:36px;border-top:1px solid #ddd;padding-top:20px}
-.card{background:#fff;border:1px solid #ddd;border-radius:12px;padding:18px;margin:18px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-.mermaid{background:#fff}
-code{background:#f3f3f3;padding:2px 4px;border-radius:4px}
-</style>
-<script type="module">
-import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
-</script>
-</head>
-<body>
-<h1>Mermaid diagrams - Thiết kế CSDL MongoDB charity_distributed</h1>
-<p>Mở file này bằng trình duyệt để xem nhanh sơ đồ. Nếu sơ đồ chưa hiện, hãy kiểm tra kết nối Internet vì file dùng Mermaid CDN.</p>
-<h2>1. ERD logic collections</h2>
-<div class="card">
-<pre class="mermaid">
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<title>Charity MongoDB Mermaid diagrams - final v3</title>
+<style>body{font-family:Arial, sans-serif; margin:24px; line-height:1.5;} .card{border:1px solid #ddd;border-radius:12px;padding:16px;margin:18px 0;box-shadow:0 1px 4px #ddd;} h1{margin-bottom:0;} .note{background:#fff8e1;border-left:4px solid #d69e2e;padding:10px 14px;margin:18px 0;} pre{white-space:pre-wrap;}</style>
+</head><body>
+<h1>Charity MongoDB Mermaid diagrams - final v3</h1>
+<div class='note'><b>Ghi chu:</b> File HTML nay dung Mermaid CDN. Neu mo offline khong render, hay copy code trong file .md hoac .mmd vao Mermaid Live Editor.</div>
+<div class='card'><h2>01 Erd 7 Collections</h2><pre class='mermaid'>
 erDiagram
+    USERS ||--o{ CAMPAIGNS : creates_or_manages
+    USERS ||--o{ DONATIONS : donor_or_reviewer
+    USERS ||--o{ AUDIT_LOGS : actor
+    USERS ||--o{ CAMPAIGN_REPORTS : creates_or_approves
     CAMPAIGNS ||--o{ DONATIONS : code_to_campaignCode
-    USERS ||--o{ CAMPAIGNS : future_createdBy
-    USERS ||--o{ DONATIONS : future_donorUserId
-    USERS ||--o{ DONATIONS : future_reviewedBy
-    CAMPAIGNS ||--o{ STATS_SNAPSHOTS : future_campaignCode
-    USERS ||--o{ AUDIT_LOGS : future_actorId
+    CAMPAIGNS ||--o{ CAMPAIGN_REPORTS : has_reports
+    CAMPAIGNS ||--o{ STATS_SNAPSHOTS : has_snapshots
+    DONATIONS ||--o{ PAYMENT_TRANSACTIONS : has_payment_attempts
 
     USERS {
         ObjectId _id PK
+        string username UK
         string email UK
         string password_hash
         string fullName
-        string role
+        string role &quot;system_admin|branch_admin|staff|donor&quot;
+        string branchCode &quot;required for branch roles&quot;
         boolean isActive
         date createdAt
         date updatedAt
@@ -48,6 +39,8 @@ erDiagram
         string description
         number targetAmount
         boolean isActive
+        string branchCode &quot;recommended&quot;
+        ObjectId createdBy &quot;recommended&quot;
         date startDate
         date endDate
         date createdAt
@@ -58,10 +51,45 @@ erDiagram
         ObjectId _id PK
         string donorName
         string donorEmail
+        ObjectId donorUserId &quot;optional&quot;
         number amount
         string campaignCode FK
+        string branchCode &quot;recommended for branch sharding&quot;
         string note
-        string status
+        string status &quot;pending|verified|rejected&quot;
+        ObjectId reviewedBy &quot;recommended&quot;
+        date reviewedAt &quot;recommended&quot;
+        date createdAt
+        date updatedAt
+    }
+
+    PAYMENT_TRANSACTIONS {
+        ObjectId _id PK
+        ObjectId donationId FK
+        string campaignCode
+        string branchCode &quot;recommended for branch sharding&quot;
+        string donorEmail
+        number amount
+        string method &quot;bank_transfer|cash|e_wallet&quot;
+        string providerTxnId
+        string status &quot;pending|success|failed|refunded&quot;
+        date paidAt
+        date createdAt
+        date updatedAt
+    }
+
+    CAMPAIGN_REPORTS {
+        ObjectId _id PK
+        string campaignCode FK
+        string branchCode
+        string title
+        string reportPeriod
+        string content
+        number usedAmount
+        array attachments
+        string reportStatus &quot;draft|submitted|approved|rejected&quot;
+        ObjectId createdBy
+        ObjectId approvedBy
         date createdAt
         date updatedAt
     }
@@ -69,20 +97,24 @@ erDiagram
     AUDIT_LOGS {
         ObjectId _id PK
         string requestId
-        ObjectId actorId
+        ObjectId actorId FK
         string actorEmail
         string actorRole
         string action
         string resource
         string resourceId
+        string method
+        string endpoint
         number statusCode
         boolean success
+        number durationMs
         date createdAt
     }
 
     STATS_SNAPSHOTS {
         ObjectId _id PK
-        string scope
+        string scope &quot;global|branch|campaign&quot;
+        string branchCode
         string campaignCode
         number totalDonations
         number totalAmount
@@ -91,31 +123,105 @@ erDiagram
         number rejectedCount
         date calculatedAt
     }
-</pre>
-</div>
-<h2>2. Tổng quan collection</h2>
-<div class="card">
-<pre class="mermaid">
+</pre></div>
+<div class='card'><h2>02 Collection Overview By Role</h2><pre class='mermaid'>
 flowchart LR
-    USERS[&quot;users&lt;br/&gt;Tai khoan, vai tro, trang thai&lt;br/&gt;Write: thap | Read: trung binh&quot;]
-    CAMPAIGNS[&quot;campaigns&lt;br/&gt;Chien dich quyen gop&lt;br/&gt;Write: trung binh | Read: cao&quot;]
-    DONATIONS[&quot;donations&lt;br/&gt;Giao dich trung tam&lt;br/&gt;Write: cao | Read: cao&quot;]
-    AUDIT[&quot;audit_logs&lt;br/&gt;Khuyen nghi mo rong&lt;br/&gt;Write: trung binh | Read: thap&quot;]
-    STATS[&quot;stats_snapshots&lt;br/&gt;Khuyen nghi khi du lieu lon&lt;br/&gt;Write: thap | Read: cao&quot;]
+    subgraph ROLES[&quot;Roles / Pham vi truy cap&quot;]
+        SA[&quot;system_admin&lt;br/&gt;Toan he thong&quot;]
+        BA[&quot;branch_admin&lt;br/&gt;Theo branchCode&quot;]
+        ST[&quot;staff&lt;br/&gt;Theo phan cong&quot;]
+        DO[&quot;donor&lt;br/&gt;Public / du lieu cua minh&quot;]
+    end
 
-    CAMPAIGNS --&gt;|&quot;code = campaignCode&quot;| DONATIONS
-    DONATIONS --&gt;|&quot;aggregate&quot;| STATS
-    USERS -. &quot;createdBy future&quot; .-&gt; CAMPAIGNS
-    USERS -. &quot;donorUserId / reviewedBy future&quot; .-&gt; DONATIONS
-    USERS -. &quot;actorId future&quot; .-&gt; AUDIT
-    DONATIONS -. &quot;audit / trace&quot; .-&gt; AUDIT
-</pre>
-</div>
-<h2>3. Replica Set 3 node</h2>
-<div class="card">
-<pre class="mermaid">
+    subgraph COLS[&quot;7 Collections&quot;]
+        U[(&quot;users&lt;br/&gt;tai khoan, role, branch&quot;)]
+        C[(&quot;campaigns&lt;br/&gt;chien dich&quot;)]
+        D[(&quot;donations&lt;br/&gt;giao dich trung tam&quot;)]
+        P[(&quot;payment_transactions&lt;br/&gt;doi soat thanh toan&quot;)]
+        R[(&quot;campaign_reports&lt;br/&gt;bao cao minh bach&quot;)]
+        A[(&quot;audit_logs&lt;br/&gt;truy vet thao tac&quot;)]
+        S[(&quot;stats_snapshots&lt;br/&gt;dashboard nhanh&quot;)]
+    end
+
+    SA --&gt;|RW all| U
+    SA --&gt;|RW all| C
+    SA --&gt;|RW all| D
+    SA --&gt;|RW all| P
+    SA --&gt;|RW all| R
+    SA --&gt;|R audit| A
+    SA --&gt;|R dashboard| S
+
+    BA --&gt;|RW branch users limited| U
+    BA --&gt;|RW branch| C
+    BA --&gt;|R/approve branch| D
+    BA --&gt;|R/reconcile branch| P
+    BA --&gt;|RW branch| R
+    BA --&gt;|R branch| S
+
+    ST --&gt;|R assigned| C
+    ST --&gt;|verify/reject assigned| D
+    ST --&gt;|reconcile| P
+    ST --&gt;|create/update report| R
+    ST --&gt;|R assigned stats| S
+
+    DO --&gt;|R public| C
+    DO --&gt;|create / own email| D
+    DO --&gt;|own payment status| P
+    DO --&gt;|R public report| R
+
+    classDef central fill:#eef,stroke:#447,stroke-width:1px;
+    classDef transaction fill:#efe,stroke:#484,stroke-width:1px;
+    classDef admin fill:#fff4dd,stroke:#a66,stroke-width:1px;
+    class U,C,S,A central;
+    class D,P,R transaction;
+    class SA,BA,ST,DO admin;
+</pre></div>
+<div class='card'><h2>03 Rbac Two Admin Types</h2><pre class='mermaid'>
 flowchart TB
-    API[&quot;Backend API&lt;br/&gt;connection string co replicaSet=rsCharity&quot;]
+    subgraph ADMIN[&quot;Admin roles&quot;]
+        SA[&quot;system_admin&lt;br/&gt;Quan tri toan he thong&quot;]
+        BA[&quot;branch_admin&lt;br/&gt;Quan tri trong branchCode&quot;]
+    end
+
+    subgraph ACTIONS[&quot;Nhom chuc nang&quot;]
+        USER[&quot;Quan ly users&quot;]
+        CAMP[&quot;Quan ly campaigns&quot;]
+        DON[&quot;Xem / duyet donations&quot;]
+        PAY[&quot;Quan ly payment_transactions&quot;]
+        REP[&quot;Quan ly campaign_reports&quot;]
+        STAT[&quot;Xem thong ke&quot;]
+        SYS[&quot;Health / system&quot;]
+    end
+
+    SA --&gt;|all branches| USER
+    SA --&gt;|all branches| CAMP
+    SA --&gt;|all branches| DON
+    SA --&gt;|all branches| PAY
+    SA --&gt;|all branches| REP
+    SA --&gt;|global + branch| STAT
+    SA --&gt;|full| SYS
+
+    BA --&gt;|branch users only| USER
+    BA --&gt;|branch only| CAMP
+    BA --&gt;|branch only| DON
+    BA --&gt;|branch only| PAY
+    BA --&gt;|branch only| REP
+    BA --&gt;|branch only| STAT
+    BA --&gt;|limited| SYS
+
+    STAFF[&quot;staff&quot;] --&gt;|assigned campaigns| CAMP
+    STAFF --&gt;|verify/reject if allowed| DON
+    STAFF --&gt;|reconcile| PAY
+    STAFF --&gt;|create/update| REP
+
+    DONOR[&quot;donor&quot;] --&gt;|public campaigns| CAMP
+    DONOR --&gt;|create / own email| DON
+    DONOR --&gt;|own payment status| PAY
+    DONOR --&gt;|public reports| REP
+</pre></div>
+<div class='card'><h2>04 Replica Set 3 Node</h2><pre class='mermaid'>
+flowchart TB
+    API[&quot;Backend API&lt;br/&gt;connection string: replicaSet=rsCharity&quot;]
 
     subgraph RS[&quot;MongoDB Replica Set rsCharity&quot;]
         P[(&quot;mongo1&lt;br/&gt;PRIMARY&quot;)]
@@ -123,42 +229,97 @@ flowchart TB
         S2[(&quot;mongo3&lt;br/&gt;SECONDARY&quot;)]
     end
 
-    API --&gt;|&quot;write / primary read&quot;| P
-    P --&gt;|&quot;oplog replication&quot;| S1
-    P --&gt;|&quot;oplog replication&quot;| S2
+    API --&gt;|write / primary read| P
+    P --&gt;|oplog replication| S1
+    P --&gt;|oplog replication| S2
 
     P -. &quot;PRIMARY down&quot; .-&gt; E[&quot;Election&quot;]
-    E -. &quot;mongo2 hoac mongo3 thanh PRIMARY moi&quot; .-&gt; S1
-    E -. &quot;mongo2 hoac mongo3 thanh PRIMARY moi&quot; .-&gt; S2
-</pre>
-</div>
-<h2>4. Sharded Cluster mở rộng 6 máy</h2>
-<div class="card">
-<pre class="mermaid">
+    E -. &quot;new PRIMARY&quot; .-&gt; S1
+    E -. &quot;or new PRIMARY&quot; .-&gt; S2
+</pre></div>
+<div class='card'><h2>05 Sharded Cluster 6 Machines 5 Data Servers 4 Shards</h2><pre class='mermaid'>
 flowchart TB
-    FE[&quot;Frontend&quot;] --&gt; API[&quot;Backend API&quot;]
-    API --&gt; MONGOS[&quot;mongos&lt;br/&gt;Query Router&quot;]
+    subgraph M1[&quot;May 1 - Dieu phoi / ung dung&quot;]
+        FE[&quot;Frontend&quot;]
+        BE[&quot;Backend API&quot;]
+        QA[&quot;QA / Test tools&quot;]
+        MONGOS[&quot;mongos&lt;br/&gt;query router&quot;]
+        FE --&gt; BE --&gt; MONGOS
+        QA -.-&gt; BE
+    end
 
-    MONGOS --&gt; CFG[&quot;Config Server Replica Set&lt;br/&gt;metadata, chunks, shard map&quot;]
+    subgraph DATA[&quot;Cum du lieu 5 server&quot;]
+        CENTER[(&quot;Server du lieu trung tam&lt;br/&gt;metadata/config trong lab&lt;br/&gt;du lieu dung chung&lt;br/&gt;thong ke tong&quot;)]
+        SH1[(&quot;Server chi nhanh 1&lt;br/&gt;Shard/MANH 1&quot;)]
+        SH2[(&quot;Server chi nhanh 2&lt;br/&gt;Shard/MANH 2&quot;)]
+        SH3[(&quot;Server chi nhanh 3&lt;br/&gt;Shard/MANH 3&quot;)]
+        SH4[(&quot;Server chi nhanh 4&lt;br/&gt;Shard/MANH 4&quot;)]
+    end
 
-    MONGOS --&gt; SH1[&quot;Shard 1 Replica Set&quot;]
-    MONGOS --&gt; SH2[&quot;Shard 2 Replica Set&quot;]
-    MONGOS --&gt; SH3[&quot;Shard 3 Replica Set&quot;]
-    MONGOS --&gt; SH4[&quot;Shard 4 Replica Set&quot;]
+    MONGOS --&gt;|metadata / shared / global stats| CENTER
+    MONGOS --&gt;|branchCode = CN1| SH1
+    MONGOS --&gt;|branchCode = CN2| SH2
+    MONGOS --&gt;|branchCode = CN3| SH3
+    MONGOS --&gt;|branchCode = CN4| SH4
 
-    DON[&quot;Collection shard chinh:&lt;br/&gt;charity_distributed.donations&quot;]
-    KEY[&quot;Shard key demo:&lt;br/&gt;{ campaignCode: hashed }&quot;]
-    NOTE[&quot;Ghi chu:&lt;br/&gt;Mo hinh 6 may la demo/lab.&lt;br/&gt;Production co the can nhieu node hon.&quot;]
+    NOTE1[&quot;Tong may: 6&lt;br/&gt;1 may dieu phoi + 5 server du lieu&quot;]
+    NOTE2[&quot;Tong manh nghiep vu: 4&lt;br/&gt;chi nhanh 1..4&quot;]
+    NOTE3[&quot;Server trung tam khong tinh la manh chi nhanh&quot;]
 
-    DON --&gt; KEY
-    KEY -. &quot;routes through mongos&quot; .-&gt; MONGOS
-    NOTE -.-&gt; CFG
-    NOTE -.-&gt; SH1
-</pre>
-</div>
-<h2>5. Sequence tạo donation</h2>
-<div class="card">
-<pre class="mermaid">
+    NOTE1 -.-&gt; M1
+    NOTE2 -.-&gt; SH1
+    NOTE2 -.-&gt; SH4
+    NOTE3 -.-&gt; CENTER
+</pre></div>
+<div class='card'><h2>06 Branch Oriented Sharding Strategy</h2><pre class='mermaid'>
+flowchart LR
+    QUERY[&quot;Truy van co branchCode&lt;br/&gt;VD: branch_admin CN2 xem donations&quot;]
+    KEY[&quot;Shard key khuyen nghi cho mo hinh chi nhanh&lt;br/&gt;{ branchCode: 1, campaignCode: hashed }&quot;]
+    ZONE[&quot;Zone sharding&lt;br/&gt;CN1 -&gt; Shard 1&lt;br/&gt;CN2 -&gt; Shard 2&lt;br/&gt;CN3 -&gt; Shard 3&lt;br/&gt;CN4 -&gt; Shard 4&quot;]
+
+    QUERY --&gt; KEY --&gt; ZONE
+
+    subgraph SHARDS[&quot;4 manh du lieu chi nhanh&quot;]
+        S1[(&quot;Shard 1&lt;br/&gt;CN1&quot;)]
+        S2[(&quot;Shard 2&lt;br/&gt;CN2&quot;)]
+        S3[(&quot;Shard 3&lt;br/&gt;CN3&quot;)]
+        S4[(&quot;Shard 4&lt;br/&gt;CN4&quot;)]
+    end
+
+    ZONE --&gt; S1
+    ZONE --&gt; S2
+    ZONE --&gt; S3
+    ZONE --&gt; S4
+
+    C1[&quot;campaigns.branchCode&quot;] --&gt; D1[&quot;donations.branchCode&lt;br/&gt;nen denormalize de route nhanh&quot;]
+    D1 --&gt; P1[&quot;payment_transactions.branchCode&quot;]
+    D1 --&gt; R1[&quot;campaign_reports.branchCode&quot;]
+
+    WARN[&quot;Neu chi dung { campaignCode: hashed }:&lt;br/&gt;phan phoi deu theo campaign,&lt;br/&gt;nhung khong dam bao moi branch nam dung shard rieng.&quot;]
+    WARN -.-&gt; KEY
+</pre></div>
+<div class='card'><h2>07 Data Placement 5 Servers</h2><pre class='mermaid'>
+flowchart TB
+    CENTER[(&quot;Server trung tam&lt;br/&gt;users global&lt;br/&gt;campaign master/shared&lt;br/&gt;stats global&lt;br/&gt;metadata/config lab&quot;)]
+
+    subgraph BRANCH[&quot;4 server chi nhanh / 4 manh&quot;]
+        CN1[(&quot;CN1 Shard&lt;br/&gt;donations CN1&lt;br/&gt;payments CN1&lt;br/&gt;reports CN1&quot;)]
+        CN2[(&quot;CN2 Shard&lt;br/&gt;donations CN2&lt;br/&gt;payments CN2&lt;br/&gt;reports CN2&quot;)]
+        CN3[(&quot;CN3 Shard&lt;br/&gt;donations CN3&lt;br/&gt;payments CN3&lt;br/&gt;reports CN3&quot;)]
+        CN4[(&quot;CN4 Shard&lt;br/&gt;donations CN4&lt;br/&gt;payments CN4&lt;br/&gt;reports CN4&quot;)]
+    end
+
+    CENTER --&gt;|branchCode maps data| CN1
+    CENTER --&gt;|branchCode maps data| CN2
+    CENTER --&gt;|branchCode maps data| CN3
+    CENTER --&gt;|branchCode maps data| CN4
+
+    CN1 -. aggregate verified .-&gt; CENTER
+    CN2 -. aggregate verified .-&gt; CENTER
+    CN3 -. aggregate verified .-&gt; CENTER
+    CN4 -. aggregate verified .-&gt; CENTER
+</pre></div>
+<div class='card'><h2>08 Sequence Create Donation With Payment</h2><pre class='mermaid'>
 sequenceDiagram
     autonumber
     actor Donor
@@ -166,179 +327,167 @@ sequenceDiagram
     participant API as Backend API
     participant Camp as Campaign Service
     participant Donate as Donation Service
-    participant DB as MongoDB PRIMARY
-    participant SEC as MongoDB SECONDARY nodes
+    participant Pay as Payment Service
+    participant DB as MongoDB PRIMARY / mongos
+    participant SEC as SECONDARY nodes
 
-    Donor-&gt;&gt;FE: Nhap form quyen gop
+    Donor-&gt;&gt;FE: Fill donation form
     FE-&gt;&gt;API: POST /api/donations
-    API-&gt;&gt;API: Validate Zod: donorName, donorEmail, amount, campaignCode
-    API-&gt;&gt;Camp: Kiem tra campaignCode ton tai
-    Camp-&gt;&gt;DB: findOne campaigns by code
-    DB--&gt;&gt;Camp: Campaign
-    API-&gt;&gt;API: Kiem tra isActive = true
-    API-&gt;&gt;API: Kiem tra startDate/endDate neu co
-    API-&gt;&gt;Donate: Tao donation voi status = pending
-    Donate-&gt;&gt;DB: insertOne donations
+    API-&gt;&gt;API: Validate donorName, donorEmail, amount, campaignCode
+    API-&gt;&gt;Camp: Check campaignCode, isActive, date range
+    Camp-&gt;&gt;DB: find campaigns by code
+    DB--&gt;&gt;Camp: Campaign + branchCode
+    API-&gt;&gt;Donate: Create donation status = pending
+    Donate-&gt;&gt;DB: insert donations with campaignCode and branchCode
     DB--&gt;&gt;SEC: Replicate oplog
-    DB--&gt;&gt;Donate: Created
-    Donate--&gt;&gt;API: Donation pending
-    API--&gt;&gt;FE: 201 Created
-    FE--&gt;&gt;Donor: Hien thi ket qua / reload danh sach
-</pre>
-</div>
-<h2>6. Sequence duyệt donation</h2>
-<div class="card">
-<pre class="mermaid">
+    API-&gt;&gt;Pay: Create payment transaction status = pending
+    Pay-&gt;&gt;DB: insert payment_transactions
+    DB--&gt;&gt;SEC: Replicate oplog
+    API--&gt;&gt;FE: 201 Created + payment instruction
+    FE--&gt;&gt;Donor: Show pending donation and payment info
+</pre></div>
+<div class='card'><h2>09 Sequence Payment Callback Or Reconciliation</h2><pre class='mermaid'>
 sequenceDiagram
     autonumber
-    actor Staff as Staff/Admin
-    participant FE as Frontend Admin
+    actor Provider as Bank/E-wallet/Cashier
     participant API as Backend API
-    participant RBAC as JWT and RBAC Middleware
+    participant Pay as Payment Service
     participant Donate as Donation Service
-    participant DB as MongoDB PRIMARY
-    participant SEC as MongoDB SECONDARY nodes
+    participant DB as MongoDB PRIMARY / mongos
+    participant Audit as audit_logs
+
+    Provider-&gt;&gt;API: Payment callback / reconciliation result
+    API-&gt;&gt;Pay: Validate providerTxnId, amount, donationId
+    Pay-&gt;&gt;DB: update payment_transactions.status
+    alt payment success
+        Pay-&gt;&gt;Donate: Mark donation ready for review or verified by policy
+        Donate-&gt;&gt;DB: update donation payment-related state
+    else payment failed/refunded
+        Pay-&gt;&gt;DB: keep donation pending or mark payment failed
+    end
+    API-&gt;&gt;Audit: log payment action
+    Audit-&gt;&gt;DB: insert audit_logs
+    API--&gt;&gt;Provider: 200 OK
+</pre></div>
+<div class='card'><h2>10 Sequence Review Donation</h2><pre class='mermaid'>
+sequenceDiagram
+    autonumber
+    actor Staff as Staff / Branch Admin / System Admin
+    participant FE as Admin Frontend
+    participant API as Backend API
+    participant RBAC as JWT + RBAC
+    participant Donate as Donation Service
+    participant DB as MongoDB PRIMARY / mongos
     participant Stats as Stats Aggregation
+    participant Audit as audit_logs
 
-    Staff-&gt;&gt;FE: Chon verified hoac rejected
+    Staff-&gt;&gt;FE: Choose verified or rejected
     FE-&gt;&gt;API: PATCH /api/donations/:id/status
-    API-&gt;&gt;RBAC: Kiem tra JWT va role admin/staff
-    RBAC--&gt;&gt;API: Cho phep
-    API-&gt;&gt;API: Validate status
-    API-&gt;&gt;Donate: Update donations.status
-    Donate-&gt;&gt;DB: updateOne donation
-    DB--&gt;&gt;SEC: Replicate oplog
-    DB--&gt;&gt;Donate: Updated
-    Donate-&gt;&gt;Stats: Doc lai so lieu moi
-    Stats-&gt;&gt;DB: aggregate donations by status and amount
-    DB--&gt;&gt;Stats: Ket qua thong ke
+    API-&gt;&gt;RBAC: Check role and branchCode scope
+    RBAC--&gt;&gt;API: Allowed
+    API-&gt;&gt;Donate: Validate status transition
+    Donate-&gt;&gt;DB: update donation status, reviewedBy, reviewedAt
+    Donate-&gt;&gt;Stats: Recalculate verified totals
+    Stats-&gt;&gt;DB: aggregate donations where status = verified
+    API-&gt;&gt;Audit: log review action
+    Audit-&gt;&gt;DB: insert audit_logs
     API--&gt;&gt;FE: 200 OK
-</pre>
-</div>
-<h2>7. Vòng đời trạng thái donation</h2>
-<div class="card">
-<pre class="mermaid">
+</pre></div>
+<div class='card'><h2>11 Campaign Report Workflow</h2><pre class='mermaid'>
 stateDiagram-v2
-    [*] --&gt; pending: Donor tao donation
-    pending --&gt; verified: Staff/Admin duyet
-    pending --&gt; rejected: Staff/Admin tu choi
-    verified --&gt; [*]
-    rejected --&gt; [*]
-</pre>
-</div>
-<h2>8. Luồng thống kê chỉ tính verified</h2>
-<div class="card">
-<pre class="mermaid">
-flowchart TD
-    DASH[&quot;Dashboard / Statistics API&quot;]
-    CAMPAIGNS[&quot;campaigns&lt;br/&gt;dem tong campaign&quot;]
-    DONATIONS[&quot;donations&lt;br/&gt;aggregate theo status va amount&quot;]
-    VERIFIED[&quot;status = verified&lt;br/&gt;cong vao tong tien chinh thuc&quot;]
-    PENDING[&quot;status = pending&lt;br/&gt;thong ke rieng, khong cong tong tien&quot;]
-    REJECTED[&quot;status = rejected&lt;br/&gt;thong ke rieng, khong cong tong tien&quot;]
-    SNAP[&quot;stats_snapshots&lt;br/&gt;khuyen nghi khi du lieu lon&quot;]
-
-    DASH --&gt; CAMPAIGNS
-    DASH --&gt; DONATIONS
-    DONATIONS --&gt; VERIFIED
-    DONATIONS --&gt; PENDING
-    DONATIONS --&gt; REJECTED
-    VERIFIED --&gt;|&quot;official totalAmount&quot;| DASH
-    SNAP -. &quot;read nhanh neu du lieu lon&quot; .-&gt; DASH
-</pre>
-</div>
-<h2>9. Chiến lược sharding campaignCode hashed</h2>
-<div class="card">
-<pre class="mermaid">
+    [*] --&gt; draft: Staff creates report
+    draft --&gt; submitted: Submit report
+    submitted --&gt; approved: Branch admin or system admin approves
+    submitted --&gt; rejected: Branch admin or system admin rejects
+    rejected --&gt; draft: Staff edits and resubmits
+    approved --&gt; published: Publish to donor/public view
+    published --&gt; [*]
+</pre></div>
+<div class='card'><h2>12 Stats Verified Only</h2><pre class='mermaid'>
 flowchart LR
-    D[&quot;donations&lt;br/&gt;collection tang nhanh nhat&quot;]
-    Q1[&quot;Query thuong gap:&lt;br/&gt;xem donation theo campaignCode&quot;]
-    K[&quot;Shard key demo:&lt;br/&gt;{ campaignCode: hashed }&quot;]
-    I[&quot;Index can tao:&lt;br/&gt;db.donations.createIndex({ campaignCode: hashed })&quot;]
-    S1[&quot;Shard 1&quot;]
-    S2[&quot;Shard 2&quot;]
-    S3[&quot;Shard 3&quot;]
-    S4[&quot;Shard 4&quot;]
-    WARN[&quot;Canh bao:&lt;br/&gt;neu 1 campaign qua lon,&lt;br/&gt;co the van lech tai nghiep vu&quot;]
+    D[(&quot;donations&quot;)]
+    FILTER[&quot;Filter official amount&lt;br/&gt;status = verified&quot;]
+    AGG[&quot;Aggregate&lt;br/&gt;sum(amount), count&quot;]
+    SNAP[(&quot;stats_snapshots&lt;br/&gt;optional cache&quot;)]
+    DASH[&quot;Dashboard / Reports&quot;]
 
-    D --&gt; Q1
-    Q1 --&gt; K
-    I --&gt; K
-    K --&gt; S1
-    K --&gt; S2
-    K --&gt; S3
-    K --&gt; S4
-    K -.-&gt; WARN
-</pre>
-</div>
-<h2>10. Sơ đồ RBAC</h2>
-<div class="card">
-<pre class="mermaid">
+    D --&gt; FILTER --&gt; AGG --&gt; DASH
+    AGG -. &quot;large data&quot; .-&gt; SNAP
+    SNAP -. &quot;fast read&quot; .-&gt; DASH
+
+    PEND[&quot;pending / rejected&lt;br/&gt;count separately&quot;]
+    D --&gt; PEND --&gt; DASH
+</pre></div>
+<div class='card'><h2>13 State Donation Payment Report</h2><pre class='mermaid'>
 flowchart TB
-    USER[&quot;Nguoi dung&quot;]
-    AUTH[&quot;JWT + RBAC Middleware&quot;]
-    ADMIN[&quot;Admin&lt;br/&gt;campaign CRUD, donation review,&lt;br/&gt;user management, statistics, system&quot;]
-    STAFF[&quot;Staff&lt;br/&gt;campaign create/update,&lt;br/&gt;donation review, statistics&quot;]
-    DONOR[&quot;Donor&lt;br/&gt;view campaign, create donation,&lt;br/&gt;view own/limited donation, limited statistics&quot;]
-
-    USER --&gt; AUTH
-    AUTH --&gt;|&quot;role = admin&quot;| ADMIN
-    AUTH --&gt;|&quot;role = staff&quot;| STAFF
-    AUTH --&gt;|&quot;role = donor&quot;| DONOR
-
-    DONOR -. &quot;Donation hien tai gan theo donorEmail&lt;br/&gt;neu chua co donorUserId&quot; .-&gt; DONOR
-</pre>
-</div>
-<h2>11. Index theo use case</h2>
-<div class="card">
-<pre class="mermaid">
-flowchart LR
-    subgraph U[&quot;Use cases&quot;]
-        U1[&quot;Dang nhap / tim user&quot;]
-        U2[&quot;Liet ke campaign active&quot;]
-        U3[&quot;Tim campaign theo ma&quot;]
-        U4[&quot;Xem donation theo campaign&quot;]
-        U5[&quot;Duyet donation pending&quot;]
-        U6[&quot;Tra lich su donor&quot;]
-        U7[&quot;Bao cao donation gia tri cao&quot;]
-        U8[&quot;Doc snapshot moi nhat&quot;]
+    subgraph DONATION[&quot;Donation status&quot;]
+        DP[&quot;pending&quot;] --&gt; DV[&quot;verified&quot;]
+        DP --&gt; DR[&quot;rejected&quot;]
     end
 
-    subgraph IDX[&quot;Indexes&quot;]
-        I1[&quot;users: { email: 1 } unique&quot;]
-        I2[&quot;campaigns: { isActive: 1, createdAt: -1 }&quot;]
-        I3[&quot;campaigns: { code: 1 } unique&quot;]
-        I4[&quot;donations: { campaignCode: 1, createdAt: -1 }&quot;]
-        I5[&quot;donations: { status: 1, createdAt: -1 }&quot;]
-        I6[&quot;donations: { donorEmail: 1, createdAt: -1 }&quot;]
-        I7[&quot;donations: { amount: -1 }&quot;]
-        I8[&quot;stats_snapshots: { scope: 1, campaignCode: 1, calculatedAt: -1 }&quot;]
+    subgraph PAYMENT[&quot;Payment transaction status&quot;]
+        PP[&quot;pending&quot;] --&gt; PS[&quot;success&quot;]
+        PP --&gt; PF[&quot;failed&quot;]
+        PS --&gt; PR[&quot;refunded&quot;]
     end
 
-    U1 --&gt; I1
-    U2 --&gt; I2
-    U3 --&gt; I3
-    U4 --&gt; I4
-    U5 --&gt; I5
-    U6 --&gt; I6
-    U7 --&gt; I7
-    U8 --&gt; I8
-</pre>
-</div>
-<h2>12. Luồng kiểm soát toàn vẹn dữ liệu</h2>
-<div class="card">
-<pre class="mermaid">
-flowchart TD
-    REQ[&quot;Request tao/cap nhat du lieu&quot;]
-    ZOD[&quot;Zod validation&lt;br/&gt;email, amount, required fields&quot;]
-    BACKEND[&quot;Backend business rules&lt;br/&gt;campaignCode ton tai&lt;br/&gt;campaign active&lt;br/&gt;date hop le&quot;]
-    MONGOOSE[&quot;Mongoose schema&lt;br/&gt;enum, min/max, trim, lowercase&quot;]
-    INDEX[&quot;MongoDB indexes&lt;br/&gt;unique code/email&lt;br/&gt;query optimization&quot;]
-    RBAC[&quot;RBAC middleware&lt;br/&gt;admin / staff / donor&quot;]
-    DB[(&quot;MongoDB&quot;)]
+    subgraph REPORT[&quot;Campaign report status&quot;]
+        RD[&quot;draft&quot;] --&gt; RS[&quot;submitted&quot;]
+        RS --&gt; RA[&quot;approved&quot;]
+        RS --&gt; RR[&quot;rejected&quot;]
+        RR --&gt; RD
+    end
 
-    REQ --&gt; ZOD --&gt; BACKEND --&gt; MONGOOSE --&gt; INDEX --&gt; RBAC --&gt; DB
-</pre>
-</div>
-</body>
-</html>
+    PS -. &quot;supports verification&quot; .-&gt; DV
+    RA -. &quot;public transparency&quot; .-&gt; REPORT_PUBLIC[&quot;public report&quot;]
+</pre></div>
+<div class='card'><h2>14 Index Use Case Map</h2><pre class='mermaid'>
+flowchart TB
+    subgraph USERIDX[&quot;users&quot;]
+        U1[&quot;username unique&lt;br/&gt;login / anti-duplicate&quot;]
+        U2[&quot;email unique&lt;br/&gt;login / anti-duplicate&quot;]
+        U3[&quot;role + branchCode&lt;br/&gt;RBAC filtering&quot;]
+    end
+
+    subgraph CAMPIDX[&quot;campaigns&quot;]
+        C1[&quot;code unique&lt;br/&gt;campaign lookup&quot;]
+        C2[&quot;isActive + createdAt&lt;br/&gt;public list&quot;]
+        C3[&quot;name text + code text&lt;br/&gt;search&quot;]
+        C4[&quot;branchCode + createdAt&lt;br/&gt;branch admin&quot;]
+    end
+
+    subgraph DONIDX[&quot;donations&quot;]
+        D1[&quot;campaignCode + createdAt&lt;br/&gt;campaign donations&quot;]
+        D2[&quot;status + createdAt&lt;br/&gt;pending review&quot;]
+        D3[&quot;donorEmail + createdAt&lt;br/&gt;donor history&quot;]
+        D4[&quot;branchCode + campaignCode hashed&lt;br/&gt;branch sharding option&quot;]
+    end
+
+    subgraph PAYIDX[&quot;payment_transactions&quot;]
+        P1[&quot;donationId + createdAt&lt;br/&gt;payment attempts&quot;]
+        P2[&quot;status + createdAt&lt;br/&gt;reconciliation&quot;]
+        P3[&quot;providerTxnId sparse&lt;br/&gt;provider lookup&quot;]
+    end
+
+    subgraph REPORTIDX[&quot;campaign_reports&quot;]
+        R1[&quot;campaignCode + reportPeriod&lt;br/&gt;campaign reports&quot;]
+        R2[&quot;branchCode + reportPeriod&lt;br/&gt;branch reports&quot;]
+        R3[&quot;reportStatus + createdAt&lt;br/&gt;approval queue&quot;]
+    end
+</pre></div>
+<div class='card'><h2>15 Integrity Rules Flow</h2><pre class='mermaid'>
+flowchart TB
+    INPUT[&quot;Client request&quot;] --&gt; VALIDATE[&quot;Zod / DTO validation&quot;]
+    VALIDATE --&gt; RBAC[&quot;JWT + RBAC + branchCode scope&quot;]
+    RBAC --&gt; REF[&quot;Reference checks&lt;br/&gt;campaignCode exists&lt;br/&gt;donationId exists&lt;br/&gt;branchCode valid&quot;]
+    REF --&gt; ENUM[&quot;Enum checks&lt;br/&gt;role, donation status,&lt;br/&gt;payment status, report status&quot;]
+    ENUM --&gt; DB[(&quot;MongoDB indexes + writes&quot;)]
+    DB --&gt; AUDIT[&quot;audit_logs for important actions&quot;]
+    DB --&gt; REPL[&quot;Replica Set replication&quot;]
+
+    BAD1[&quot;Invalid amount/email/date&quot;] -. reject .-&gt; VALIDATE
+    BAD2[&quot;Cross-branch access&quot;] -. reject .-&gt; RBAC
+    BAD3[&quot;Missing campaign/donation&quot;] -. reject .-&gt; REF
+</pre></div>
+<script type='module'>import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'; mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });</script>
+</body></html>

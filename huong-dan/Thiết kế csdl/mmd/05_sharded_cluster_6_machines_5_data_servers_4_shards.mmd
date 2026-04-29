@@ -1,0 +1,32 @@
+flowchart TB
+    subgraph M1["May 1 - Dieu phoi / ung dung"]
+        FE["Frontend"]
+        BE["Backend API"]
+        QA["QA / Test tools"]
+        MONGOS["mongos<br/>query router"]
+        FE --> BE --> MONGOS
+        QA -.-> BE
+    end
+
+    subgraph DATA["Cum du lieu 5 server"]
+        CENTER[("Server du lieu trung tam<br/>metadata/config trong lab<br/>du lieu dung chung<br/>thong ke tong")]
+        SH1[("Server chi nhanh 1<br/>Shard/MANH 1")]
+        SH2[("Server chi nhanh 2<br/>Shard/MANH 2")]
+        SH3[("Server chi nhanh 3<br/>Shard/MANH 3")]
+        SH4[("Server chi nhanh 4<br/>Shard/MANH 4")]
+    end
+
+    MONGOS -->|metadata / shared / global stats| CENTER
+    MONGOS -->|branchCode = CN1| SH1
+    MONGOS -->|branchCode = CN2| SH2
+    MONGOS -->|branchCode = CN3| SH3
+    MONGOS -->|branchCode = CN4| SH4
+
+    NOTE1["Tong may: 6<br/>1 may dieu phoi + 5 server du lieu"]
+    NOTE2["Tong manh nghiep vu: 4<br/>chi nhanh 1..4"]
+    NOTE3["Server trung tam khong tinh la manh chi nhanh"]
+
+    NOTE1 -.-> M1
+    NOTE2 -.-> SH1
+    NOTE2 -.-> SH4
+    NOTE3 -.-> CENTER

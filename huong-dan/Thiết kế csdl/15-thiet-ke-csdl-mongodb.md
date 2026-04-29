@@ -9,13 +9,15 @@ Tên database: `charity_distributed`
 Kiến trúc tối thiểu: MongoDB Replica Set 3 node  
 Kiến trúc mở rộng: MongoDB Sharded Cluster, mỗi shard là một Replica Set
 
-Tài liệu ưu tiên schema đang chạy trong code hiện tại. Các collection hoặc trường được ghi là "khuyến nghị" chỉ dùng cho mở rộng, không bắt buộc ở bản demo.
+Tài liệu ưu tiên mô hình dữ liệu cần trình bày trong báo cáo. Một số trường/collection có thể cần bổ sung thêm vào code nếu nhóm muốn triển khai đầy đủ đúng thiết kế.
 
 ## 2. Nguyên tắc thiết kế
 
 - `donations` là collection giao dịch trung tâm, tăng nhanh nhất.
 - `campaigns` là dữ liệu nghiệp vụ nền, đọc nhiều hơn ghi.
-- `users` lưu tài khoản, vai trò và trạng thái truy cập.
+- `users` lưu tài khoản, username, vai trò, phạm vi quản trị và trạng thái truy cập.
+- `payment_transactions` tách thông tin thanh toán khỏi nghiệp vụ donation.
+- `campaign_reports` lưu báo cáo tiến độ và minh chứng sử dụng quỹ theo chiến dịch.
 - Thống kê hiện được tính động từ `donations` và `campaigns`.
 - Liên kết chính giữa campaign và donation dùng khóa nghiệp vụ `campaignCode`.
 - Dữ liệu nhạy cảm như mật khẩu chỉ lưu ở dạng hash.
@@ -23,56 +25,79 @@ Tài liệu ưu tiên schema đang chạy trong code hiện tại. Các collecti
 
 ## 3. Tổng quan collection
 
-| Collection | Trạng thái | Vai trò | Tần suất ghi | Tần suất đọc | Ghi chú |
+Bộ thiết kế gồm 7 collection. Tần suất truy cập phụ thuộc vào vai trò sử dụng, không chỉ phụ thuộc vào loại dữ liệu.
+
+| Collection | Vai trò dữ liệu | Role truy cập chính | Ghi | Đọc | Ghi chú |
 |---|---|---|---:|---:|---|
-| `users` | Đã có model | Tài khoản, vai trò, trạng thái | Thấp | Trung bình | Cần bảo mật cao |
-| `campaigns` | Đã có model | Chiến dịch quyên góp | Trung bình | Cao | Dữ liệu nền cho donation |
-| `donations` | Đã có model | Giao dịch quyên góp | Cao | Cao | Collection trung tâm |
-| `audit_logs` | Khuyến nghị | Nhật ký thao tác quan trọng | Trung bình | Thấp | Chưa bắt buộc trong demo |
-| `stats_snapshots` | Khuyến nghị | Snapshot thống kê định kỳ | Thấp | Cao | Chỉ cần khi dữ liệu lớn |
+| `users` | Tài khoản, username, vai trò, phạm vi quản trị | Admin hệ thống | Thấp | Trung bình | Dữ liệu bảo mật cao |
+| `campaigns` | Chiến dịch quyên góp | Admin hệ thống, admin chi nhánh, staff, donor | Trung bình | Cao | Dữ liệu nền cho donation |
+| `donations` | Giao dịch quyên góp | Donor, staff, admin chi nhánh, admin hệ thống | Cao | Cao | Collection trung tâm |
+| `payment_transactions` | Trạng thái thanh toán của donation | Donor, staff, admin chi nhánh | Cao | Trung bình | Tách thanh toán khỏi donation |
+| `campaign_reports` | Báo cáo tiến độ, minh chứng sử dụng quỹ | Staff, admin chi nhánh, admin hệ thống, donor | Trung bình | Cao | Tăng tính minh bạch |
+| `audit_logs` | Nhật ký thao tác quan trọng | Admin hệ thống, QA/Leader | Trung bình | Thấp | Phục vụ truy vết |
+| `stats_snapshots` | Snapshot thống kê định kỳ | Admin hệ thống, admin chi nhánh, staff | Thấp | Cao | Giảm tải dashboard |
 
 ## 4. ERD logic collection
 
-Schema hiện tại chưa lưu trực tiếp `createdBy`, `donorUserId`, `reviewedBy`, `reviewedAt` trong `campaigns` và `donations`. Vì vậy quan hệ với `users` dưới đây là quan hệ nghiệp vụ/khuyến nghị, không phải ràng buộc vật lý đã có đủ trong model.
+Quan hệ dưới đây là quan hệ logic dùng cho thiết kế báo cáo. MongoDB không ép khóa ngoại như SQL, nên backend chịu trách nhiệm kiểm tra toàn vẹn.
 
 ```text
-                                  +------------------+
-                                  |      users       |
-                                  |------------------|
-                                  | _id              |
-                                  | email            |
-                                  | password(hash)   |
-                                  | fullName         |
-                                  | role             |
-                                  | isActive         |
-                                  +---------+--------+
-                                            |
-                    optional future fields  | createdBy / donorUserId / reviewedBy
-                                            |
-        +-----------------------------------+-----------------------------------+
-        |                                                                       |
-+-------v----------+      code = campaignCode       +--------------------------v--+
-|    campaigns     |------------------------------->|        donations            |
-|------------------|                                |-----------------------------|
-| _id              |                                | _id                         |
-| code             |                                | donorName                   |
-| name             |                                | donorEmail                  |
-| targetAmount     |                                | amount                      |
-| isActive         |                                | campaignCode                |
-| startDate        |                                | note                        |
-| endDate          |                                | status                      |
-+-------+----------+                                +-------------+---------------+
-        |                                                         |
-        | aggregate                                               | audit, trace
-        v                                                         v
-+------------------+                                +-----------------------------+
-| stats_snapshots  |                                |         audit_logs          |
-|------------------|                                |-----------------------------|
-| scope            |                                | requestId                   |
-| campaignCode     |                                | actorId / actorEmail        |
-| totalAmount      |                                | action, resource, status    |
-| calculatedAt     |                                | createdAt                   |
-+------------------+                                +-----------------------------+
++------------------+        manages/creates        +------------------+
+|      users       |------------------------------->|    campaigns     |
+|------------------|                                |------------------|
+| _id              |                                | _id              |
+| username         |                                | code             |
+| email            |                                | name             |
+| password(hash)   |                                | targetAmount     |
+| fullName         |                                | isActive         |
+| role             |                                | branchCode       |
+| branchCode       |                                +--------+---------+
+| isActive         |                                         |
++--------+---------+                                         | code = campaignCode
+         |                                                   v
+         | creates/reviews                         +---------+---------+
+         +---------------------------------------->|    donations      |
+                                                  |-------------------|
+                                                  | _id               |
+                                                  | donorName         |
+                                                  | donorEmail        |
+                                                  | amount            |
+                                                  | campaignCode      |
+                                                  | status            |
+                                                  +----+---------+----+
+                                                       |         |
+                                                       |         | 1 - n
+                                                       |         v
+                                                       | +-------+----------------+
+                                                       | | payment_transactions   |
+                                                       | |------------------------|
+                                                       | | donationId             |
+                                                       | | providerTxnId          |
+                                                       | | method                 |
+                                                       | | status                 |
+                                                       | +------------------------+
+                                                       |
+         +---------------------------------------------+------------------+
+         |                                                                |
+         v                                                                v
++--------+----------+                                      +--------------+------+
+| campaign_reports  |                                      | stats_snapshots     |
+|-------------------|                                      |---------------------|
+| campaignCode      |                                      | scope               |
+| branchCode        |                                      | campaignCode        |
+| reportPeriod      |                                      | totalAmount         |
+| reportStatus      |                                      | calculatedAt        |
++-------------------+                                      +---------------------+
+
++------------------+
+|    audit_logs    |
+|------------------|
+| requestId        |
+| actorId          |
+| action           |
+| resource         |
+| createdAt        |
++------------------+
 ```
 
 Quan hệ hiện tại trong code:
@@ -84,6 +109,8 @@ Quan hệ hiện tại trong code:
 | `users` 1 - n `donations` theo donor | Một phần | Hiện lưu `donorEmail`, chưa có `donorUserId` |
 | `users` 1 - n `donations` theo người duyệt | Khuyến nghị | Chưa có `reviewedBy`, `reviewedAt` |
 | `campaigns` 1 - n `stats_snapshots` | Khuyến nghị | Có thể dùng `campaignCode` khi cần snapshot |
+| `campaigns` 1 - n `campaign_reports` | Bổ sung thiết kế | Lưu báo cáo theo `campaignCode` |
+| `donations` 1 - n `payment_transactions` | Bổ sung thiết kế | Một donation có thể có nhiều lần thanh toán/thử thanh toán |
 
 Nếu nhóm muốn thiết kế chặt hơn, nên bổ sung các trường mở rộng sau trong giai đoạn sau:
 
@@ -93,6 +120,7 @@ Nếu nhóm muốn thiết kế chặt hơn, nên bổ sung các trường mở 
 | `donations` | `donorUserId: ObjectId` | Tài khoản donor nếu donor có đăng nhập |
 | `donations` | `reviewedBy: ObjectId` | Staff/admin duyệt hoặc từ chối |
 | `donations` | `reviewedAt: Date` | Thời điểm duyệt hoặc từ chối |
+| `campaigns`, `campaign_reports` | `branchCode: String` | Mã chi nhánh quản lý dữ liệu |
 
 ## 5. Collection `users`
 
@@ -103,10 +131,12 @@ Mục đích: lưu tài khoản đăng nhập, phân quyền và trạng thái h
 | Trường | Kiểu | Bắt buộc | Ràng buộc | Mô tả |
 |---|---|---:|---|---|
 | `_id` | ObjectId | Có | Primary key | Khóa chính MongoDB |
+| `username` | String | Có | Unique, trim, indexed | Tên đăng nhập ngắn |
 | `email` | String | Có | Unique, lowercase, indexed | Email đăng nhập |
 | `password` | String | Có | Hash bcrypt, min 8 | Mật khẩu đã mã hóa |
 | `fullName` | String | Có | Trim | Họ tên người dùng |
-| `role` | String | Có | `admin`, `staff`, `donor` | Vai trò RBAC |
+| `role` | String | Có | `system_admin`, `branch_admin`, `staff`, `donor` | Vai trò RBAC |
+| `branchCode` | String | Không | Bắt buộc với admin chi nhánh/staff | Mã chi nhánh quản lý |
 | `isActive` | Boolean | Có | Default `true` | Trạng thái tài khoản |
 | `createdAt` | Date | Có | Auto | Thời điểm tạo |
 | `updatedAt` | Date | Có | Auto | Thời điểm cập nhật |
@@ -116,10 +146,12 @@ Mục đích: lưu tài khoản đăng nhập, phân quyền và trạng thái h
 ```json
 {
   "_id": "ObjectId",
-  "email": "admin@example.com",
+  "username": "system_admin",
+  "email": "system.admin@example.com",
   "password": "$2a$12$...",
-  "fullName": "Quản trị hệ thống",
-  "role": "admin",
+  "fullName": "System Administrator",
+  "role": "system_admin",
+  "branchCode": null,
   "isActive": true,
   "createdAt": "2026-04-29T00:00:00.000Z",
   "updatedAt": "2026-04-29T00:00:00.000Z"
@@ -150,9 +182,9 @@ Mục đích: lưu thông tin chiến dịch quyên góp.
 ```json
 {
   "_id": "ObjectId",
-  "code": "hoc-bong-2026",
-  "name": "Học bổng sinh viên vượt khó",
-  "description": "Hỗ trợ học phí và sinh hoạt phí cho sinh viên khó khăn.",
+  "code": "student-scholarship-2026",
+  "name": "Student Scholarship 2026",
+  "description": "Support tuition and living expenses for disadvantaged students.",
   "targetAmount": 50000000,
   "isActive": true,
   "startDate": "2026-01-01T00:00:00.000Z",
@@ -187,20 +219,58 @@ Ghi chú quan trọng: bản hiện tại chỉ lưu người quyên góp bằng
 ```json
 {
   "_id": "ObjectId",
-  "donorName": "Nguyễn Văn An",
-  "donorEmail": "an.nguyen@example.com",
+  "donorName": "John Smith",
+  "donorEmail": "john.smith@example.com",
   "amount": 250000,
-  "campaignCode": "hoc-bong-2026",
-  "note": "Hỗ trợ học bổng tháng 4",
+  "campaignCode": "student-scholarship-2026",
+  "note": "April scholarship donation",
   "status": "verified",
   "createdAt": "2026-04-29T00:00:00.000Z",
   "updatedAt": "2026-04-29T00:00:00.000Z"
 }
 ```
 
-## 8. Collection mở rộng
+## 8. Collection bổ sung
 
-### 8.1. `audit_logs` - khuyến nghị
+### 8.1. `payment_transactions`
+
+Mục đích: lưu trạng thái thanh toán gắn với donation. Collection này giúp tách rõ ý định quyên góp và giao dịch tiền thực tế.
+
+| Trường | Kiểu | Mô tả |
+|---|---|---|
+| `_id` | ObjectId | Khóa chính |
+| `donationId` | ObjectId | Donation liên quan |
+| `campaignCode` | String | Mã chiến dịch để truy vấn nhanh |
+| `donorEmail` | String | Email người thanh toán |
+| `amount` | Number | Số tiền thanh toán |
+| `method` | String | Phương thức: bank_transfer, cash, e_wallet |
+| `providerTxnId` | String | Mã giao dịch từ ngân hàng/ví nếu có |
+| `status` | String | pending, success, failed, refunded |
+| `paidAt` | Date | Thời điểm thanh toán thành công |
+| `createdAt` | Date | Thời điểm tạo |
+| `updatedAt` | Date | Thời điểm cập nhật |
+
+### 8.2. `campaign_reports`
+
+Mục đích: lưu báo cáo tiến độ, giải ngân và minh chứng sử dụng quỹ của từng chiến dịch/chi nhánh.
+
+| Trường | Kiểu | Mô tả |
+|---|---|---|
+| `_id` | ObjectId | Khóa chính |
+| `campaignCode` | String | Mã chiến dịch |
+| `branchCode` | String | Mã chi nhánh lập báo cáo |
+| `title` | String | Tiêu đề báo cáo |
+| `reportPeriod` | String | Kỳ báo cáo, ví dụ 2026-04 |
+| `content` | String | Nội dung báo cáo |
+| `usedAmount` | Number | Số tiền đã sử dụng |
+| `attachments` | Array | Danh sách minh chứng/hình ảnh/link |
+| `reportStatus` | String | draft, submitted, approved, rejected |
+| `createdBy` | ObjectId | Người lập báo cáo |
+| `approvedBy` | ObjectId | Người duyệt báo cáo nếu có |
+| `createdAt` | Date | Thời điểm tạo |
+| `updatedAt` | Date | Thời điểm cập nhật |
+
+### 8.3. `audit_logs`
 
 Hiện tại hệ thống ghi log ở tầng ứng dụng. Nếu cần lưu audit trong database để phục vụ báo cáo hoặc truy vết dài hạn, có thể tạo thêm collection `audit_logs`.
 
@@ -221,7 +291,7 @@ Hiện tại hệ thống ghi log ở tầng ứng dụng. Nếu cần lưu audi
 | `durationMs` | Number | Thời gian xử lý |
 | `createdAt` | Date | Thời điểm ghi log |
 
-### 8.2. `stats_snapshots` - khuyến nghị
+### 8.4. `stats_snapshots`
 
 Hệ thống hiện tính thống kê động bằng aggregation. Khi dữ liệu donation lớn, có thể lưu snapshot để giảm tải truy vấn dashboard.
 
@@ -241,8 +311,9 @@ Hệ thống hiện tính thống kê động bằng aggregation. Khi dữ liệ
 
 | Use case | Collection | Index | Mục đích |
 |---|---|---|---|
+| Đăng nhập / tìm user theo username | `users` | `{ username: 1 } unique` | Tên đăng nhập chính, chống trùng username |
 | Đăng nhập / tìm user theo email | `users` | `{ email: 1 } unique` | Tìm nhanh tài khoản, chống trùng email |
-| Lọc user theo vai trò | `users` | `{ role: 1 }` | Phục vụ trang quản trị user |
+| Lọc user theo vai trò/chi nhánh | `users` | `{ role: 1, branchCode: 1 }` | Tách admin hệ thống, admin chi nhánh, staff |
 | Tìm campaign theo mã | `campaigns` | `{ code: 1 } unique` | Đảm bảo mã chiến dịch duy nhất |
 | Liệt kê campaign đang hoạt động | `campaigns` | `{ isActive: 1, createdAt: -1 }` | Phục vụ màn hình campaign công khai/admin |
 | Tìm campaign theo từ khóa | `campaigns` | `{ name: "text", code: "text" }` | Phục vụ ô tìm kiếm chiến dịch |
@@ -250,22 +321,30 @@ Hệ thống hiện tính thống kê động bằng aggregation. Khi dữ liệ
 | Duyệt donation pending | `donations` | `{ status: 1, createdAt: -1 }` | Staff/admin xử lý giao dịch chờ duyệt |
 | Tra cứu lịch sử donor | `donations` | `{ donorEmail: 1, createdAt: -1 }` | Tìm donation theo email người quyên góp |
 | Sắp xếp donation theo số tiền | `donations` | `{ amount: -1 }` | Báo cáo donation giá trị cao |
-| Truy log theo request | `audit_logs` | `{ requestId: 1 }` | Chỉ dùng nếu triển khai audit DB |
-| Đọc snapshot mới nhất | `stats_snapshots` | `{ scope: 1, campaignCode: 1, calculatedAt: -1 }` | Chỉ dùng nếu triển khai snapshot |
+| Đối soát thanh toán theo donation | `payment_transactions` | `{ donationId: 1, createdAt: -1 }` | Xem các lần thanh toán của một donation |
+| Đối soát thanh toán theo trạng thái | `payment_transactions` | `{ status: 1, createdAt: -1 }` | Lọc giao dịch pending/success/failed |
+| Xem báo cáo theo chiến dịch | `campaign_reports` | `{ campaignCode: 1, reportPeriod: -1 }` | Theo dõi báo cáo tiến độ chiến dịch |
+| Xem báo cáo theo chi nhánh | `campaign_reports` | `{ branchCode: 1, reportPeriod: -1 }` | Admin chi nhánh và admin hệ thống kiểm tra |
+| Truy log theo request | `audit_logs` | `{ requestId: 1 }` | Truy vết thao tác và lỗi |
+| Đọc snapshot mới nhất | `stats_snapshots` | `{ scope: 1, campaignCode: 1, calculatedAt: -1 }` | Tăng tốc dashboard/thống kê |
 
-Lưu ý: Code hiện tại đã khai báo index chính trong Mongoose cho `campaigns.code`, `campaigns.isActive/createdAt`, `donations.campaignCode/createdAt`, `users.email`, `users.role`. Các index còn lại là khuyến nghị để tối ưu theo màn hình.
+Lưu ý: thiết kế báo cáo bổ sung `username`, `payment_transactions`, `campaign_reports` và phân quyền admin theo phạm vi. Nếu code hiện tại chưa có đủ các index này thì cần bổ sung khi triển khai.
 
 ## 10. Quy tắc toàn vẹn dữ liệu
 
 | Quy tắc | Cách kiểm soát |
 |---|---|
+| Mỗi user có `username` duy nhất | Unique index trên `users.username` |
 | Mỗi campaign có `code` duy nhất | Unique index trên `campaigns.code` |
 | Donation phải thuộc campaign hợp lệ | Backend nên kiểm tra `campaignCode` trước khi tạo |
+| Payment transaction phải gắn với donation hợp lệ | Backend kiểm tra `donationId` |
+| Campaign report phải thuộc campaign/chi nhánh hợp lệ | Backend kiểm tra `campaignCode`, `branchCode` |
 | Số tiền donation hợp lệ | Zod + Mongoose min/max |
 | Email donor đúng định dạng | Zod email validation |
 | Trạng thái donation hợp lệ | Enum `pending`, `verified`, `rejected` |
 | Mật khẩu không lưu plaintext | Hash bằng bcrypt |
-| Vai trò người dùng hợp lệ | Enum `admin`, `staff`, `donor` |
+| Vai trò người dùng hợp lệ | Enum `system_admin`, `branch_admin`, `staff`, `donor` |
+| Admin chi nhánh chỉ quản lý dữ liệu chi nhánh | Kiểm tra `branchCode` trong RBAC |
 | Người dùng không vượt quyền | RBAC middleware và permission map |
 
 ## 11. Thiết kế phân tán
@@ -294,33 +373,44 @@ mongo1 down -> mongo2 hoặc mongo3 được bầu làm PRIMARY mới
 - Khi PRIMARY lỗi, replica set bầu PRIMARY mới.
 - Backend kết nối bằng connection string có `replicaSet=rsCharity`.
 
-### 11.2. Sharded Cluster mở rộng 6 máy
+### 11.2. Sharded Cluster demo/lab 6 máy
 
-Khi cần chứng minh phân mảnh dữ liệu, dùng `mongos`, config server và nhiều shard. Mỗi shard nên là một Replica Set.
+Khi cần chứng minh phân mảnh dữ liệu, dùng `mongos`, một server dữ liệu tổng trung tâm và 4 server chi nhánh. Mỗi server dữ liệu trong môi trường lab có thể chạy một hoặc nhiều tiến trình MongoDB để mô phỏng Replica Set.
 
-Mô hình 6 máy trong tài liệu dùng cho demo/lab CSDL phân tán. Trong production, config server và từng shard thường nên chạy dưới dạng Replica Set đầy đủ; vì vậy số node thực tế có thể nhiều hơn, hoặc trong môi trường thực hành có thể chạy nhiều tiến trình MongoDB trên cùng một máy.
+Mô hình 6 máy trong tài liệu dùng cho demo/lab CSDL phân tán, gồm 1 máy điều phối và 5 server dữ liệu. Trong production, config server và từng shard thường nên chạy dưới dạng Replica Set đầy đủ; vì vậy số node thực tế có thể nhiều hơn.
+
+| Máy/Server | Vai trò | Dữ liệu chính |
+|---|---|---|
+| Máy 1 | Điều phối | Frontend, Backend, QA, `mongos` |
+| Server dữ liệu trung tâm | Dữ liệu tổng | Metadata, dữ liệu dùng chung, thống kê tổng |
+| Server chi nhánh 1 | Mảnh 1 | Donation/payment/report thuộc chi nhánh 1 |
+| Server chi nhánh 2 | Mảnh 2 | Donation/payment/report thuộc chi nhánh 2 |
+| Server chi nhánh 3 | Mảnh 3 | Donation/payment/report thuộc chi nhánh 3 |
+| Server chi nhánh 4 | Mảnh 4 | Donation/payment/report thuộc chi nhánh 4 |
+
+Phân mảnh nghiệp vụ vẫn là 4 mảnh, tương ứng 4 server chi nhánh. Server dữ liệu trung tâm không tính là mảnh chi nhánh; nó giữ dữ liệu tổng và dữ liệu dùng chung.
 
 ```text
-Frontend
-   |
-   v
-Backend API
-   |
-   v
-mongos query router
-   |
-   +-------------------> Config Server Replica Set
-   |
-   +-------------------> Shard 1 Replica Set
-   |
-   +-------------------> Shard 2 Replica Set
-   |
-   +-------------------> Shard 3 Replica Set
-   |
-   +-------------------> Shard 4 Replica Set
+Máy 1 - Điều phối
+Frontend + Backend + QA + mongos
+        |
+        v
++-------------------------- Cụm dữ liệu 5 server --------------------------+
+|                                                                          |
+|  Server dữ liệu trung tâm                                                 |
+|  - dữ liệu tổng                                                           |
+|  - metadata / cấu hình                                                    |
+|  - thống kê tổng                                                          |
+|                                                                          |
+|  +----------------+  +----------------+  +----------------+  +---------+ |
+|  | Chi nhánh 1    |  | Chi nhánh 2    |  | Chi nhánh 3    |  | CN 4    | |
+|  | Mảnh 1         |  | Mảnh 2         |  | Mảnh 3         |  | Mảnh 4  | |
+|  +----------------+  +----------------+  +----------------+  +---------+ |
+|                                                                          |
++--------------------------------------------------------------------------+
 ```
 
-Collection cần shard chính: `donations`.
+Collection cần shard chính: `donations`. Các collection `payment_transactions` và `campaign_reports` nên có `campaignCode`/`branchCode` để định vị cùng mảnh chi nhánh khi cần truy vấn liên quan.
 
 Shard key đề xuất cho demo:
 
@@ -351,7 +441,7 @@ Cảnh báo chuyên môn:
 
 ## 12. Lệnh khởi tạo collection và index
 
-### 12.1. Bản demo bắt buộc
+### 12.1. Bộ collection thiết kế
 
 ```javascript
 use charity_distributed
@@ -359,28 +449,34 @@ use charity_distributed
 db.createCollection("users")
 db.createCollection("campaigns")
 db.createCollection("donations")
+db.createCollection("payment_transactions")
+db.createCollection("campaign_reports")
+db.createCollection("audit_logs")
+db.createCollection("stats_snapshots")
 
+db.users.createIndex({ username: 1 }, { unique: true })
 db.users.createIndex({ email: 1 }, { unique: true })
-db.users.createIndex({ role: 1 })
+db.users.createIndex({ role: 1, branchCode: 1 })
 db.users.createIndex({ isActive: 1, role: 1 })
 
 db.campaigns.createIndex({ code: 1 }, { unique: true })
 db.campaigns.createIndex({ isActive: 1, createdAt: -1 })
 db.campaigns.createIndex({ name: "text", code: "text" })
+db.campaigns.createIndex({ branchCode: 1, createdAt: -1 })
 
 db.donations.createIndex({ campaignCode: 1, createdAt: -1 })
 db.donations.createIndex({ status: 1, createdAt: -1 })
 db.donations.createIndex({ donorEmail: 1, createdAt: -1 })
 db.donations.createIndex({ amount: -1 })
-```
 
-### 12.2. Bản mở rộng khuyến nghị
+db.payment_transactions.createIndex({ donationId: 1, createdAt: -1 })
+db.payment_transactions.createIndex({ campaignCode: 1, createdAt: -1 })
+db.payment_transactions.createIndex({ status: 1, createdAt: -1 })
+db.payment_transactions.createIndex({ providerTxnId: 1 }, { sparse: true })
 
-Các collection dưới đây không bắt buộc ở bản demo. Có thể tạo sẵn để mở rộng audit và dashboard khi nhóm cần.
-
-```javascript
-db.createCollection("audit_logs")
-db.createCollection("stats_snapshots")
+db.campaign_reports.createIndex({ campaignCode: 1, reportPeriod: -1 })
+db.campaign_reports.createIndex({ branchCode: 1, reportPeriod: -1 })
+db.campaign_reports.createIndex({ reportStatus: 1, createdAt: -1 })
 
 db.audit_logs.createIndex({ requestId: 1 })
 db.audit_logs.createIndex({ actorId: 1, createdAt: -1 })
@@ -389,6 +485,12 @@ db.audit_logs.createIndex({ createdAt: -1 })
 
 db.stats_snapshots.createIndex({ scope: 1, campaignCode: 1, calculatedAt: -1 })
 db.stats_snapshots.createIndex({ calculatedAt: -1 })
+```
+
+### 12.2. Index shard key khi demo sharding
+
+```javascript
+db.donations.createIndex({ campaignCode: "hashed" })
 ```
 
 ## 13. Phân quyền
@@ -404,18 +506,25 @@ db.stats_snapshots.createIndex({ calculatedAt: -1 })
 
 ### 13.2. Ma trận RBAC ở ứng dụng
 
-| Chức năng | Admin | Staff | Donor |
-|---|---:|---:|---:|
-| Xem campaign | Có | Có | Có |
-| Tạo campaign | Có | Có | Không |
-| Cập nhật campaign | Có | Có | Không |
-| Xóa campaign | Có | Không | Không |
-| Tạo donation | Có | Không | Có |
-| Xem donation | Có | Có | Có, giới hạn |
-| Duyệt/từ chối donation | Có | Có | Không |
-| Xem thống kê | Có | Có | Có, giới hạn |
-| Quản lý user | Có | Giới hạn | Không |
-| Health/system | Có | Có | Giới hạn |
+Hệ thống có 2 loại admin:
+
+- `system_admin`: admin tổng hệ thống, xem và quản trị toàn bộ dữ liệu.
+- `branch_admin`: admin chi nhánh, chỉ quản trị dữ liệu trong `branchCode` được phân công.
+
+| Chức năng | Admin tổng hệ thống | Admin chi nhánh | Staff | Donor |
+|---|---:|---:|---:|---:|
+| Xem campaign | Toàn hệ thống | Theo chi nhánh | Theo phân công | Public |
+| Tạo campaign | Có | Có, theo chi nhánh | Có, nếu được phân quyền | Không |
+| Cập nhật campaign | Có | Có, theo chi nhánh | Có, nếu được phân quyền | Không |
+| Xóa campaign | Có | Không | Không | Không |
+| Tạo donation | Có | Không | Không | Có |
+| Xem donation | Toàn hệ thống | Theo chi nhánh | Theo phân công | Của mình/email |
+| Duyệt/từ chối donation | Có | Có, theo chi nhánh | Có, nếu được phân quyền | Không |
+| Quản lý payment transaction | Toàn hệ thống | Theo chi nhánh | Đối soát | Không |
+| Quản lý campaign report | Toàn hệ thống | Theo chi nhánh | Lập/cập nhật | Xem public |
+| Xem thống kê | Toàn hệ thống | Theo chi nhánh | Theo phân công | Public/giới hạn |
+| Quản lý user | Có | User chi nhánh | Không | Không |
+| Health/system | Có | Xem giới hạn | Xem giới hạn | Không |
 
 ## 14. Luồng dữ liệu chính
 
@@ -495,6 +604,10 @@ File `apps/backend/src/common/transactions.example.ts` có một số ý tưởn
 
 | Nội dung trong ví dụ | Schema hiện tại | Cách xử lý trong tài liệu này |
 |---|---|---|
+| `username` trong `users` | Code demo có thể chưa có | Bổ sung vào thiết kế để tài khoản đầy đủ hơn |
+| `system_admin`, `branch_admin` | Code demo có thể đang gộp `admin` | Tách thành admin tổng hệ thống và admin chi nhánh |
+| `payment_transactions` | Có thể chưa có model riêng | Bổ sung để quản lý thanh toán tách khỏi donation |
+| `campaign_reports` | Có thể chưa có model riêng | Bổ sung để báo cáo tiến độ/minh chứng theo chiến dịch |
 | `approvedBy`, `approvedAt` | Chưa có trong `donations` | Ghi là khuyến nghị `reviewedBy`, `reviewedAt` |
 | `status = approved` | Hiện dùng `verified` | Giữ `verified` theo code hiện tại |
 | `goalAmount`, `currentAmount` | Hiện dùng `targetAmount`, chưa có `currentAmount` | Giữ `targetAmount`; thống kê tính động |
@@ -505,13 +618,13 @@ File `apps/backend/src/common/transactions.example.ts` có một số ý tưởn
 
 | Tiêu chí | Đánh giá |
 |---|---|
-| Đúng schema hiện tại | Giữ đúng `users`, `campaigns`, `donations` đang chạy |
+| Đúng yêu cầu thiết kế | Mở rộng thành 7 collection: `users`, `campaigns`, `donations`, `payment_transactions`, `campaign_reports`, `audit_logs`, `stats_snapshots` |
 | Dễ triển khai | Phù hợp Express + Mongoose hiện tại |
-| Dễ mở rộng | Có lộ trình thêm audit, snapshot, reviewer fields |
+| Dễ mở rộng | Có lộ trình thêm thanh toán, báo cáo chiến dịch, audit, snapshot, reviewer fields |
 | Tối ưu truy vấn chính | Có index theo `campaignCode`, `status`, `donorEmail`, `createdAt` |
 | An toàn dữ liệu | Có validation, RBAC, password hash và logging |
-| Phù hợp CSDLPT | Có nhân bản, failover và phương án sharding |
+| Phù hợp CSDLPT | Có nhân bản, failover, 5 server dữ liệu và 4 mảnh chi nhánh |
 
 ## 17. Kết luận
 
-Thiết kế dữ liệu nên giữ `donations` làm collection trung tâm, `campaigns` làm dữ liệu nghiệp vụ nền và `users` làm lớp định danh - phân quyền. Với bản demo, Replica Set 3 node đủ để chứng minh nhân bản và failover. Với mô hình mở rộng 6 máy, sharding `donations` theo `campaignCode` dạng hashed là hợp lý, miễn là nhóm ghi rõ đánh đổi và điều kiện dữ liệu có thể gây lệch tải.
+Thiết kế dữ liệu nên giữ `donations` làm collection trung tâm, `campaigns` làm dữ liệu nghiệp vụ nền và `users` làm lớp định danh - phân quyền. Bộ 7 collection là vừa đủ: không quá ít để thiếu nghiệp vụ thanh toán/báo cáo, cũng không dư thừa so với phạm vi bài toán. Với mô hình mở rộng 6 máy, cụm dữ liệu gồm 5 server: 1 server dữ liệu tổng trung tâm và 4 server chi nhánh tương ứng 4 mảnh dữ liệu.

@@ -1,0 +1,41 @@
+flowchart TB
+    subgraph ADMIN["Admin roles"]
+        SA["system_admin<br/>Quan tri toan he thong"]
+        BA["branch_admin<br/>Quan tri trong branchCode"]
+    end
+
+    subgraph ACTIONS["Nhom chuc nang"]
+        USER["Quan ly users"]
+        CAMP["Quan ly campaigns"]
+        DON["Xem / duyet donations"]
+        PAY["Quan ly payment_transactions"]
+        REP["Quan ly campaign_reports"]
+        STAT["Xem thong ke"]
+        SYS["Health / system"]
+    end
+
+    SA -->|all branches| USER
+    SA -->|all branches| CAMP
+    SA -->|all branches| DON
+    SA -->|all branches| PAY
+    SA -->|all branches| REP
+    SA -->|global + branch| STAT
+    SA -->|full| SYS
+
+    BA -->|branch users only| USER
+    BA -->|branch only| CAMP
+    BA -->|branch only| DON
+    BA -->|branch only| PAY
+    BA -->|branch only| REP
+    BA -->|branch only| STAT
+    BA -->|limited| SYS
+
+    STAFF["staff"] -->|assigned campaigns| CAMP
+    STAFF -->|verify/reject if allowed| DON
+    STAFF -->|reconcile| PAY
+    STAFF -->|create/update| REP
+
+    DONOR["donor"] -->|public campaigns| CAMP
+    DONOR -->|create / own email| DON
+    DONOR -->|own payment status| PAY
+    DONOR -->|public reports| REP

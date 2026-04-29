@@ -1,0 +1,22 @@
+sequenceDiagram
+    autonumber
+    actor Staff as Staff / Branch Admin / System Admin
+    participant FE as Admin Frontend
+    participant API as Backend API
+    participant RBAC as JWT + RBAC
+    participant Donate as Donation Service
+    participant DB as MongoDB PRIMARY / mongos
+    participant Stats as Stats Aggregation
+    participant Audit as audit_logs
+
+    Staff->>FE: Choose verified or rejected
+    FE->>API: PATCH /api/donations/:id/status
+    API->>RBAC: Check role and branchCode scope
+    RBAC-->>API: Allowed
+    API->>Donate: Validate status transition
+    Donate->>DB: update donation status, reviewedBy, reviewedAt
+    Donate->>Stats: Recalculate verified totals
+    Stats->>DB: aggregate donations where status = verified
+    API->>Audit: log review action
+    Audit->>DB: insert audit_logs
+    API-->>FE: 200 OK
