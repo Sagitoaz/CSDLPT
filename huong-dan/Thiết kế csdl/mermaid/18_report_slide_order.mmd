@@ -1,0 +1,13 @@
+%% 18_report_slide_order.mmd
+flowchart TD
+    A["1. Kiến trúc tổng thể<br/>01_system_architecture"] --> B["2. Bản đồ chức năng - dữ liệu<br/>02_data_domain_map"]
+    B --> C["3. ERD SQL logic<br/>03_sql_logic_erd"]
+    C --> D["4. MongoDB document model<br/>04_mongodb_document_model"]
+    D --> E["5. RBAC và branch scope<br/>05_rbac_branch_scope"]
+    E --> F["6. Tần suất và collection nóng<br/>06_access_frequency_groups"]
+    F --> G["7. Index strategy<br/>07_index_strategy"]
+    G --> H["8. Phân mảnh ngang branchId<br/>08_horizontal_fragmentation_branchid"]
+    H --> I["9. Định vị 6 máy<br/>09_six_machine_deployment"]
+    I --> J["10. Global - Local mapping<br/>10_global_local_mapping"]
+    J --> K["11. Giao tác donation và thống kê<br/>12, 13, 14"]
+    K --> L["12. Audit, shard key, failover<br/>11, 15, 16, 17"]

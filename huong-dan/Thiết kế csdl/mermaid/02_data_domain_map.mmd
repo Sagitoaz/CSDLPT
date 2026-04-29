@@ -1,0 +1,54 @@
+%% 02_data_domain_map.mmd
+flowchart LR
+    subgraph FUNC["Nhóm chức năng nghiệp vụ"]
+        Login["Đăng nhập, phân quyền<br/>Tần suất: Cao"]
+        BranchMgmt["Quản lý chi nhánh<br/>Tần suất: Trung bình"]
+        CampaignMgmt["Quản lý chiến dịch<br/>Tần suất: Cao"]
+        DonorMgmt["Quản lý nhà tài trợ<br/>Tần suất: Trung bình"]
+        DonationFlow["Quyên góp<br/>Tần suất: Rất cao"]
+        BeneficiaryMgmt["Người thụ hưởng<br/>Tần suất: Trung bình"]
+        DisbursementFlow["Giải ngân<br/>Tần suất: Trung bình"]
+        VolunteerMgmt["Tình nguyện viên<br/>Tần suất: Thấp - Trung bình"]
+        Stats["Thống kê<br/>Tần suất: Cao"]
+        Audit["Nhật ký hoạt động<br/>Tần suất: Rất cao"]
+    end
+
+    subgraph DATA["Bảng SQL logic / Collection MongoDB"]
+        branches[(branches)]
+        users[(users)]
+        donors[(donors)]
+        campaigns[(campaigns)]
+        donations[(donations)]
+        beneficiaries[(beneficiaries)]
+        disbursements[(disbursements)]
+        volunteers[(volunteers)]
+        activity_logs[(activity_logs)]
+    end
+
+    Login --> users
+    Login --> branches
+    BranchMgmt --> branches
+    BranchMgmt --> users
+    CampaignMgmt --> campaigns
+    CampaignMgmt --> branches
+    CampaignMgmt --> users
+    DonorMgmt --> donors
+    DonorMgmt --> users
+    DonationFlow --> donations
+    DonationFlow --> campaigns
+    DonationFlow --> donors
+    BeneficiaryMgmt --> beneficiaries
+    BeneficiaryMgmt --> campaigns
+    DisbursementFlow --> disbursements
+    DisbursementFlow --> beneficiaries
+    DisbursementFlow --> campaigns
+    VolunteerMgmt --> volunteers
+    VolunteerMgmt --> campaigns
+    Stats --> donations
+    Stats --> campaigns
+    Audit --> activity_logs
+
+    classDef hot fill:#ffe8e8,stroke:#c92a2a,stroke-width:2px;
+    classDef core fill:#e8f2ff,stroke:#2f70c0,stroke-width:1px;
+    class donations,activity_logs hot;
+    class branches,users,campaigns core;

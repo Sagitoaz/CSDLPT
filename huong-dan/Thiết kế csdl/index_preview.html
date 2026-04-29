@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bộ sơ đồ Mermaid - CSDL phân tán</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.5;
+            margin: 24px;
+            background: #fafafa;
+        }
+
+        h1 {
+            margin-bottom: 0;
+        }
+
+        section {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 18px;
+            margin: 18px 0;
+            overflow-x: auto;
+        }
+
+        code {
+            background: #f2f2f2;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        .note {
+            background: #fff4e5;
+            border: 1px solid #ffd08a;
+            border-radius: 10px;
+            padding: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Bộ sơ đồ Mermaid - CSDL SQL logic và MongoDB phân tán</h1>
+    <p class="note">File HTML này dùng Mermaid qua CDN. Nếu trình duyệt không render, hãy copy nội dung file .mmd tương
+        ứng sang Mermaid Live Editor.</p>
+
+    <section>
+        <h2>Kiến trúc tổng thể hệ thống</h2>
+        <p><strong>File:</strong> <code>01_system_architecture.mmd</code></p>
+        <p>Dùng ở phần phạm vi/kiến trúc ứng dụng để nhóm nhìn nhanh luồng từ trình duyệt đến MongoDB Replica Set hoặc
+            Sharded Cluster.</p>
+        <pre class="mermaid">%% 01_system_architecture.mmd
+flowchart TB
+    U[&quot;Người dùng / Máy trạm&lt;br/&gt;Donor, Staff, Admin, QA&quot;] --&gt; B[&quot;Trình duyệt người dùng&quot;]
+    B --&gt; FE[&quot;Frontend React / Vite&quot;]
+    FE --&gt; BE[&quot;Backend Node.js / Express&lt;br/&gt;API, JWT, RBAC, Validation&quot;]
+    BE --&gt; DBGW{&quot;Kết nối MongoDB&quot;}
+
+    DBGW --&gt; RSConn[&quot;Connection string&lt;br/&gt;Replica Set&quot;]
+    DBGW --&gt; Mongos[&quot;mongos&lt;br/&gt;Router của Sharded Cluster&quot;]
+
+    RSConn --&gt; RS[&quot;Replica Set&lt;br/&gt;Primary + Secondary + Secondary&quot;]
+    Mongos --&gt; CFG[&quot;Config Server&lt;br/&gt;Shard metadata&quot;]
+    Mongos --&gt; S1[&quot;Shard 1 Replica Set&quot;]
+    Mongos --&gt; S2[&quot;Shard 2 Replica Set&quot;]
+    Mongos --&gt; S3[&quot;Shard 3 Replica Set&quot;]
+    Mongos --&gt; S4[&quot;Shard 4 Replica Set&quot;]
+
+    BE --&gt; LOG[&quot;activity_logs&lt;br/&gt;ghi audit mọi thao tác nghiệp vụ&quot;]
+    BE --&gt; TX[&quot;MongoDB Transaction&lt;br/&gt;donation ảnh hưởng campaigns và donors&quot;]
+
+    classDef app fill:#e8f2ff,stroke:#2f70c0,stroke-width:1px;
+    classDef db fill:#eef9ef,stroke:#2d7d3a,stroke-width:1px;
+    classDef hot fill:#fff4e5,stroke:#d28b00,stroke-width:1px;
+    class FE,BE app;
+    class RS,Mongos,CFG,S1,S2,S3,S4,RSConn db;
+    class LOG,TX hot;
+</pre>
+    </section>
+
+    <section>
+        <h2>Bản đồ chức năng và dữ liệu truy cập</h2>
+        <p><strong>File:</strong> <code>02_data_domain_map.mmd</code></p>
+        <p>Dùng để giải thích nghiệp vụ nào đụng đến collection nào, đồng thời nhấn mạnh donations và activity_logs là
+            vùng nóng.</p>
+        <pre class="mermaid">%% 02_data_domain_map.mmd
+flowchart LR
+    subgraph FUNC[&quot;Nhóm chức năng nghiệp vụ&quot;]
+        Login[&quot;Đăng nhập, phân quyền&lt;br/&gt;Tần suất: Cao&quot;]
+        BranchMgmt[&quot;Quản lý chi nhánh&lt;br/&gt;Tần suất: Trung bình&quot;]
+        CampaignMgmt[&quot;Quản lý chiến dịch&lt;br/&gt;Tần suất: Cao&quot;]
+        DonorMgmt[&quot;Quản lý nhà tài trợ&lt;br/&gt;Tần suất: Trung bình&quot;]
+        DonationFlow[&quot;Quyên góp&lt;br/&gt;Tần suất: Rất cao&quot;]
+        BeneficiaryMgmt[&quot;Người thụ hưởng&lt;br/&gt;Tần suất: Trung bình&quot;]
+        DisbursementFlow[&quot;Giải ngân&lt;br/&gt;Tần suất: Trung bình&quot;]
+        VolunteerMgmt[&quot;Tình nguyện viên&lt;br/&gt;Tần suất: Thấp - Trung bình&quot;]
+        Stats[&quot;Thống kê&lt;br/&gt;Tần suất: Cao&quot;]
+        Audit[&quot;Nhật ký hoạt động&lt;br/&gt;Tần suất: Rất cao&quot;]
+    end
+
+    subgraph DATA[&quot;Bảng SQL logic / Collection MongoDB&quot;]
+        branches[(branches)]
+        users[(users)]
+        donors[(donors)]
+        campaigns[(campaigns)]
+        donations[(donations)]
+        beneficiaries[(beneficiaries)]
+        disbursements[(disbursements)]
+        volunteers[(volunteers)]
+        activity_logs[(activity_logs)]
+    end
+
+    Login --&gt; users
+    Login --&gt; branches
+    BranchMgmt --&gt; branches
+    BranchMgmt --&gt; users
+    CampaignMgmt --&gt; campaigns
+    CampaignMgmt --&gt; branches
+    CampaignMgmt --&gt; users
+    DonorMgmt --&gt; donors
+    DonorMgmt --&gt; users
+    DonationFlow --&gt; donations
+    DonationFlow --&gt; campaigns
+    DonationFlow --&gt; donors
+    BeneficiaryMgmt --&gt; beneficiaries
+    BeneficiaryMgmt --&gt; campaigns
+    DisbursementFlow --&gt; disbursements
+    DisbursementFlow --&gt; beneficiaries
+    DisbursementFlow --&gt; campaigns
+    VolunteerMgmt --&gt; volunteers
+    VolunteerMgmt --&gt; campaigns
+    Stats --&gt; donations
+    Stats --&gt; campaigns
+    Audit --&gt; activity_logs
+
+    classDef hot fill:#ffe8e8,stroke:#c92a2a,stroke-width:2px;
+    classDef core fill:#e8f2ff,stroke:#2f70c0,stroke-width:1px;
+    class donations,activity_logs hot;
+    class branches,users,campaigns core;
+</pre>
+    </section>
+
+    <section>
+        <h2>ERD SQL logic đầy đủ</h2>
+        <p><strong>File:</strong> <code>03_sql_logic_erd.mmd</code></p>
+        <p>Dùng làm sơ đồ quan trọng nhất trong báo cáo: bảng, khóa chính, khóa ngoại và quan hệ nghiệp vụ.</p>
+        <pre class="mermaid">%% 03_sql_logic_erd.mmd
+%% ERD logic: có thể paste trực tiếp vào Mermaid Live Editor.
+erDiagram
+    BRANCHES {
+        string id PK
+        string code UK
+        string name
+        string type
+        string parent_id FK
+        string province
+        string status
+        datetime created_at
+        datetime updated_at
+    }
+
+    USERS {
+        string id PK
+        string email UK
+        string phone UK
+        string password
+        string full_name
+        string role
+        string branch_id FK
+        json permissions
+        boolean is_active
+    }
+
+    DONORS {
+        string id PK
+        string user_id FK
+        string full_name
+        string phone UK
+        string email UK
+        string donor_type
+        decimal total_donated
+    }
+
+    CAMPAIGNS {
+        string id PK
+        string branch_id FK
+        string code UK
+        string title
+        string type
+        string status
+        decimal target_amount
+        decimal current_amount
+        decimal disbursed_amount
+        string organizer_id FK
+        string created_by FK
+    }
+
+    DONATIONS {
+        string id PK
+        string branch_id FK
+        string campaign_id FK
+        string donor_id FK
+        string donor_full_name
+        string campaign_code
+        decimal amount
+        string payment_method
+        string payment_status
+        string transaction_code UK
+        datetime donated_at
+    }
+
+    BENEFICIARIES {
+        string id PK
+        string branch_id FK
+        string campaign_id FK
+        string name
+        string type
+        string phone
+        string verification_status
+        string verified_by FK
+        datetime verified_at
+    }
+
+    DISBURSEMENTS {
+        string id PK
+        string branch_id FK
+        string campaign_id FK
+        string beneficiary_id FK
+        decimal amount
+        string purpose
+        string method
+        string status
+        string approved_by FK
+        datetime disbursed_at
+    }
+
+    DISBURSEMENT_PROOFS {
+        string id PK
+        string disbursement_id FK
+        string type
+        string url
+        string description
+        datetime uploaded_at
+        string uploaded_by FK
+    }
+
+    VOLUNTEERS {
+        string id PK
+        string branch_id FK
+        string full_name
+        string phone
+        string email
+        json skills
+        string status
+    }
+
+    VOLUNTEER_CAMPAIGNS {
+        string volunteer_id PK,FK
+        string campaign_id PK,FK
+    }
+
+    ACTIVITY_LOGS {
+        string id PK
+        string branch_id FK
+        string target_branch_id FK
+        string actor_id FK
+        string actor_role
+        string action
+        string entity_type
+        string entity_id
+        json before_data
+        json after_data
+        datetime created_at
+    }
+
+    BRANCHES ||--o{ BRANCHES : &quot;parent-child&quot;
+    BRANCHES ||--o{ USERS : &quot;has users&quot;
+    BRANCHES ||--o{ CAMPAIGNS : &quot;owns campaigns&quot;
+    BRANCHES ||--o{ DONATIONS : &quot;receives donations&quot;
+    BRANCHES ||--o{ BENEFICIARIES : &quot;manages beneficiaries&quot;
+    BRANCHES ||--o{ DISBURSEMENTS : &quot;handles disbursements&quot;
+    BRANCHES ||--o{ VOLUNTEERS : &quot;manages volunteers&quot;
+    BRANCHES ||--o{ ACTIVITY_LOGS : &quot;has logs&quot;
+
+    USERS ||--o{ CAMPAIGNS : &quot;created_by / organizer&quot;
+    USERS ||--o{ BENEFICIARIES : &quot;verified_by&quot;
+    USERS ||--o{ DISBURSEMENTS : &quot;approved_by&quot;
+    USERS ||--o{ ACTIVITY_LOGS : &quot;actor&quot;
+    USERS ||--o| DONORS : &quot;linked account&quot;
+
+    DONORS ||--o{ DONATIONS : &quot;makes&quot;
+    CAMPAIGNS ||--o{ DONATIONS : &quot;receives&quot;
+    CAMPAIGNS ||--o{ BENEFICIARIES : &quot;supports&quot;
+    CAMPAIGNS ||--o{ DISBURSEMENTS : &quot;funds&quot;
+    BENEFICIARIES ||--o{ DISBURSEMENTS : &quot;receives&quot;
+    DISBURSEMENTS ||--o{ DISBURSEMENT_PROOFS : &quot;has proofs&quot;
+    VOLUNTEERS ||--o{ VOLUNTEER_CAMPAIGNS : &quot;joins&quot;
+    CAMPAIGNS ||--o{ VOLUNTEER_CAMPAIGNS : &quot;has volunteers&quot;
+</pre>
+    </section>
+
+    <section>
+        <h2>Mô hình document MongoDB và dữ liệu nhúng</h2>
+        <p><strong>File:</strong> <code>04_mongodb_document_model.mmd</code></p>
+        <p>Dùng để giải thích vì sao MongoDB phù hợp: snapshot trong donations, location/proofs nhúng trong document.
+        </p>
+        <pre class="mermaid">%% 04_mongodb_document_model.mmd
+flowchart LR
+    branches[(branches&lt;br/&gt;code, type, parentId,&lt;br/&gt;province, status)]
+    users[(users&lt;br/&gt;email, role, branchId,&lt;br/&gt;permissions, isActive)]
+    donors[(donors&lt;br/&gt;userId, fullName,&lt;br/&gt;donorType, totalDonated)]
+    campaigns[(campaigns&lt;br/&gt;branchId, code, title,&lt;br/&gt;status, targetAmount,&lt;br/&gt;currentAmount, disbursedAmount)]
+    donations[(donations&lt;br/&gt;branchId, campaignId, donorId,&lt;br/&gt;amount, paymentStatus,&lt;br/&gt;transactionCode)]
+    beneficiaries[(beneficiaries&lt;br/&gt;branchId, campaignId,&lt;br/&gt;name, verificationStatus)]
+    disbursements[(disbursements&lt;br/&gt;branchId, campaignId,&lt;br/&gt;beneficiaryId, amount, status)]
+    volunteers[(volunteers&lt;br/&gt;branchId, skills list,&lt;br/&gt;joinedCampaignIds list)]
+    activity_logs[(activity_logs&lt;br/&gt;actor, action, entity,&lt;br/&gt;before and after snapshots)]
+
+    subgraph EMBED[&quot;Dữ liệu nhúng trong document&quot;]
+        loc1[&quot;campaigns.location object&quot;]
+        imgs[&quot;campaigns.images array&lt;br/&gt;campaigns.proofImages array&quot;]
+        donorSnap[&quot;donations.donorSnapshot object&quot;]
+        campSnap[&quot;donations.campaignSnapshot object&quot;]
+        loc2[&quot;beneficiaries.location object&quot;]
+        proofs[&quot;disbursements.proofs array&quot;]
+        beforeAfter[&quot;activity_logs.before / after objects&quot;]
+    end
+
+    branches --&gt; users
+    branches --&gt; campaigns
+    branches --&gt; donations
+    branches --&gt; beneficiaries
+    branches --&gt; disbursements
+    branches --&gt; volunteers
+    users --&gt; donors
+    campaigns --&gt; donations
+    donors --&gt; donations
+    campaigns --&gt; beneficiaries
+    campaigns --&gt; disbursements
+    beneficiaries --&gt; disbursements
+    volunteers -. joinedCampaignIds .-&gt; campaigns
+
+    campaigns --&gt; loc1
+    campaigns --&gt; imgs
+    donations --&gt; donorSnap
+    donations --&gt; campSnap
+    beneficiaries --&gt; loc2
+    disbursements --&gt; proofs
+    activity_logs --&gt; beforeAfter
+
+    classDef embed fill:#fff4e5,stroke:#d28b00,stroke-width:1px;
+    class loc1,imgs,donorSnap,campSnap,loc2,proofs,beforeAfter embed;
+</pre>
+    </section>
+
+    <section>
+        <h2>Phân quyền RBAC và lọc dữ liệu theo chi nhánh</h2>
+        <p><strong>File:</strong> <code>05_rbac_branch_scope.mmd</code></p>
+        <p>Dùng để trình bày cơ chế bảo vệ dữ liệu: JWT, role, branchId và ngoại lệ SUPER_ADMIN.</p>
+        <pre class="mermaid">%% 05_rbac_branch_scope.mmd
+flowchart TB
+    Request[&quot;Request từ Frontend&quot;] --&gt; JWT{&quot;Có JWT hợp lệ?&quot;}
+    JWT -- &quot;Không&quot; --&gt; Reject401[&quot;Từ chối 401 Unauthorized&quot;]
+    JWT -- &quot;Có&quot; --&gt; Role{&quot;Role của user&quot;}
+
+    Role -- &quot;SUPER_ADMIN&quot; --&gt; AllScope[&quot;Phạm vi: toàn hệ thống&lt;br/&gt;Không giới hạn branchId&quot;]
+    Role -- &quot;BRANCH_ADMIN&quot; --&gt; BranchAdmin[&quot;Phạm vi: trong chi nhánh&lt;br/&gt;Quản lý user, campaign, donation, stats, health&quot;]
+    Role -- &quot;STAFF&quot; --&gt; Staff[&quot;Phạm vi: trong chi nhánh&lt;br/&gt;Tạo/sửa campaign, duyệt donation, xem thống kê&quot;]
+    Role -- &quot;DONOR&quot; --&gt; Donor[&quot;Phạm vi: dữ liệu công khai&lt;br/&gt;và donation của chính mình&quot;]
+
+    BranchAdmin --&gt; BranchFilter[&quot;Backend tự gắn điều kiện branchId&quot;]
+    Staff --&gt; BranchFilter
+    Donor --&gt; PublicFilter[&quot;Lọc public campaign&lt;br/&gt;và donorId của user&quot;]
+    AllScope --&gt; Query[&quot;Truy vấn MongoDB&quot;]
+    BranchFilter --&gt; Query
+    PublicFilter --&gt; Query
+
+    Query --&gt; Audit[&quot;Ghi activity_logs&lt;br/&gt;actor, role, branch, before/after&quot;]
+    Audit --&gt; Response[&quot;Trả response cho Frontend&quot;]
+
+    classDef deny fill:#ffe8e8,stroke:#c92a2a,stroke-width:1px;
+    classDef ok fill:#eef9ef,stroke:#2d7d3a,stroke-width:1px;
+    class Reject401 deny;
+    class AllScope,BranchFilter,PublicFilter,Query ok;
+</pre>
+    </section>
+
+    <section>
+        <h2>Nhóm dữ liệu theo tần suất truy cập</h2>
+        <p><strong>File:</strong> <code>06_access_frequency_groups.mmd</code></p>
+        <p>Dùng để giải thích nhanh bảng tần suất H/L, đọc/ghi/sửa/xóa ở trụ sở và chi nhánh.</p>
+        <pre class="mermaid">%% 06_access_frequency_groups.mmd
+flowchart TB
+    subgraph HOT[&quot;Rất cao / cần tối ưu đầu tiên&quot;]
+        Donation[&quot;Donation&lt;br/&gt;H.WEDR tại trụ sở và trạm&lt;br/&gt;Tăng nhanh nhất&quot;]
+        ActivityLog[&quot;ActivityLog&lt;br/&gt;H.W tại trạm, H.R tại trụ sở&lt;br/&gt;Ghi audit liên tục&quot;]
+    end
+
+    subgraph HIGH[&quot;Cao / nghiệp vụ thường xuyên&quot;]
+        User[&quot;User&lt;br/&gt;đăng nhập, phân quyền&quot;]
+        Campaign[&quot;Campaign&lt;br/&gt;tạo, sửa, đóng/mở, thống kê&quot;]
+        Stats[&quot;Stats&lt;br/&gt;aggregate từ donations và campaigns&quot;]
+    end
+
+    subgraph MEDIUM[&quot;Trung bình / theo nghiệp vụ chi nhánh&quot;]
+        Donor[&quot;Donor&lt;br/&gt;tra cứu, cập nhật tổng tiền&quot;]
+        Beneficiary[&quot;Beneficiary&lt;br/&gt;xác minh hồ sơ&quot;]
+        Disbursement[&quot;Disbursement&lt;br/&gt;duyệt và hoàn tất giải ngân&quot;]
+        Volunteer[&quot;Volunteer&lt;br/&gt;quản lý tham gia chiến dịch&quot;]
+    end
+
+    subgraph CORE[&quot;Dữ liệu lõi / đọc nhiều&quot;]
+        Branch[&quot;Branch&lt;br/&gt;trục phân quyền và phân mảnh&quot;]
+    end
+
+    Branch --&gt; User
+    Branch --&gt; Campaign
+    Branch --&gt; Donation
+    Branch --&gt; Beneficiary
+    Branch --&gt; Disbursement
+    Branch --&gt; Volunteer
+    Donation --&gt; Stats
+    ActivityLog --&gt; AuditView[&quot;Màn hình audit / truy vết&quot;]
+
+    classDef hot fill:#ffe8e8,stroke:#c92a2a,stroke-width:2px;
+    classDef core fill:#e8f2ff,stroke:#2f70c0,stroke-width:1px;
+    class Donation,ActivityLog hot;
+    class Branch,User,Campaign core;
+</pre>
+    </section>
+
+    <section>
+        <h2>Chiến lược chỉ mục dữ liệu</h2>
+        <p><strong>File:</strong> <code>07_index_strategy.mmd</code></p>
+        <p>Dùng để trình bày các index quan trọng và use case: đăng nhập, lọc theo chi nhánh, thống kê donation, audit.
+        </p>
+        <pre class="mermaid">%% 07_index_strategy.mmd
+flowchart LR
+    subgraph AUTH[&quot;Đăng nhập và phân quyền&quot;]
+        IDX_USER_EMAIL[&quot;users&lt;br/&gt;{ email: 1 } unique&quot;]
+        IDX_USER_PHONE[&quot;users&lt;br/&gt;{ phone: 1 } unique sparse&quot;]
+        IDX_USER_BRANCH_ROLE[&quot;users&lt;br/&gt;{ branchId: 1, role: 1 }&quot;]
+    end
+
+    subgraph CAMPAIGN[&quot;Quản lý chiến dịch&quot;]
+        IDX_CAMP_CODE[&quot;campaigns&lt;br/&gt;{ code: 1 } unique&quot;]
+        IDX_CAMP_BRANCH_STATUS[&quot;campaigns&lt;br/&gt;{ branchId: 1, status: 1, createdAt: -1 }&quot;]
+        IDX_CAMP_BRANCH_TYPE[&quot;campaigns&lt;br/&gt;{ branchId: 1, type: 1, createdAt: -1 }&quot;]
+    end
+
+    subgraph DONATION[&quot;Donation: collection nóng nhất&quot;]
+        IDX_TX[&quot;donations&lt;br/&gt;{ transactionCode: 1 } unique&quot;]
+        IDX_DON_BRANCH_CAMP_DATE[&quot;donations&lt;br/&gt;{ branchId: 1, campaignId: 1, donatedAt: -1 }&quot;]
+        IDX_DON_CAMP_STATUS_DATE[&quot;donations&lt;br/&gt;{ campaignId: 1, paymentStatus: 1, donatedAt: -1 }&quot;]
+        IDX_DON_DONOR_DATE[&quot;donations&lt;br/&gt;{ donorId: 1, donatedAt: -1 }&quot;]
+    end
+
+    subgraph AUDIT[&quot;Audit và truy vết&quot;]
+        IDX_LOG_BRANCH_DATE[&quot;activity_logs&lt;br/&gt;{ branchId: 1, createdAt: -1 }&quot;]
+        IDX_LOG_ENTITY_DATE[&quot;activity_logs&lt;br/&gt;{ entityType: 1, entityId: 1, createdAt: -1 }&quot;]
+    end
+
+    QueryLogin[&quot;Use case: đăng nhập&quot;] --&gt; IDX_USER_EMAIL
+    QueryCampaign[&quot;Use case: list campaign theo chi nhánh&quot;] --&gt; IDX_CAMP_BRANCH_STATUS
+    QueryDonation[&quot;Use case: xem donation theo chiến dịch&quot;] --&gt; IDX_DON_BRANCH_CAMP_DATE
+    QueryStats[&quot;Use case: thống kê theo trạng thái&quot;] --&gt; IDX_DON_CAMP_STATUS_DATE
+    QueryAudit[&quot;Use case: audit theo đối tượng&quot;] --&gt; IDX_LOG_ENTITY_DATE
+
+    classDef hot fill:#ffe8e8,stroke:#c92a2a,stroke-width:2px;
+    class IDX_TX,IDX_DON_BRANCH_CAMP_DATE,IDX_DON_CAMP_STATUS_DATE,IDX_DON_DONOR_DATE hot;
+</pre>
+    </section>
+
+    <section>
+        <h2>Phân mảnh ngang dẫn xuất theo branchId</h2>
+        <p><strong>File:</strong> <code>08_horizontal_fragmentation_branchid.mmd</code></p>
+        <p>Dùng cho phần thiết kế CSDL phân tán: branches là gốc, các collection nghiệp vụ phân mảnh theo chi nhánh.</p>
+        <pre class="mermaid">%% 08_horizontal_fragmentation_branchid.mmd
+flowchart TB
+    GBranches[(branches toàn cục)] --&gt; BR_HCM[&quot;BR_HCM&lt;br/&gt;branches.code = HCM&quot;]
+    GBranches --&gt; BR_DNG[&quot;BR_DNG&lt;br/&gt;branches.code = DNG&quot;]
+    GBranches --&gt; BR_HQ[&quot;BR_HQ&lt;br/&gt;branches.code = HQ&quot;]
+    GBranches --&gt; BR_OTHER[&quot;BR_OTHER&lt;br/&gt;các chi nhánh còn lại&quot;]
+
+    BR_HCM --&gt; CAM_HCM[(CAMPAIGNS_HCM)]
+    BR_HCM --&gt; DON_HCM[(DONATIONS_HCM)]
+    BR_HCM --&gt; BEN_HCM[(BENEFICIARIES_HCM)]
+    BR_HCM --&gt; DIS_HCM[(DISBURSEMENTS_HCM)]
+    BR_HCM --&gt; VOL_HCM[(VOLUNTEERS_HCM)]
+    BR_HCM --&gt; LOG_HCM[(LOGS_HCM)]
+
+    BR_DNG --&gt; CAM_DNG[(CAMPAIGNS_DNG)]
+    BR_DNG --&gt; DON_DNG[(DONATIONS_DNG)]
+    BR_DNG --&gt; BEN_DNG[(BENEFICIARIES_DNG)]
+    BR_DNG --&gt; DIS_DNG[(DISBURSEMENTS_DNG)]
+    BR_DNG --&gt; VOL_DNG[(VOLUNTEERS_DNG)]
+    BR_DNG --&gt; LOG_DNG[(LOGS_DNG)]
+
+    BR_OTHER --&gt; CAM_OTHER[(CAMPAIGNS_OTHER)]
+    BR_OTHER --&gt; DON_OTHER[(DONATIONS_OTHER)]
+    BR_OTHER --&gt; LOG_OTHER[(LOGS_OTHER)]
+
+    Note[&quot;Nguyên tắc: mọi collection nghiệp vụ có branchId&lt;br/&gt;Backend lọc branchId; MongoDB shard/routing theo shard key&quot;]
+    Note -.-&gt; DON_HCM
+    Note -.-&gt; DON_DNG
+    Note -.-&gt; DON_OTHER
+
+    classDef root fill:#e8f2ff,stroke:#2f70c0,stroke-width:1px;
+    classDef frag fill:#eef9ef,stroke:#2d7d3a,stroke-width:1px;
+    class GBranches,BR_HCM,BR_DNG,BR_HQ,BR_OTHER root;
+    class CAM_HCM,DON_HCM,BEN_HCM,DIS_HCM,VOL_HCM,LOG_HCM,CAM_DNG,DON_DNG,BEN_DNG,DIS_DNG,VOL_DNG,LOG_DNG,CAM_OTHER,DON_OTHER,LOG_OTHER frag;
+</pre>
+    </section>
+
+    <section>
+        <h2>Định vị dữ liệu theo mô hình 6 máy</h2>
+        <p><strong>File:</strong> <code>09_six_machine_deployment.mmd</code></p>
+        <p>Dùng cho phần cài đặt vật lý/định vị: máy 1 chạy ứng dụng và mongos, máy 2 trung tâm, máy 3-6 làm shard.</p>
+        <pre class="mermaid">%% 09_six_machine_deployment.mmd
+flowchart TB
+    M1[&quot;Máy 1&lt;br/&gt;Frontend + Backend + QA + mongos&quot;]
+    M2[&quot;Máy 2&lt;br/&gt;Replica set trung tâm / config&lt;br/&gt;branches, users, metadata lõi&quot;]
+    M3[&quot;Máy 3&lt;br/&gt;Shard 1 RS&lt;br/&gt;campaigns_HCM, donations_HCM&quot;]
+    M4[&quot;Máy 4&lt;br/&gt;Shard 2 RS&lt;br/&gt;campaigns_DNG, donations_DNG&quot;]
+    M5[&quot;Máy 5&lt;br/&gt;Shard 3 RS&lt;br/&gt;campaigns_other, donations_other&quot;]
+    M6[&quot;Máy 6&lt;br/&gt;Shard 4 RS&lt;br/&gt;mở rộng chi nhánh / log nóng&quot;]
+
+    Client[&quot;Máy trạm / trình duyệt&quot;] --&gt; M1
+    M1 --&gt; M2
+    M1 --&gt; M3
+    M1 --&gt; M4
+    M1 --&gt; M5
+    M1 --&gt; M6
+
+    subgraph VPN[&quot;Mạng VPN / LAN thực nghiệm&quot;]
+        M1
+        M2
+        M3
+        M4
+        M5
+        M6
+    end
+
+    M3 &lt;--&gt; R3[&quot;Replica Set Shard 1&lt;br/&gt;Primary + Secondary + Secondary&quot;]
+    M4 &lt;--&gt; R4[&quot;Replica Set Shard 2&lt;br/&gt;Primary + Secondary + Secondary&quot;]
+    M5 &lt;--&gt; R5[&quot;Replica Set Shard 3&lt;br/&gt;Primary + Secondary + Secondary&quot;]
+    M6 &lt;--&gt; R6[&quot;Replica Set Shard 4&lt;br/&gt;Primary + Secondary + Secondary&quot;]
+
+    classDef app fill:#e8f2ff,stroke:#2f70c0,stroke-width:1px;
+    classDef db fill:#eef9ef,stroke:#2d7d3a,stroke-width:1px;
+    class M1 app;
+    class M2,M3,M4,M5,M6,R3,R4,R5,R6 db;
+</pre>
+    </section>
+
+    <section>
+        <h2>Lược đồ ánh xạ Global Schema và Local Schema</h2>
+        <p><strong>File:</strong> <code>10_global_local_mapping.mmd</code></p>
+        <p>Dùng để minh họa công thức union giữa fragment cục bộ và schema toàn cục trong môi trường phân tán.</p>
+        <pre class="mermaid">%% 10_global_local_mapping.mmd
+flowchart TB
+    subgraph G[&quot;Global schema G&quot;]
+        GBranches[(branches)]
+        GUsers[(users)]
+        GDonors[(donors)]
+        GCampaigns[(campaigns)]
+        GDonations[(donations)]
+        GBeneficiaries[(beneficiaries)]
+        GDisbursements[(disbursements)]
+        GVolunteers[(volunteers)]
+        GLogs[(activity_logs)]
+    end
+
+    subgraph LHCM[&quot;Local schema L_HCM&quot;]
+        HCM_C[(campaigns_HCM)]
+        HCM_D[(donations_HCM)]
+        HCM_B[(beneficiaries_HCM)]
+        HCM_DS[(disbursements_HCM)]
+        HCM_V[(volunteers_HCM)]
+        HCM_L[(logs_HCM)]
+    end
+
+    subgraph LDNG[&quot;Local schema L_DNG&quot;]
+        DNG_C[(campaigns_DNG)]
+        DNG_D[(donations_DNG)]
+        DNG_B[(beneficiaries_DNG)]
+        DNG_DS[(disbursements_DNG)]
+        DNG_V[(volunteers_DNG)]
+        DNG_L[(logs_DNG)]
+    end
+
+    subgraph LOTHER[&quot;Local schema L_OTHER&quot;]
+        O_C[(campaigns_other)]
+        O_D[(donations_other)]
+        O_B[(beneficiaries_other)]
+        O_DS[(disbursements_other)]
+        O_V[(volunteers_other)]
+        O_L[(logs_other)]
+    end
+
+    HCM_C --&gt; U1[&quot;union&quot;]
+    DNG_C --&gt; U1
+    O_C --&gt; U1
+    U1 --&gt; GCampaigns
+
+    HCM_D --&gt; U2[&quot;union&quot;]
+    DNG_D --&gt; U2
+    O_D --&gt; U2
+    U2 --&gt; GDonations
+
+    HCM_B --&gt; U3[&quot;union&quot;]
+    DNG_B --&gt; U3
+    O_B --&gt; U3
+    U3 --&gt; GBeneficiaries
+
+    HCM_DS --&gt; U4[&quot;union&quot;]
+    DNG_DS --&gt; U4
+    O_DS --&gt; U4
+    U4 --&gt; GDisbursements
+
+    HCM_L --&gt; U5[&quot;union&quot;]
+    DNG_L --&gt; U5
+    O_L --&gt; U5
+    U5 --&gt; GLogs
+
+    MongoS[&quot;mongos tự ánh xạ&lt;br/&gt;dựa trên shard key và config metadata&quot;] -.-&gt; U1
+    MongoS -.-&gt; U2
+    MongoS -.-&gt; U5
+</pre>
+    </section>
+
+    <section>
+        <h2>Nhân bản Replica Set và failover</h2>
+        <p><strong>File:</strong> <code>11_replication_failover.mmd</code></p>
+        <p>Dùng để chứng minh đồng bộ dữ liệu, oplog replication và chuyển primary khi node lỗi.</p>
+        <pre class="mermaid">%% 11_replication_failover.mmd
+sequenceDiagram
+    autonumber
+    participant App as Backend Express
+    participant P as MongoDB Primary
+    participant O as Oplog
+    participant S1 as Secondary 1
+    participant S2 as Secondary 2
+    participant M as Replica Set Election
+
+    App-&gt;&gt;P: Ghi dữ liệu nghiệp vụ
+    P-&gt;&gt;O: Ghi operation vào oplog
+    O--&gt;&gt;S1: Secondary kéo oplog và apply
+    O--&gt;&gt;S2: Secondary kéo oplog và apply
+    S1--&gt;&gt;App: Có thể đọc kiểm tra sau khi replicate
+
+    Note over P,S2: Khi Primary lỗi
+    P--xM: Primary down
+    M-&gt;&gt;S1: Bầu chọn node mới
+    S1--&gt;&gt;App: S1 trở thành Primary mới
+    App-&gt;&gt;S1: Tiếp tục ghi dữ liệu
+</pre>
+    </section>
+
+    <section>
+        <h2>Luồng giao tác tạo donation</h2>
+        <p><strong>File:</strong> <code>12_create_donation_sequence.mmd</code></p>
+        <p>Dùng để trình bày transaction quan trọng nhất: insert donations, cập nhật campaigns.currentAmount,
+            donors.totalDonated và ghi audit.</p>
+        <pre class="mermaid">%% 12_create_donation_sequence.mmd
+sequenceDiagram
+    autonumber
+    actor User as Donor / Staff
+    participant FE as Frontend React
+    participant BE as Backend Express
+    participant Auth as JWT + RBAC
+    participant Camp as campaigns
+    participant Donor as donors
+    participant Tx as MongoDB Transaction
+    participant Donation as donations
+    participant Log as activity_logs
+    participant RS as Replica Set / Shard
+
+    User-&gt;&gt;FE: Nhập thông tin quyên góp
+    FE-&gt;&gt;BE: POST /api/donations
+    BE-&gt;&gt;Auth: Kiểm tra JWT và branch scope
+    Auth--&gt;&gt;BE: Hợp lệ
+    BE-&gt;&gt;Camp: Đọc campaign theo campaignId
+    BE-&gt;&gt;Donor: Đọc donor theo donorId
+    BE-&gt;&gt;Tx: Bắt đầu transaction
+    Tx-&gt;&gt;Donation: insert donation kèm donorSnapshot và campaignSnapshot
+    alt paymentStatus = SUCCESS
+        Tx-&gt;&gt;Camp: tăng currentAmount
+        Tx-&gt;&gt;Donor: tăng totalDonated
+    else PENDING / FAILED
+        Tx--&gt;&gt;Tx: chưa cộng vào tổng tiền
+    end
+    Tx-&gt;&gt;Log: ghi activity_logs
+    Tx--&gt;&gt;BE: commit transaction
+    BE-&gt;&gt;RS: Replica Set đồng bộ sang secondary
+    BE--&gt;&gt;FE: Trả kết quả tạo donation
+    FE--&gt;&gt;User: Hiển thị mã giao dịch
+</pre>
+    </section>
+
+    <section>
+        <h2>Luồng cập nhật trạng thái donation</h2>
+        <p><strong>File:</strong> <code>13_update_donation_status_sequence.mmd</code></p>
+        <p>Dùng để giải thích cách tính delta tiền khi PENDING/FAILED chuyển SUCCESS hoặc SUCCESS chuyển REFUNDED.</p>
+        <pre class="mermaid">%% 13_update_donation_status_sequence.mmd
+sequenceDiagram
+    autonumber
+    actor Staff as Staff / Admin
+    participant FE as Frontend React
+    participant BE as Backend Express
+    participant Auth as JWT + RBAC
+    participant Donation as donations
+    participant Tx as MongoDB Transaction
+    participant Camp as campaigns
+    participant Donor as donors
+    participant Log as activity_logs
+
+    Staff-&gt;&gt;FE: Duyệt hoặc đổi trạng thái donation
+    FE-&gt;&gt;BE: PATCH /api/donations/:id/status
+    BE-&gt;&gt;Auth: Kiểm tra quyền và branch scope
+    Auth--&gt;&gt;BE: Hợp lệ
+    BE-&gt;&gt;Donation: Đọc donation hiện tại
+    BE-&gt;&gt;BE: Tính delta tiền theo trạng thái cũ và mới
+    BE-&gt;&gt;Tx: Bắt đầu transaction
+    Tx-&gt;&gt;Donation: Cập nhật paymentStatus
+
+    alt PENDING/FAILED -&gt; SUCCESS
+        Tx-&gt;&gt;Camp: currentAmount = currentAmount + amount
+        Tx-&gt;&gt;Donor: totalDonated = totalDonated + amount
+    else SUCCESS -&gt; REFUNDED
+        Tx-&gt;&gt;Camp: currentAmount = currentAmount - amount
+        Tx-&gt;&gt;Donor: totalDonated = totalDonated - amount
+    else Không ảnh hưởng tổng tiền
+        Tx--&gt;&gt;Tx: chỉ cập nhật trạng thái
+    end
+
+    Tx-&gt;&gt;Log: Ghi before và after
+    Tx--&gt;&gt;BE: commit transaction
+    BE--&gt;&gt;FE: Trả trạng thái mới
+    FE--&gt;&gt;Staff: Hiển thị kết quả cập nhật
+</pre>
+    </section>
+
+    <section>
+        <h2>Luồng thống kê dashboard</h2>
+        <p><strong>File:</strong> <code>14_statistics_aggregation_sequence.mmd</code></p>
+        <p>Dùng để trình bày vì sao không cần lưu stats riêng: dùng aggregation từ donations và campaigns.</p>
+        <pre class="mermaid">%% 14_statistics_aggregation_sequence.mmd
+sequenceDiagram
+    autonumber
+    actor Admin as Admin / Staff
+    participant FE as Frontend Dashboard
+    participant BE as Backend Express
+    participant Auth as JWT + RBAC
+    participant Donations as donations
+    participant Campaigns as campaigns
+    participant Mongo as MongoDB Aggregation
+
+    Admin-&gt;&gt;FE: Mở dashboard thống kê
+    FE-&gt;&gt;BE: GET /api/stats/overview
+    BE-&gt;&gt;Auth: Kiểm tra JWT, role, branchId
+    Auth--&gt;&gt;BE: Trả scope dữ liệu
+    BE-&gt;&gt;Mongo: Build pipeline aggregate
+
+    alt Không phải SUPER_ADMIN
+        Mongo-&gt;&gt;Donations: match branchId + paymentStatus
+        Mongo-&gt;&gt;Campaigns: match branchId + status
+    else SUPER_ADMIN
+        Mongo-&gt;&gt;Donations: aggregate toàn hệ thống
+        Mongo-&gt;&gt;Campaigns: count toàn hệ thống
+    end
+
+    Donations--&gt;&gt;Mongo: Tổng tiền, số giao dịch, trạng thái
+    Campaigns--&gt;&gt;Mongo: Số campaign ACTIVE/inactive
+    Mongo--&gt;&gt;BE: Kết quả tổng hợp
+    BE--&gt;&gt;FE: JSON thống kê
+    FE--&gt;&gt;Admin: Biểu đồ dashboard
+</pre>
+    </section>
+
+    <section>
+        <h2>Luồng ghi và truy vết activity_logs</h2>
+        <p><strong>File:</strong> <code>15_activity_log_audit_flow.mmd</code></p>
+        <p>Dùng để nhấn mạnh audit không sửa/xóa thủ công, lưu actor, vai trò, branch, dữ liệu trước/sau.</p>
+        <pre class="mermaid">%% 15_activity_log_audit_flow.mmd
+flowchart TB
+    Action[&quot;Thao tác nghiệp vụ&lt;br/&gt;create / update / approve / refund&quot;] --&gt; Guard[&quot;Backend kiểm tra JWT, role, branchId&quot;]
+    Guard --&gt; ReadBefore[&quot;Đọc dữ liệu trước thay đổi&lt;br/&gt;before_data&quot;]
+    ReadBefore --&gt; WriteBusiness[&quot;Ghi dữ liệu nghiệp vụ&lt;br/&gt;campaigns, donations, donors, ...&quot;]
+    WriteBusiness --&gt; ReadAfter[&quot;Lấy dữ liệu sau thay đổi&lt;br/&gt;after_data&quot;]
+    ReadAfter --&gt; LogDoc[&quot;Tạo activity_logs document&quot;]
+
+    subgraph LOG_FIELDS[&quot;Trường quan trọng trong activity_logs&quot;]
+        Actor[&quot;actorId, actorRole, actorBranchId&quot;]
+        Branch[&quot;branchId, targetBranchId&quot;]
+        Entity[&quot;entityType, entityId&quot;]
+        Data[&quot;before{}, after{}&quot;]
+        Client[&quot;ipAddress, userAgent&quot;]
+        Time[&quot;createdAt&quot;]
+    end
+
+    LogDoc --&gt; Actor
+    LogDoc --&gt; Branch
+    LogDoc --&gt; Entity
+    LogDoc --&gt; Data
+    LogDoc --&gt; Client
+    LogDoc --&gt; Time
+
+    LogDoc --&gt; Index1[&quot;Index: { branchId: 1, createdAt: -1 }&quot;]
+    LogDoc --&gt; Index2[&quot;Index: { entityType: 1, entityId: 1, createdAt: -1 }&quot;]
+    Index1 --&gt; AuditByBranch[&quot;Xem log theo chi nhánh&quot;]
+    Index2 --&gt; AuditByEntity[&quot;Truy vết lịch sử một đối tượng&quot;]
+
+    classDef audit fill:#fff4e5,stroke:#d28b00,stroke-width:1px;
+    class LogDoc,Actor,Branch,Entity,Data,Client,Time audit;
+</pre>
+    </section>
+
+    <section>
+        <h2>Cây quyết định chọn shard key cho donations</h2>
+        <p><strong>File:</strong> <code>16_shard_key_decision.mmd</code></p>
+        <p>Dùng để giải thích lựa chọn khuyến nghị: campaignId hashed vì đúng schema hiện tại.</p>
+        <pre class="mermaid">%% 16_shard_key_decision.mmd
+flowchart TB
+    Start[&quot;Collection donations tăng nhanh nhất&quot;] --&gt; NeedShard{&quot;Cần phân tán ghi và truy vấn?&quot;}
+    NeedShard -- &quot;Có&quot; --&gt; Schema{&quot;Schema hiện tại có campaignId top-level?&quot;}
+    NeedShard -- &quot;Chưa&quot; --&gt; KeepIndex[&quot;Giữ index nghiệp vụ&lt;br/&gt;{ branchId: 1, campaignId: 1, donatedAt: -1 }&quot;]
+
+    Schema -- &quot;Có&quot; --&gt; Recommend[&quot;Khuyến nghị&lt;br/&gt;Shard key: { campaignId: hashed }&quot;]
+    Schema -- &quot;Muốn giải thích theo mã chiến dịch&quot; --&gt; Snapshot[&quot;Dùng { campaignSnapshot.code: hashed }&lt;br/&gt;hoặc bổ sung field campaignCode top-level&quot;]
+
+    Recommend --&gt; Cmd1[&quot;db.donations.createIndex({ campaignId: hashed })&quot;]
+    Cmd1 --&gt; Cmd2[&quot;sh.shardCollection(charity_distributed.donations,&lt;br/&gt;{ campaignId: hashed })&quot;]
+
+    Snapshot --&gt; Warn[&quot;Lưu ý: campaignCode không phải top-level&lt;br/&gt;nếu không bổ sung field thì không nên dùng campaignCode&quot;]
+
+    Recommend --&gt; Benefit1[&quot;Phân phối donation theo chiến dịch&quot;]
+    Recommend --&gt; Benefit2[&quot;Khớp schema và code hiện tại&quot;]
+    KeepIndex --&gt; Benefit3[&quot;Truy vấn theo chi nhánh vẫn nhanh&quot;]
+
+    classDef rec fill:#eef9ef,stroke:#2d7d3a,stroke-width:2px;
+    classDef warn fill:#fff4e5,stroke:#d28b00,stroke-width:1px;
+    class Recommend,Cmd1,Cmd2 rec;
+    class Snapshot,Warn warn;
+</pre>
+    </section>
+
+    <section>
+        <h2>Vòng đời trạng thái thanh toán donation</h2>
+        <p><strong>File:</strong> <code>17_donation_payment_state.mmd</code></p>
+        <p>Dùng kèm hai sequence diagram để người xem hiểu tác động của từng trạng thái lên tổng tiền.</p>
+        <pre class="mermaid">%% 17_donation_payment_state.mmd
+stateDiagram-v2
+    [*] --&gt; PENDING: tạo donation
+    PENDING --&gt; SUCCESS: thanh toán thành công
+    PENDING --&gt; FAILED: thanh toán lỗi
+    FAILED --&gt; SUCCESS: xác nhận lại thành công
+    SUCCESS --&gt; REFUNDED: hoàn tiền
+    REFUNDED --&gt; [*]
+    FAILED --&gt; [*]
+
+    note right of SUCCESS
+        Cộng amount vào
+        campaigns.currentAmount
+        donors.totalDonated
+    end note
+
+    note right of REFUNDED
+        Trừ amount khỏi
+        campaigns.currentAmount
+        donors.totalDonated
+    end note
+</pre>
+    </section>
+
+    <section>
+        <h2>Thứ tự trình bày sơ đồ trong báo cáo/thuyết trình</h2>
+        <p><strong>File:</strong> <code>18_report_slide_order.mmd</code></p>
+        <p>Dùng như một sơ đồ dẫn chuyện để nhóm biết nên đưa hình nào trước, hình nào sau.</p>
+        <pre class="mermaid">%% 18_report_slide_order.mmd
+flowchart TD
+    A[&quot;1. Kiến trúc tổng thể&lt;br/&gt;01_system_architecture&quot;] --&gt; B[&quot;2. Bản đồ chức năng - dữ liệu&lt;br/&gt;02_data_domain_map&quot;]
+    B --&gt; C[&quot;3. ERD SQL logic&lt;br/&gt;03_sql_logic_erd&quot;]
+    C --&gt; D[&quot;4. MongoDB document model&lt;br/&gt;04_mongodb_document_model&quot;]
+    D --&gt; E[&quot;5. RBAC và branch scope&lt;br/&gt;05_rbac_branch_scope&quot;]
+    E --&gt; F[&quot;6. Tần suất và collection nóng&lt;br/&gt;06_access_frequency_groups&quot;]
+    F --&gt; G[&quot;7. Index strategy&lt;br/&gt;07_index_strategy&quot;]
+    G --&gt; H[&quot;8. Phân mảnh ngang branchId&lt;br/&gt;08_horizontal_fragmentation_branchid&quot;]
+    H --&gt; I[&quot;9. Định vị 6 máy&lt;br/&gt;09_six_machine_deployment&quot;]
+    I --&gt; J[&quot;10. Global - Local mapping&lt;br/&gt;10_global_local_mapping&quot;]
+    J --&gt; K[&quot;11. Giao tác donation và thống kê&lt;br/&gt;12, 13, 14&quot;]
+    K --&gt; L[&quot;12. Audit, shard key, failover&lt;br/&gt;11, 15, 16, 17&quot;]
+</pre>
+    </section>
+
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, securityLevel: 'loose', theme: 'default' });
+    </script>
+</body>
+
+</html>

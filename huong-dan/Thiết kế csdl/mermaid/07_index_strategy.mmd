@@ -1,0 +1,34 @@
+%% 07_index_strategy.mmd
+flowchart LR
+    subgraph AUTH["Đăng nhập và phân quyền"]
+        IDX_USER_EMAIL["users<br/>{ email: 1 } unique"]
+        IDX_USER_PHONE["users<br/>{ phone: 1 } unique sparse"]
+        IDX_USER_BRANCH_ROLE["users<br/>{ branchId: 1, role: 1 }"]
+    end
+
+    subgraph CAMPAIGN["Quản lý chiến dịch"]
+        IDX_CAMP_CODE["campaigns<br/>{ code: 1 } unique"]
+        IDX_CAMP_BRANCH_STATUS["campaigns<br/>{ branchId: 1, status: 1, createdAt: -1 }"]
+        IDX_CAMP_BRANCH_TYPE["campaigns<br/>{ branchId: 1, type: 1, createdAt: -1 }"]
+    end
+
+    subgraph DONATION["Donation: collection nóng nhất"]
+        IDX_TX["donations<br/>{ transactionCode: 1 } unique"]
+        IDX_DON_BRANCH_CAMP_DATE["donations<br/>{ branchId: 1, campaignId: 1, donatedAt: -1 }"]
+        IDX_DON_CAMP_STATUS_DATE["donations<br/>{ campaignId: 1, paymentStatus: 1, donatedAt: -1 }"]
+        IDX_DON_DONOR_DATE["donations<br/>{ donorId: 1, donatedAt: -1 }"]
+    end
+
+    subgraph AUDIT["Audit và truy vết"]
+        IDX_LOG_BRANCH_DATE["activity_logs<br/>{ branchId: 1, createdAt: -1 }"]
+        IDX_LOG_ENTITY_DATE["activity_logs<br/>{ entityType: 1, entityId: 1, createdAt: -1 }"]
+    end
+
+    QueryLogin["Use case: đăng nhập"] --> IDX_USER_EMAIL
+    QueryCampaign["Use case: list campaign theo chi nhánh"] --> IDX_CAMP_BRANCH_STATUS
+    QueryDonation["Use case: xem donation theo chiến dịch"] --> IDX_DON_BRANCH_CAMP_DATE
+    QueryStats["Use case: thống kê theo trạng thái"] --> IDX_DON_CAMP_STATUS_DATE
+    QueryAudit["Use case: audit theo đối tượng"] --> IDX_LOG_ENTITY_DATE
+
+    classDef hot fill:#ffe8e8,stroke:#c92a2a,stroke-width:2px;
+    class IDX_TX,IDX_DON_BRANCH_CAMP_DATE,IDX_DON_CAMP_STATUS_DATE,IDX_DON_DONOR_DATE hot;

@@ -1,0 +1,21 @@
+%% 11_replication_failover.mmd
+sequenceDiagram
+    autonumber
+    participant App as Backend Express
+    participant P as MongoDB Primary
+    participant O as Oplog
+    participant S1 as Secondary 1
+    participant S2 as Secondary 2
+    participant M as Replica Set Election
+
+    App->>P: Ghi dữ liệu nghiệp vụ
+    P->>O: Ghi operation vào oplog
+    O-->>S1: Secondary kéo oplog và apply
+    O-->>S2: Secondary kéo oplog và apply
+    S1-->>App: Có thể đọc kiểm tra sau khi replicate
+
+    Note over P,S2: Khi Primary lỗi
+    P--xM: Primary down
+    M->>S1: Bầu chọn node mới
+    S1-->>App: S1 trở thành Primary mới
+    App->>S1: Tiếp tục ghi dữ liệu

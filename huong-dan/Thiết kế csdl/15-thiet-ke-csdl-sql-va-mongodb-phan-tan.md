@@ -51,16 +51,30 @@ Nguyên tắc thiết kế:
 
 ### 2.2 Tần suất truy cập theo vị trí
 
-| Vị trí | Vai trò | Dữ liệu truy cập nhiều | Nhận xét thiết kế |
-|---|---|---|---|
-| Máy trạm donor | xem và quyên góp | `campaigns`, `donations`, `donors` | ưu tiên đọc chiến dịch và ghi donation nhanh |
-| Máy trạm staff | xử lý nghiệp vụ | `campaigns`, `donations`, `beneficiaries`, `disbursements` | giới hạn theo `branchId` |
-| Máy trạm branch admin | quản trị chi nhánh | `users`, `campaigns`, `donations`, `activity_logs` | được xem toàn bộ dữ liệu trong chi nhánh |
-| Máy trạm super admin | quản trị toàn hệ thống | toàn bộ collection | không bị giới hạn `branchId` |
-| Backend server | xử lý API | tất cả collection nghiệp vụ | lớp bắt buộc kiểm tra JWT, RBAC, scope chi nhánh |
-| MongoDB primary | ghi dữ liệu | `donations`, `activity_logs`, `campaigns` | điểm ghi chính, cần replica để failover |
-| MongoDB secondary | nhân bản, đọc phụ | dữ liệu replicated | dùng kiểm tra đồng bộ, backup, failover |
-| Mongos/config server | định tuyến shard | metadata sharding | dùng khi mở rộng sang sharded cluster |
+Quy ước ký hiệu:
+
+- `H`: tần suất cao.
+- `L`: tần suất thấp.
+- `R`: đọc dữ liệu.
+- `W`: thêm mới dữ liệu.
+- `E`: sửa dữ liệu.
+- `D`: xóa dữ liệu.
+
+Trong bảng dưới đây, **Trụ sở chính** tương ứng máy Leader/Super Admin quản trị toàn hệ thống; **Các trạm** tương ứng các chi nhánh hoặc máy trạm staff/branch admin thao tác theo phạm vi `branchId`.
+
+| Thực thể | Trụ sở chính | Các trạm |
+|---|---|---|
+| Branch | H.R, L.WED | H.R |
+| User | H.R, L.WED | H.R, L.WED |
+| Donor | H.WEDR | H.WEDR |
+| Campaign | H.R, L.WED | H.R, L.WED |
+| Donation | H.WEDR | H.WEDR |
+| Beneficiary | H.R, L.WED | H.WEDR |
+| Disbursement | H.R, L.WED | H.WEDR |
+| Volunteer | H.R, L.WED | H.R, L.WED |
+| ActivityLog | H.R, L.W | H.W, L.R |
+
+Nhận xét: `Donation`, `Donor`, `Beneficiary` và `Disbursement` có tần suất ghi/sửa/đọc cao tại các trạm vì phát sinh trực tiếp từ nghiệp vụ chi nhánh. `Branch` chủ yếu được quản lý tại trụ sở chính nên các trạm gần như chỉ đọc. `ActivityLog` được ghi tự động khi có thao tác nghiệp vụ, không thiết kế sửa/xóa thủ công.
 
 ### 2.3 Phân tích theo dữ liệu thực tế
 

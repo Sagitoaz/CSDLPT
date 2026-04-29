@@ -1,0 +1,33 @@
+%% 12_create_donation_sequence.mmd
+sequenceDiagram
+    autonumber
+    actor User as Donor / Staff
+    participant FE as Frontend React
+    participant BE as Backend Express
+    participant Auth as JWT + RBAC
+    participant Camp as campaigns
+    participant Donor as donors
+    participant Tx as MongoDB Transaction
+    participant Donation as donations
+    participant Log as activity_logs
+    participant RS as Replica Set / Shard
+
+    User->>FE: Nhập thông tin quyên góp
+    FE->>BE: POST /api/donations
+    BE->>Auth: Kiểm tra JWT và branch scope
+    Auth-->>BE: Hợp lệ
+    BE->>Camp: Đọc campaign theo campaignId
+    BE->>Donor: Đọc donor theo donorId
+    BE->>Tx: Bắt đầu transaction
+    Tx->>Donation: insert donation kèm donorSnapshot và campaignSnapshot
+    alt paymentStatus = SUCCESS
+        Tx->>Camp: tăng currentAmount
+        Tx->>Donor: tăng totalDonated
+    else PENDING / FAILED
+        Tx-->>Tx: chưa cộng vào tổng tiền
+    end
+    Tx->>Log: ghi activity_logs
+    Tx-->>BE: commit transaction
+    BE->>RS: Replica Set đồng bộ sang secondary
+    BE-->>FE: Trả kết quả tạo donation
+    FE-->>User: Hiển thị mã giao dịch

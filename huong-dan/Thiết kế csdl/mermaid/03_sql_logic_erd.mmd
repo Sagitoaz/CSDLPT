@@ -1,0 +1,152 @@
+%% 03_sql_logic_erd.mmd
+%% ERD logic: có thể paste trực tiếp vào Mermaid Live Editor.
+erDiagram
+    BRANCHES {
+        string id PK
+        string code UK
+        string name
+        string type
+        string parent_id FK
+        string province
+        string status
+        datetime created_at
+        datetime updated_at
+    }
+
+    USERS {
+        string id PK
+        string email UK
+        string phone UK
+        string password
+        string full_name
+        string role
+        string branch_id FK
+        json permissions
+        boolean is_active
+    }
+
+    DONORS {
+        string id PK
+        string user_id FK
+        string full_name
+        string phone UK
+        string email UK
+        string donor_type
+        decimal total_donated
+    }
+
+    CAMPAIGNS {
+        string id PK
+        string branch_id FK
+        string code UK
+        string title
+        string type
+        string status
+        decimal target_amount
+        decimal current_amount
+        decimal disbursed_amount
+        string organizer_id FK
+        string created_by FK
+    }
+
+    DONATIONS {
+        string id PK
+        string branch_id FK
+        string campaign_id FK
+        string donor_id FK
+        string donor_full_name
+        string campaign_code
+        decimal amount
+        string payment_method
+        string payment_status
+        string transaction_code UK
+        datetime donated_at
+    }
+
+    BENEFICIARIES {
+        string id PK
+        string branch_id FK
+        string campaign_id FK
+        string name
+        string type
+        string phone
+        string verification_status
+        string verified_by FK
+        datetime verified_at
+    }
+
+    DISBURSEMENTS {
+        string id PK
+        string branch_id FK
+        string campaign_id FK
+        string beneficiary_id FK
+        decimal amount
+        string purpose
+        string method
+        string status
+        string approved_by FK
+        datetime disbursed_at
+    }
+
+    DISBURSEMENT_PROOFS {
+        string id PK
+        string disbursement_id FK
+        string type
+        string url
+        string description
+        datetime uploaded_at
+        string uploaded_by FK
+    }
+
+    VOLUNTEERS {
+        string id PK
+        string branch_id FK
+        string full_name
+        string phone
+        string email
+        json skills
+        string status
+    }
+
+    VOLUNTEER_CAMPAIGNS {
+        string volunteer_id PK
+        string campaign_id PK
+    }
+
+    ACTIVITY_LOGS {
+        string id PK
+        string branch_id FK
+        string target_branch_id FK
+        string actor_id FK
+        string actor_role
+        string action
+        string entity_type
+        string entity_id
+        json before_data
+        json after_data
+        datetime created_at
+    }
+
+    BRANCHES ||--o{ BRANCHES : "parent-child"
+    BRANCHES ||--o{ USERS : "has users"
+    BRANCHES ||--o{ CAMPAIGNS : "owns campaigns"
+    BRANCHES ||--o{ DONATIONS : "receives donations"
+    BRANCHES ||--o{ BENEFICIARIES : "manages beneficiaries"
+    BRANCHES ||--o{ DISBURSEMENTS : "handles disbursements"
+    BRANCHES ||--o{ VOLUNTEERS : "manages volunteers"
+    BRANCHES ||--o{ ACTIVITY_LOGS : "has logs"
+
+    USERS ||--o{ CAMPAIGNS : "created_by / organizer"
+    USERS ||--o{ BENEFICIARIES : "verified_by"
+    USERS ||--o{ DISBURSEMENTS : "approved_by"
+    USERS ||--o{ ACTIVITY_LOGS : "actor"
+    USERS ||--o| DONORS : "linked account"
+
+    DONORS ||--o{ DONATIONS : "makes"
+    CAMPAIGNS ||--o{ DONATIONS : "receives"
+    CAMPAIGNS ||--o{ BENEFICIARIES : "supports"
+    CAMPAIGNS ||--o{ DISBURSEMENTS : "funds"
+    BENEFICIARIES ||--o{ DISBURSEMENTS : "receives"
+    DISBURSEMENTS ||--o{ DISBURSEMENT_PROOFS : "has proofs"
+    VOLUNTEERS ||--o{ VOLUNTEER_CAMPAIGNS : "joins"
+    CAMPAIGNS ||--o{ VOLUNTEER_CAMPAIGNS : "has volunteers"

@@ -1,0 +1,22 @@
+%% 16_shard_key_decision.mmd
+flowchart TB
+    Start["Collection donations tăng nhanh nhất"] --> NeedShard{"Cần phân tán ghi và truy vấn?"}
+    NeedShard -- "Có" --> Schema{"Schema hiện tại có campaignId top-level?"}
+    NeedShard -- "Chưa" --> KeepIndex["Giữ index nghiệp vụ<br/>{ branchId: 1, campaignId: 1, donatedAt: -1 }"]
+
+    Schema -- "Có" --> Recommend["Khuyến nghị<br/>Shard key: { campaignId: hashed }"]
+    Schema -- "Muốn giải thích theo mã chiến dịch" --> Snapshot["Dùng { campaignSnapshot.code: hashed }<br/>hoặc bổ sung field campaignCode top-level"]
+
+    Recommend --> Cmd1["db.donations.createIndex({ campaignId: &quot;hashed&quot; })"]
+    Cmd1 --> Cmd2["sh.shardCollection(charity_distributed.donations,<br/>{ campaignId: &quot;hashed&quot; })"]
+
+    Snapshot --> Warn["Lưu ý: campaignCode không phải top-level<br/>nếu không bổ sung field thì không nên dùng campaignCode"]
+
+    Recommend --> Benefit1["Phân phối donation theo chiến dịch"]
+    Recommend --> Benefit2["Khớp schema và code hiện tại"]
+    KeepIndex --> Benefit3["Truy vấn theo chi nhánh vẫn nhanh"]
+
+    classDef rec fill:#eef9ef,stroke:#2d7d3a,stroke-width:2px;
+    classDef warn fill:#fff4e5,stroke:#d28b00,stroke-width:1px;
+    class Recommend,Cmd1,Cmd2 rec;
+    class Snapshot,Warn warn;

@@ -1,0 +1,30 @@
+%% 14_statistics_aggregation_sequence.mmd
+sequenceDiagram
+    autonumber
+    actor Admin as Admin / Staff
+    participant FE as Frontend Dashboard
+    participant BE as Backend Express
+    participant Auth as JWT + RBAC
+    participant Donations as donations
+    participant Campaigns as campaigns
+    participant Mongo as MongoDB Aggregation
+
+    Admin->>FE: Mở dashboard thống kê
+    FE->>BE: GET /api/stats/overview
+    BE->>Auth: Kiểm tra JWT, role, branchId
+    Auth-->>BE: Trả scope dữ liệu
+    BE->>Mongo: Build pipeline aggregate
+
+    alt Không phải SUPER_ADMIN
+        Mongo->>Donations: match branchId + paymentStatus
+        Mongo->>Campaigns: match branchId + status
+    else SUPER_ADMIN
+        Mongo->>Donations: aggregate toàn hệ thống
+        Mongo->>Campaigns: count toàn hệ thống
+    end
+
+    Donations-->>Mongo: Tổng tiền, số giao dịch, trạng thái
+    Campaigns-->>Mongo: Số campaign ACTIVE/inactive
+    Mongo-->>BE: Kết quả tổng hợp
+    BE-->>FE: JSON thống kê
+    FE-->>Admin: Biểu đồ dashboard
