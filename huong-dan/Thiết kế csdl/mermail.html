@@ -90,19 +90,20 @@
   </div>
   <div class="diagram-wrap">
     <pre class="mermaid">flowchart TB
-    client[&quot;Frontend / Admin / Public UI&quot;] --&gt; api[&quot;Backend API&lt;br/&gt;Express + TypeScript + Mongoose&quot;]
+    user[&quot;User / Admin&quot;] --&gt; m1_app[&quot;M1: FE + BE + QA&lt;br/&gt;Controller machine&quot;]
 
     subgraph central[&quot;Cụm máy chủ trung tâm&quot;]
-        api --&gt; mongos[&quot;mongos router&lt;br/&gt;logical database: charity_distributed&quot;]
+        m1_app --&gt; m1_mongos[&quot;M1: mongos :27017&lt;br/&gt;entry point&quot;]
         mongos &lt;--&gt; cfg[&quot;Config server replica set&lt;br/&gt;metadata sharding&lt;br/&gt;không lưu document nghiệp vụ chính&quot;]
     end
 
-    mongos --&gt; route[&quot;MongoDB sharding routing&lt;br/&gt;query chứa shard key sẽ target shard tốt hơn&quot;]
+    m1_mongos --&gt; route[&quot;Shard routing&lt;br/&gt;query contains shard key -&gt; target better&quot;]
 
-    route --&gt; s1[&quot;Shard 01 replica set&lt;br/&gt;~25% chunks&quot;]
-    route --&gt; s2[&quot;Shard 02 replica set&lt;br/&gt;~25% chunks&quot;]
-    route --&gt; s3[&quot;Shard 03 replica set&lt;br/&gt;~25% chunks&quot;]
-    route --&gt; s4[&quot;Shard 04 replica set&lt;br/&gt;~25% chunks&quot;]
+    route --&gt; m2[&quot;M2: centralRS&lt;br/&gt;27110/27111/27112&lt;br/&gt;Primary + 2 Secondary&quot;]
+    route --&gt; m3[&quot;M3: shard1RS&lt;br/&gt;27120/27121/27122&lt;br/&gt;Primary + 2 Secondary&quot;]
+    route --&gt; m4[&quot;M4: shard2RS&lt;br/&gt;27130/27131/27132&lt;br/&gt;Primary + 2 Secondary&quot;]
+    route --&gt; m5[&quot;M5: shard3RS&lt;br/&gt;27140/27141/27142&lt;br/&gt;Primary + 2 Secondary&quot;]
+    route --&gt; m6[&quot;M6: shard4RS&lt;br/&gt;27150/27151/27152&lt;br/&gt;Primary + 2 Secondary&quot;]
 
     subgraph rs1[&quot;Replica set nội bộ Shard 01&quot;]
         s1 --&gt; s1p[&quot;Primary&quot;]
@@ -134,26 +135,27 @@
     classDef central fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
     classDef shard fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
     classDef warn fill:#fffaf0,stroke:#c05621,stroke-width:1px;
-    class api,mongos,cfg,route central;
-    class s1,s2,s3,s4,s1p,s1r1,s1r2,s2p,s2r1,s2r2,s3p,s3r1,s3r2,s4p,s4r1,s4r2 shard;
+    class m1_app,m1_mongos,cfg,route central;
+    class m2,m3,m4,m5,m6 shard;
     class warn warn;</pre>
   </div>
   <details>
     <summary>Xem Mermaid source</summary>
     <pre class="source"><code>flowchart TB
-    client[&quot;Frontend / Admin / Public UI&quot;] --&gt; api[&quot;Backend API&lt;br/&gt;Express + TypeScript + Mongoose&quot;]
+    user[&quot;User / Admin&quot;] --&gt; m1_app[&quot;M1: FE + BE + QA&lt;br/&gt;Controller machine&quot;]
 
     subgraph central[&quot;Cụm máy chủ trung tâm&quot;]
-        api --&gt; mongos[&quot;mongos router&lt;br/&gt;logical database: charity_distributed&quot;]
+        m1_app --&gt; m1_mongos[&quot;M1: mongos :27017&lt;br/&gt;entry point&quot;]
         mongos &lt;--&gt; cfg[&quot;Config server replica set&lt;br/&gt;metadata sharding&lt;br/&gt;không lưu document nghiệp vụ chính&quot;]
     end
 
-    mongos --&gt; route[&quot;MongoDB sharding routing&lt;br/&gt;query chứa shard key sẽ target shard tốt hơn&quot;]
+    m1_mongos --&gt; route[&quot;Shard routing&lt;br/&gt;query contains shard key -&gt; target better&quot;]
 
-    route --&gt; s1[&quot;Shard 01 replica set&lt;br/&gt;~25% chunks&quot;]
-    route --&gt; s2[&quot;Shard 02 replica set&lt;br/&gt;~25% chunks&quot;]
-    route --&gt; s3[&quot;Shard 03 replica set&lt;br/&gt;~25% chunks&quot;]
-    route --&gt; s4[&quot;Shard 04 replica set&lt;br/&gt;~25% chunks&quot;]
+    route --&gt; m2[&quot;M2: centralRS&lt;br/&gt;27110/27111/27112&lt;br/&gt;Primary + 2 Secondary&quot;]
+    route --&gt; m3[&quot;M3: shard1RS&lt;br/&gt;27120/27121/27122&lt;br/&gt;Primary + 2 Secondary&quot;]
+    route --&gt; m4[&quot;M4: shard2RS&lt;br/&gt;27130/27131/27132&lt;br/&gt;Primary + 2 Secondary&quot;]
+    route --&gt; m5[&quot;M5: shard3RS&lt;br/&gt;27140/27141/27142&lt;br/&gt;Primary + 2 Secondary&quot;]
+    route --&gt; m6[&quot;M6: shard4RS&lt;br/&gt;27150/27151/27152&lt;br/&gt;Primary + 2 Secondary&quot;]
 
     subgraph rs1[&quot;Replica set nội bộ Shard 01&quot;]
         s1 --&gt; s1p[&quot;Primary&quot;]
@@ -185,8 +187,8 @@
     classDef central fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
     classDef shard fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
     classDef warn fill:#fffaf0,stroke:#c05621,stroke-width:1px;
-    class api,mongos,cfg,route central;
-    class s1,s2,s3,s4,s1p,s1r1,s1r2,s2p,s2r1,s2r2,s3p,s3r1,s3r2,s4p,s4r1,s4r2 shard;
+    class m1_app,m1_mongos,cfg,route central;
+    class m2,m3,m4,m5,m6 shard;
     class warn warn;</code></pre>
   </details>
 </section>
@@ -1154,7 +1156,7 @@
   </div>
   <div class="diagram-wrap">
     <pre class="mermaid">flowchart TB
-    db[&quot;Database logic: charity_distributed&quot;] --&gt; choose[&quot;Chọn shard key theo truy vấn chính&quot;]
+    db[&quot;Logical DB: charity_distributed&quot;] --&gt; choose[&quot;Choose shard key by main query&quot;]
 
     choose --&gt; bkey[&quot;branchId hashed&lt;br/&gt;tốt cho branch admin, phân quyền, dashboard chi nhánh&quot;]
     choose --&gt; ckey[&quot;campaignId hashed&lt;br/&gt;tốt khi màn hình chính xoay quanh chiến dịch&quot;]
@@ -1171,11 +1173,12 @@
     sharded2 --&gt; hash
     sharded3 --&gt; hash
 
-    hash --&gt; balancer[&quot;Balancer phân bổ chunk tương đối đều&quot;]
-    balancer --&gt; s1[&quot;shard01&lt;br/&gt;~25% chunks&quot;]
-    balancer --&gt; s2[&quot;shard02&lt;br/&gt;~25% chunks&quot;]
-    balancer --&gt; s3[&quot;shard03&lt;br/&gt;~25% chunks&quot;]
-    balancer --&gt; s4[&quot;shard04&lt;br/&gt;~25% chunks&quot;]
+    hash --&gt; balancer[&quot;Balancer distributes chunks&quot;]
+    balancer --&gt; m2[&quot;M2 centralRS&quot;]
+    balancer --&gt; m3[&quot;M3 shard1RS&quot;]
+    balancer --&gt; m4[&quot;M4 shard2RS&quot;]
+    balancer --&gt; m5[&quot;M5 shard3RS&quot;]
+    balancer --&gt; m6[&quot;M6 shard4RS&quot;]
 
     no_shard[&quot;Không cần shard ở demo:&lt;br/&gt;branches, users, contributors&lt;br/&gt;campaigns chỉ shard khi rất lớn&quot;]
     db --&gt; no_shard
@@ -1187,13 +1190,13 @@
     classDef key fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
     classDef warn fill:#fff5f5,stroke:#c53030,stroke-width:1px;
     class bkey,ckey,timekey,key,choose key;
-    class sharded1,sharded2,sharded3,hash,balancer,s1,s2,s3,s4 shard;
+    class sharded1,sharded2,sharded3,hash,balancer,m2,m3,m4,m5,m6 shard;
     class warning warn;</pre>
   </div>
   <details>
     <summary>Xem Mermaid source</summary>
     <pre class="source"><code>flowchart TB
-    db[&quot;Database logic: charity_distributed&quot;] --&gt; choose[&quot;Chọn shard key theo truy vấn chính&quot;]
+    db[&quot;Logical DB: charity_distributed&quot;] --&gt; choose[&quot;Choose shard key by main query&quot;]
 
     choose --&gt; bkey[&quot;branchId hashed&lt;br/&gt;tốt cho branch admin, phân quyền, dashboard chi nhánh&quot;]
     choose --&gt; ckey[&quot;campaignId hashed&lt;br/&gt;tốt khi màn hình chính xoay quanh chiến dịch&quot;]
@@ -1210,11 +1213,12 @@
     sharded2 --&gt; hash
     sharded3 --&gt; hash
 
-    hash --&gt; balancer[&quot;Balancer phân bổ chunk tương đối đều&quot;]
-    balancer --&gt; s1[&quot;shard01&lt;br/&gt;~25% chunks&quot;]
-    balancer --&gt; s2[&quot;shard02&lt;br/&gt;~25% chunks&quot;]
-    balancer --&gt; s3[&quot;shard03&lt;br/&gt;~25% chunks&quot;]
-    balancer --&gt; s4[&quot;shard04&lt;br/&gt;~25% chunks&quot;]
+    hash --&gt; balancer[&quot;Balancer distributes chunks&quot;]
+    balancer --&gt; m2[&quot;M2 centralRS&quot;]
+    balancer --&gt; m3[&quot;M3 shard1RS&quot;]
+    balancer --&gt; m4[&quot;M4 shard2RS&quot;]
+    balancer --&gt; m5[&quot;M5 shard3RS&quot;]
+    balancer --&gt; m6[&quot;M6 shard4RS&quot;]
 
     no_shard[&quot;Không cần shard ở demo:&lt;br/&gt;branches, users, contributors&lt;br/&gt;campaigns chỉ shard khi rất lớn&quot;]
     db --&gt; no_shard
@@ -1226,7 +1230,7 @@
     classDef key fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
     classDef warn fill:#fff5f5,stroke:#c53030,stroke-width:1px;
     class bkey,ckey,timekey,key,choose key;
-    class sharded1,sharded2,sharded3,hash,balancer,s1,s2,s3,s4 shard;
+    class sharded1,sharded2,sharded3,hash,balancer,m2,m3,m4,m5,m6 shard;
     class warning warn;</code></pre>
   </details>
 </section>
