@@ -1,0 +1,25 @@
+sequenceDiagram
+    autonumber
+    actor Donor
+    participant FE as Frontend
+    participant API as Backend API
+    participant Camp as Campaign Service
+    participant Donate as Donation Service
+    participant DB as MongoDB PRIMARY
+    participant SEC as MongoDB SECONDARY nodes
+
+    Donor->>FE: Nhap form quyen gop
+    FE->>API: POST /api/donations
+    API->>API: Validate Zod: donorName, donorEmail, amount, campaignCode
+    API->>Camp: Kiem tra campaignCode ton tai
+    Camp->>DB: findOne campaigns by code
+    DB-->>Camp: Campaign
+    API->>API: Kiem tra isActive = true
+    API->>API: Kiem tra startDate/endDate neu co
+    API->>Donate: Tao donation voi status = pending
+    Donate->>DB: insertOne donations
+    DB-->>SEC: Replicate oplog
+    DB-->>Donate: Created
+    Donate-->>API: Donation pending
+    API-->>FE: 201 Created
+    FE-->>Donor: Hien thi ket qua / reload danh sach

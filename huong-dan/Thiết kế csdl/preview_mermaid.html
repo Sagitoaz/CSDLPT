@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mermaid diagrams - Charity MongoDB</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;margin:32px;line-height:1.45;background:#fafafa;color:#222}
+h1{margin-bottom:8px} h2{margin-top:36px;border-top:1px solid #ddd;padding-top:20px}
+.card{background:#fff;border:1px solid #ddd;border-radius:12px;padding:18px;margin:18px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.mermaid{background:#fff}
+code{background:#f3f3f3;padding:2px 4px;border-radius:4px}
+</style>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+</script>
+</head>
+<body>
+<h1>Mermaid diagrams - Thiết kế CSDL MongoDB charity_distributed</h1>
+<p>Mở file này bằng trình duyệt để xem nhanh sơ đồ. Nếu sơ đồ chưa hiện, hãy kiểm tra kết nối Internet vì file dùng Mermaid CDN.</p>
+<h2>1. ERD logic collections</h2>
+<div class="card">
+<pre class="mermaid">
+erDiagram
+    CAMPAIGNS ||--o{ DONATIONS : code_to_campaignCode
+    USERS ||--o{ CAMPAIGNS : future_createdBy
+    USERS ||--o{ DONATIONS : future_donorUserId
+    USERS ||--o{ DONATIONS : future_reviewedBy
+    CAMPAIGNS ||--o{ STATS_SNAPSHOTS : future_campaignCode
+    USERS ||--o{ AUDIT_LOGS : future_actorId
+
+    USERS {
+        ObjectId _id PK
+        string email UK
+        string password_hash
+        string fullName
+        string role
+        boolean isActive
+        date createdAt
+        date updatedAt
+    }
+
+    CAMPAIGNS {
+        ObjectId _id PK
+        string code UK
+        string name
+        string description
+        number targetAmount
+        boolean isActive
+        date startDate
+        date endDate
+        date createdAt
+        date updatedAt
+    }
+
+    DONATIONS {
+        ObjectId _id PK
+        string donorName
+        string donorEmail
+        number amount
+        string campaignCode FK
+        string note
+        string status
+        date createdAt
+        date updatedAt
+    }
+
+    AUDIT_LOGS {
+        ObjectId _id PK
+        string requestId
+        ObjectId actorId
+        string actorEmail
+        string actorRole
+        string action
+        string resource
+        string resourceId
+        number statusCode
+        boolean success
+        date createdAt
+    }
+
+    STATS_SNAPSHOTS {
+        ObjectId _id PK
+        string scope
+        string campaignCode
+        number totalDonations
+        number totalAmount
+        number pendingCount
+        number verifiedCount
+        number rejectedCount
+        date calculatedAt
+    }
+</pre>
+</div>
+<h2>2. Tổng quan collection</h2>
+<div class="card">
+<pre class="mermaid">
+flowchart LR
+    USERS[&quot;users&lt;br/&gt;Tai khoan, vai tro, trang thai&lt;br/&gt;Write: thap | Read: trung binh&quot;]
+    CAMPAIGNS[&quot;campaigns&lt;br/&gt;Chien dich quyen gop&lt;br/&gt;Write: trung binh | Read: cao&quot;]
+    DONATIONS[&quot;donations&lt;br/&gt;Giao dich trung tam&lt;br/&gt;Write: cao | Read: cao&quot;]
+    AUDIT[&quot;audit_logs&lt;br/&gt;Khuyen nghi mo rong&lt;br/&gt;Write: trung binh | Read: thap&quot;]
+    STATS[&quot;stats_snapshots&lt;br/&gt;Khuyen nghi khi du lieu lon&lt;br/&gt;Write: thap | Read: cao&quot;]
+
+    CAMPAIGNS --&gt;|&quot;code = campaignCode&quot;| DONATIONS
+    DONATIONS --&gt;|&quot;aggregate&quot;| STATS
+    USERS -. &quot;createdBy future&quot; .-&gt; CAMPAIGNS
+    USERS -. &quot;donorUserId / reviewedBy future&quot; .-&gt; DONATIONS
+    USERS -. &quot;actorId future&quot; .-&gt; AUDIT
+    DONATIONS -. &quot;audit / trace&quot; .-&gt; AUDIT
+</pre>
+</div>
+<h2>3. Replica Set 3 node</h2>
+<div class="card">
+<pre class="mermaid">
+flowchart TB
+    API[&quot;Backend API&lt;br/&gt;connection string co replicaSet=rsCharity&quot;]
+
+    subgraph RS[&quot;MongoDB Replica Set rsCharity&quot;]
+        P[(&quot;mongo1&lt;br/&gt;PRIMARY&quot;)]
+        S1[(&quot;mongo2&lt;br/&gt;SECONDARY&quot;)]
+        S2[(&quot;mongo3&lt;br/&gt;SECONDARY&quot;)]
+    end
+
+    API --&gt;|&quot;write / primary read&quot;| P
+    P --&gt;|&quot;oplog replication&quot;| S1
+    P --&gt;|&quot;oplog replication&quot;| S2
+
+    P -. &quot;PRIMARY down&quot; .-&gt; E[&quot;Election&quot;]
+    E -. &quot;mongo2 hoac mongo3 thanh PRIMARY moi&quot; .-&gt; S1
+    E -. &quot;mongo2 hoac mongo3 thanh PRIMARY moi&quot; .-&gt; S2
+</pre>
+</div>
+<h2>4. Sharded Cluster mở rộng 6 máy</h2>
+<div class="card">
+<pre class="mermaid">
+flowchart TB
+    FE[&quot;Frontend&quot;] --&gt; API[&quot;Backend API&quot;]
+    API --&gt; MONGOS[&quot;mongos&lt;br/&gt;Query Router&quot;]
+
+    MONGOS --&gt; CFG[&quot;Config Server Replica Set&lt;br/&gt;metadata, chunks, shard map&quot;]
+
+    MONGOS --&gt; SH1[&quot;Shard 1 Replica Set&quot;]
+    MONGOS --&gt; SH2[&quot;Shard 2 Replica Set&quot;]
+    MONGOS --&gt; SH3[&quot;Shard 3 Replica Set&quot;]
+    MONGOS --&gt; SH4[&quot;Shard 4 Replica Set&quot;]
+
+    DON[&quot;Collection shard chinh:&lt;br/&gt;charity_distributed.donations&quot;]
+    KEY[&quot;Shard key demo:&lt;br/&gt;{ campaignCode: hashed }&quot;]
+    NOTE[&quot;Ghi chu:&lt;br/&gt;Mo hinh 6 may la demo/lab.&lt;br/&gt;Production co the can nhieu node hon.&quot;]
+
+    DON --&gt; KEY
+    KEY -. &quot;routes through mongos&quot; .-&gt; MONGOS
+    NOTE -.-&gt; CFG
+    NOTE -.-&gt; SH1
+</pre>
+</div>
+<h2>5. Sequence tạo donation</h2>
+<div class="card">
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Donor
+    participant FE as Frontend
+    participant API as Backend API
+    participant Camp as Campaign Service
+    participant Donate as Donation Service
+    participant DB as MongoDB PRIMARY
+    participant SEC as MongoDB SECONDARY nodes
+
+    Donor-&gt;&gt;FE: Nhap form quyen gop
+    FE-&gt;&gt;API: POST /api/donations
+    API-&gt;&gt;API: Validate Zod: donorName, donorEmail, amount, campaignCode
+    API-&gt;&gt;Camp: Kiem tra campaignCode ton tai
+    Camp-&gt;&gt;DB: findOne campaigns by code
+    DB--&gt;&gt;Camp: Campaign
+    API-&gt;&gt;API: Kiem tra isActive = true
+    API-&gt;&gt;API: Kiem tra startDate/endDate neu co
+    API-&gt;&gt;Donate: Tao donation voi status = pending
+    Donate-&gt;&gt;DB: insertOne donations
+    DB--&gt;&gt;SEC: Replicate oplog
+    DB--&gt;&gt;Donate: Created
+    Donate--&gt;&gt;API: Donation pending
+    API--&gt;&gt;FE: 201 Created
+    FE--&gt;&gt;Donor: Hien thi ket qua / reload danh sach
+</pre>
+</div>
+<h2>6. Sequence duyệt donation</h2>
+<div class="card">
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Staff as Staff/Admin
+    participant FE as Frontend Admin
+    participant API as Backend API
+    participant RBAC as JWT and RBAC Middleware
+    participant Donate as Donation Service
+    participant DB as MongoDB PRIMARY
+    participant SEC as MongoDB SECONDARY nodes
+    participant Stats as Stats Aggregation
+
+    Staff-&gt;&gt;FE: Chon verified hoac rejected
+    FE-&gt;&gt;API: PATCH /api/donations/:id/status
+    API-&gt;&gt;RBAC: Kiem tra JWT va role admin/staff
+    RBAC--&gt;&gt;API: Cho phep
+    API-&gt;&gt;API: Validate status
+    API-&gt;&gt;Donate: Update donations.status
+    Donate-&gt;&gt;DB: updateOne donation
+    DB--&gt;&gt;SEC: Replicate oplog
+    DB--&gt;&gt;Donate: Updated
+    Donate-&gt;&gt;Stats: Doc lai so lieu moi
+    Stats-&gt;&gt;DB: aggregate donations by status and amount
+    DB--&gt;&gt;Stats: Ket qua thong ke
+    API--&gt;&gt;FE: 200 OK
+</pre>
+</div>
+<h2>7. Vòng đời trạng thái donation</h2>
+<div class="card">
+<pre class="mermaid">
+stateDiagram-v2
+    [*] --&gt; pending: Donor tao donation
+    pending --&gt; verified: Staff/Admin duyet
+    pending --&gt; rejected: Staff/Admin tu choi
+    verified --&gt; [*]
+    rejected --&gt; [*]
+</pre>
+</div>
+<h2>8. Luồng thống kê chỉ tính verified</h2>
+<div class="card">
+<pre class="mermaid">
+flowchart TD
+    DASH[&quot;Dashboard / Statistics API&quot;]
+    CAMPAIGNS[&quot;campaigns&lt;br/&gt;dem tong campaign&quot;]
+    DONATIONS[&quot;donations&lt;br/&gt;aggregate theo status va amount&quot;]
+    VERIFIED[&quot;status = verified&lt;br/&gt;cong vao tong tien chinh thuc&quot;]
+    PENDING[&quot;status = pending&lt;br/&gt;thong ke rieng, khong cong tong tien&quot;]
+    REJECTED[&quot;status = rejected&lt;br/&gt;thong ke rieng, khong cong tong tien&quot;]
+    SNAP[&quot;stats_snapshots&lt;br/&gt;khuyen nghi khi du lieu lon&quot;]
+
+    DASH --&gt; CAMPAIGNS
+    DASH --&gt; DONATIONS
+    DONATIONS --&gt; VERIFIED
+    DONATIONS --&gt; PENDING
+    DONATIONS --&gt; REJECTED
+    VERIFIED --&gt;|&quot;official totalAmount&quot;| DASH
+    SNAP -. &quot;read nhanh neu du lieu lon&quot; .-&gt; DASH
+</pre>
+</div>
+<h2>9. Chiến lược sharding campaignCode hashed</h2>
+<div class="card">
+<pre class="mermaid">
+flowchart LR
+    D[&quot;donations&lt;br/&gt;collection tang nhanh nhat&quot;]
+    Q1[&quot;Query thuong gap:&lt;br/&gt;xem donation theo campaignCode&quot;]
+    K[&quot;Shard key demo:&lt;br/&gt;{ campaignCode: hashed }&quot;]
+    I[&quot;Index can tao:&lt;br/&gt;db.donations.createIndex({ campaignCode: hashed })&quot;]
+    S1[&quot;Shard 1&quot;]
+    S2[&quot;Shard 2&quot;]
+    S3[&quot;Shard 3&quot;]
+    S4[&quot;Shard 4&quot;]
+    WARN[&quot;Canh bao:&lt;br/&gt;neu 1 campaign qua lon,&lt;br/&gt;co the van lech tai nghiep vu&quot;]
+
+    D --&gt; Q1
+    Q1 --&gt; K
+    I --&gt; K
+    K --&gt; S1
+    K --&gt; S2
+    K --&gt; S3
+    K --&gt; S4
+    K -.-&gt; WARN
+</pre>
+</div>
+<h2>10. Sơ đồ RBAC</h2>
+<div class="card">
+<pre class="mermaid">
+flowchart TB
+    USER[&quot;Nguoi dung&quot;]
+    AUTH[&quot;JWT + RBAC Middleware&quot;]
+    ADMIN[&quot;Admin&lt;br/&gt;campaign CRUD, donation review,&lt;br/&gt;user management, statistics, system&quot;]
+    STAFF[&quot;Staff&lt;br/&gt;campaign create/update,&lt;br/&gt;donation review, statistics&quot;]
+    DONOR[&quot;Donor&lt;br/&gt;view campaign, create donation,&lt;br/&gt;view own/limited donation, limited statistics&quot;]
+
+    USER --&gt; AUTH
+    AUTH --&gt;|&quot;role = admin&quot;| ADMIN
+    AUTH --&gt;|&quot;role = staff&quot;| STAFF
+    AUTH --&gt;|&quot;role = donor&quot;| DONOR
+
+    DONOR -. &quot;Donation hien tai gan theo donorEmail&lt;br/&gt;neu chua co donorUserId&quot; .-&gt; DONOR
+</pre>
+</div>
+<h2>11. Index theo use case</h2>
+<div class="card">
+<pre class="mermaid">
+flowchart LR
+    subgraph U[&quot;Use cases&quot;]
+        U1[&quot;Dang nhap / tim user&quot;]
+        U2[&quot;Liet ke campaign active&quot;]
+        U3[&quot;Tim campaign theo ma&quot;]
+        U4[&quot;Xem donation theo campaign&quot;]
+        U5[&quot;Duyet donation pending&quot;]
+        U6[&quot;Tra lich su donor&quot;]
+        U7[&quot;Bao cao donation gia tri cao&quot;]
+        U8[&quot;Doc snapshot moi nhat&quot;]
+    end
+
+    subgraph IDX[&quot;Indexes&quot;]
+        I1[&quot;users: { email: 1 } unique&quot;]
+        I2[&quot;campaigns: { isActive: 1, createdAt: -1 }&quot;]
+        I3[&quot;campaigns: { code: 1 } unique&quot;]
+        I4[&quot;donations: { campaignCode: 1, createdAt: -1 }&quot;]
+        I5[&quot;donations: { status: 1, createdAt: -1 }&quot;]
+        I6[&quot;donations: { donorEmail: 1, createdAt: -1 }&quot;]
+        I7[&quot;donations: { amount: -1 }&quot;]
+        I8[&quot;stats_snapshots: { scope: 1, campaignCode: 1, calculatedAt: -1 }&quot;]
+    end
+
+    U1 --&gt; I1
+    U2 --&gt; I2
+    U3 --&gt; I3
+    U4 --&gt; I4
+    U5 --&gt; I5
+    U6 --&gt; I6
+    U7 --&gt; I7
+    U8 --&gt; I8
+</pre>
+</div>
+<h2>12. Luồng kiểm soát toàn vẹn dữ liệu</h2>
+<div class="card">
+<pre class="mermaid">
+flowchart TD
+    REQ[&quot;Request tao/cap nhat du lieu&quot;]
+    ZOD[&quot;Zod validation&lt;br/&gt;email, amount, required fields&quot;]
+    BACKEND[&quot;Backend business rules&lt;br/&gt;campaignCode ton tai&lt;br/&gt;campaign active&lt;br/&gt;date hop le&quot;]
+    MONGOOSE[&quot;Mongoose schema&lt;br/&gt;enum, min/max, trim, lowercase&quot;]
+    INDEX[&quot;MongoDB indexes&lt;br/&gt;unique code/email&lt;br/&gt;query optimization&quot;]
+    RBAC[&quot;RBAC middleware&lt;br/&gt;admin / staff / donor&quot;]
+    DB[(&quot;MongoDB&quot;)]
+
+    REQ --&gt; ZOD --&gt; BACKEND --&gt; MONGOOSE --&gt; INDEX --&gt; RBAC --&gt; DB
+</pre>
+</div>
+</body>
+</html>

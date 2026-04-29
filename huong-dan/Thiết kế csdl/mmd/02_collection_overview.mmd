@@ -1,0 +1,13 @@
+flowchart LR
+    USERS["users<br/>Tai khoan, vai tro, trang thai<br/>Write: thap | Read: trung binh"]
+    CAMPAIGNS["campaigns<br/>Chien dich quyen gop<br/>Write: trung binh | Read: cao"]
+    DONATIONS["donations<br/>Giao dich trung tam<br/>Write: cao | Read: cao"]
+    AUDIT["audit_logs<br/>Khuyen nghi mo rong<br/>Write: trung binh | Read: thap"]
+    STATS["stats_snapshots<br/>Khuyen nghi khi du lieu lon<br/>Write: thap | Read: cao"]
+
+    CAMPAIGNS -->|"code = campaignCode"| DONATIONS
+    DONATIONS -->|"aggregate"| STATS
+    USERS -. "createdBy future" .-> CAMPAIGNS
+    USERS -. "donorUserId / reviewedBy future" .-> DONATIONS
+    USERS -. "actorId future" .-> AUDIT
+    DONATIONS -. "audit / trace" .-> AUDIT

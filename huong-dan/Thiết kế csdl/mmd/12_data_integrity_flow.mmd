@@ -1,0 +1,10 @@
+flowchart TD
+    REQ["Request tao/cap nhat du lieu"]
+    ZOD["Zod validation<br/>email, amount, required fields"]
+    BACKEND["Backend business rules<br/>campaignCode ton tai<br/>campaign active<br/>date hop le"]
+    MONGOOSE["Mongoose schema<br/>enum, min/max, trim, lowercase"]
+    INDEX["MongoDB indexes<br/>unique code/email<br/>query optimization"]
+    RBAC["RBAC middleware<br/>admin / staff / donor"]
+    DB[("MongoDB")]
+
+    REQ --> ZOD --> BACKEND --> MONGOOSE --> INDEX --> RBAC --> DB

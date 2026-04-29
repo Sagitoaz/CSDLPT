@@ -1,0 +1,19 @@
+flowchart LR
+    D["donations<br/>collection tang nhanh nhat"]
+    Q1["Query thuong gap:<br/>xem donation theo campaignCode"]
+    K["Shard key demo:<br/>{ campaignCode: hashed }"]
+    I["Index can tao:<br/>db.donations.createIndex({ campaignCode: hashed })"]
+    S1["Shard 1"]
+    S2["Shard 2"]
+    S3["Shard 3"]
+    S4["Shard 4"]
+    WARN["Canh bao:<br/>neu 1 campaign qua lon,<br/>co the van lech tai nghiep vu"]
+
+    D --> Q1
+    Q1 --> K
+    I --> K
+    K --> S1
+    K --> S2
+    K --> S3
+    K --> S4
+    K -.-> WARN

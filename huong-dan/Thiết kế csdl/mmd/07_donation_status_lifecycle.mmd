@@ -1,0 +1,6 @@
+stateDiagram-v2
+    [*] --> pending: Donor tao donation
+    pending --> verified: Staff/Admin duyet
+    pending --> rejected: Staff/Admin tu choi
+    verified --> [*]
+    rejected --> [*]
