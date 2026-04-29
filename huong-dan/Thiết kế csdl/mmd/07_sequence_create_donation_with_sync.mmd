@@ -1,0 +1,25 @@
+---
+title: Sequence Create Donation with Central Sync
+---
+sequenceDiagram
+    autonumber
+    actor Donor
+    participant FE as Frontend
+    participant API as Backend API
+    participant CORE as Central Service
+    participant CDB as Central Server
+    participant SH as Branch Shard
+    participant SYNC as Sync Worker
+
+    Donor->>FE: Nhap form quyen gop
+    FE->>API: POST /api/donations
+    API->>CORE: Validate donor, amount, campaignCode, branchCode
+    CORE->>CDB: Kiem tra campaign, user, branch hop le
+    CDB-->>CORE: Master data hop le
+    CORE->>SH: Insert donation status = pending
+    SH-->>CORE: Donation created
+    CORE->>SYNC: Tao job dong bo ve trung tam
+    SYNC->>CDB: Ghi tong hop / audit / bao cao trung tam
+    CDB-->>SYNC: Success
+    CORE-->>API: Created
+    API-->>FE: 201 Created

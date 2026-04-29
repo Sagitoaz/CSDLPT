@@ -1,0 +1,11 @@
+---
+title: Sync Pipeline Branch to Center
+---
+flowchart LR
+    SHARD["Branch shard<br/>donations / payments / reports"] --> EVT["Outbox / event log<br/>create / update / approve"]
+    EVT --> WORKER["Sync worker"]
+    WORKER --> CENTER["Central server<br/>master data / audit / aggregated report"]
+    CENTER --> API["Dashboard / reporting API"]
+
+    NOTE["Ghi chu:<br/>dong bo ve trung tam la dong bo nghiep vu / tong hop,<br/>khong phai shard tu replicate truc tiep thanh 1 replica set chung."]
+    NOTE -.-> WORKER

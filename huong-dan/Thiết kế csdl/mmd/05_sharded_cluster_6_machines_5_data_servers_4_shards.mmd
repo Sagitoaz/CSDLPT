@@ -1,32 +1,39 @@
+---
+title: Sharded Cluster 6 Machines 5 Data Servers 4 Shards
+---
 flowchart TB
-    subgraph M1["May 1 - Dieu phoi / ung dung"]
+    subgraph M1["May 1 - Dieu phoi"]
         FE["Frontend"]
         BE["Backend API"]
-        QA["QA / Test tools"]
+        QA["QA / Test"]
         MONGOS["mongos<br/>query router"]
         FE --> BE --> MONGOS
         QA -.-> BE
     end
 
-    subgraph DATA["Cum du lieu 5 server"]
-        CENTER[("Server du lieu trung tam<br/>metadata/config trong lab<br/>du lieu dung chung<br/>thong ke tong")]
-        SH1[("Server chi nhanh 1<br/>Shard/MANH 1")]
-        SH2[("Server chi nhanh 2<br/>Shard/MANH 2")]
-        SH3[("Server chi nhanh 3<br/>Shard/MANH 3")]
-        SH4[("Server chi nhanh 4<br/>Shard/MANH 4")]
+    subgraph DC["Cum du lieu 5 server"]
+        CENTER[("Server du lieu trung tam<br/>users, campaigns, audit_logs<br/>bao cao tong hop / master data")]
+        SH1[("Server chi nhanh 1<br/>Shard 1<br/>donations / payments / reports CN1")]
+        SH2[("Server chi nhanh 2<br/>Shard 2<br/>donations / payments / reports CN2")]
+        SH3[("Server chi nhanh 3<br/>Shard 3<br/>donations / payments / reports CN3")]
+        SH4[("Server chi nhanh 4<br/>Shard 4<br/>donations / payments / reports CN4")]
     end
 
-    MONGOS -->|metadata / shared / global stats| CENTER
-    MONGOS -->|branchCode = CN1| SH1
-    MONGOS -->|branchCode = CN2| SH2
-    MONGOS -->|branchCode = CN3| SH3
-    MONGOS -->|branchCode = CN4| SH4
+    MONGOS --> CENTER
+    MONGOS --> SH1
+    MONGOS --> SH2
+    MONGOS --> SH3
+    MONGOS --> SH4
 
-    NOTE1["Tong may: 6<br/>1 may dieu phoi + 5 server du lieu"]
-    NOTE2["Tong manh nghiep vu: 4<br/>chi nhanh 1..4"]
-    NOTE3["Server trung tam khong tinh la manh chi nhanh"]
+    CENTER -->|master data: campaign, user, branch| SH1
+    CENTER -->|master data: campaign, user, branch| SH2
+    CENTER -->|master data: campaign, user, branch| SH3
+    CENTER -->|master data: campaign, user, branch| SH4
 
-    NOTE1 -.-> M1
-    NOTE2 -.-> SH1
-    NOTE2 -.-> SH4
-    NOTE3 -.-> CENTER
+    SH1 -->|dong bo tong hop / audit / report ve trung tam| CENTER
+    SH2 -->|dong bo tong hop / audit / report ve trung tam| CENTER
+    SH3 -->|dong bo tong hop / audit / report ve trung tam| CENTER
+    SH4 -->|dong bo tong hop / audit / report ve trung tam| CENTER
+
+    NOTE["Tong cong: 6 may<br/>1 may dieu phoi + 5 server du lieu<br/>4 shard chi nhanh + 1 server trung tam"]
+    NOTE -.-> DC

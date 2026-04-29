@@ -1,0 +1,41 @@
+---
+title: RBAC Two Admin Types
+---
+flowchart TB
+    SA["system_admin<br/>toan he thong"]
+    BA["branch_admin<br/>theo branchCode"]
+    ST["staff<br/>theo phan cong"]
+    DO["donor"]
+
+    subgraph FUNCS["Chuc nang"]
+        F1["Quan ly user"]
+        F2["Quan ly campaign"]
+        F3["Duyet donation"]
+        F4["Quan ly payment"]
+        F5["Quan ly report"]
+        F6["Xem thong ke"]
+        F7["Health/system"]
+    end
+
+    SA --> F1
+    SA --> F2
+    SA --> F3
+    SA --> F4
+    SA --> F5
+    SA --> F6
+    SA --> F7
+
+    BA -. chi nhanh duoc phan cong .-> F2
+    BA -. chi nhanh duoc phan cong .-> F3
+    BA -. chi nhanh duoc phan cong .-> F4
+    BA -. chi nhanh duoc phan cong .-> F5
+    BA -. chi nhanh duoc phan cong .-> F6
+    BA -. gioi han .-> F7
+
+    ST -. neu duoc phan quyen .-> F2
+    ST -. doi soat / cap nhat .-> F4
+    ST -. lap / cap nhat .-> F5
+    ST -. theo phan cong .-> F6
+
+    DO -. tao donation .-> F3
+    DO -. xem han che / public .-> F6

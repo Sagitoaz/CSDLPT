@@ -1,8 +1,0 @@
-stateDiagram-v2
-    [*] --> draft: Staff creates report
-    draft --> submitted: Submit report
-    submitted --> approved: Branch admin or system admin approves
-    submitted --> rejected: Branch admin or system admin rejects
-    rejected --> draft: Staff edits and resubmits
-    approved --> published: Publish to donor/public view
-    published --> [*]

@@ -1,0 +1,50 @@
+---
+title: Branch Shards Sync with Central Server
+---
+flowchart LR
+    CENTER["Server trung tam<br/>users, campaigns, audit_logs<br/>bao cao tong hop"]
+
+    subgraph B1["Chi nhanh 1 / Shard 1"]
+        D1["donations CN1"]
+        P1["payment_transactions CN1"]
+        R1["campaign_reports CN1"]
+    end
+
+    subgraph B2["Chi nhanh 2 / Shard 2"]
+        D2["donations CN2"]
+        P2["payment_transactions CN2"]
+        R2["campaign_reports CN2"]
+    end
+
+    subgraph B3["Chi nhanh 3 / Shard 3"]
+        D3["donations CN3"]
+        P3["payment_transactions CN3"]
+        R3["campaign_reports CN3"]
+    end
+
+    subgraph B4["Chi nhanh 4 / Shard 4"]
+        D4["donations CN4"]
+        P4["payment_transactions CN4"]
+        R4["campaign_reports CN4"]
+    end
+
+    CENTER -->|campaignCode, branchCode, user scope| D1
+    CENTER -->|campaignCode, branchCode, user scope| D2
+    CENTER -->|campaignCode, branchCode, user scope| D3
+    CENTER -->|campaignCode, branchCode, user scope| D4
+
+    D1 -->|tong hop donation / status| CENTER
+    P1 -->|doi soat payment| CENTER
+    R1 -->|bao cao tien do| CENTER
+
+    D2 -->|tong hop donation / status| CENTER
+    P2 -->|doi soat payment| CENTER
+    R2 -->|bao cao tien do| CENTER
+
+    D3 -->|tong hop donation / status| CENTER
+    P3 -->|doi soat payment| CENTER
+    R3 -->|bao cao tien do| CENTER
+
+    D4 -->|tong hop donation / status| CENTER
+    P4 -->|doi soat payment| CENTER
+    R4 -->|bao cao tien do| CENTER

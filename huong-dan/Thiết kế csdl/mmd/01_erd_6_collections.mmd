@@ -1,11 +1,13 @@
+---
+title: ERD 6 Collections
+---
 erDiagram
-    USERS ||--o{ CAMPAIGNS : creates_or_manages
+    USERS ||--o{ CAMPAIGNS : manages_or_creates
     USERS ||--o{ DONATIONS : donor_or_reviewer
     USERS ||--o{ AUDIT_LOGS : actor
     USERS ||--o{ CAMPAIGN_REPORTS : creates_or_approves
     CAMPAIGNS ||--o{ DONATIONS : code_to_campaignCode
     CAMPAIGNS ||--o{ CAMPAIGN_REPORTS : has_reports
-    CAMPAIGNS ||--o{ STATS_SNAPSHOTS : has_snapshots
     DONATIONS ||--o{ PAYMENT_TRANSACTIONS : has_payment_attempts
 
     USERS {
@@ -14,8 +16,8 @@ erDiagram
         string email UK
         string password_hash
         string fullName
-        string role "system_admin|branch_admin|staff|donor"
-        string branchCode "required for branch roles"
+        string role
+        string branchCode
         boolean isActive
         date createdAt
         date updatedAt
@@ -28,8 +30,7 @@ erDiagram
         string description
         number targetAmount
         boolean isActive
-        string branchCode "recommended"
-        ObjectId createdBy "recommended"
+        string branchCode
         date startDate
         date endDate
         date createdAt
@@ -40,14 +41,10 @@ erDiagram
         ObjectId _id PK
         string donorName
         string donorEmail
-        ObjectId donorUserId "optional"
         number amount
         string campaignCode FK
-        string branchCode "recommended for branch sharding"
         string note
-        string status "pending|verified|rejected"
-        ObjectId reviewedBy "recommended"
-        date reviewedAt "recommended"
+        string status
         date createdAt
         date updatedAt
     }
@@ -56,12 +53,11 @@ erDiagram
         ObjectId _id PK
         ObjectId donationId FK
         string campaignCode
-        string branchCode "recommended for branch sharding"
         string donorEmail
         number amount
-        string method "bank_transfer|cash|e_wallet"
+        string method
         string providerTxnId
-        string status "pending|success|failed|refunded"
+        string status
         date paidAt
         date createdAt
         date updatedAt
@@ -73,10 +69,8 @@ erDiagram
         string branchCode
         string title
         string reportPeriod
-        string content
+        string reportStatus
         number usedAmount
-        array attachments
-        string reportStatus "draft|submitted|approved|rejected"
         ObjectId createdBy
         ObjectId approvedBy
         date createdAt
@@ -86,7 +80,7 @@ erDiagram
     AUDIT_LOGS {
         ObjectId _id PK
         string requestId
-        ObjectId actorId FK
+        ObjectId actorId
         string actorEmail
         string actorRole
         string action
@@ -98,17 +92,4 @@ erDiagram
         boolean success
         number durationMs
         date createdAt
-    }
-
-    STATS_SNAPSHOTS {
-        ObjectId _id PK
-        string scope "global|branch|campaign"
-        string branchCode
-        string campaignCode
-        number totalDonations
-        number totalAmount
-        number pendingCount
-        number verifiedCount
-        number rejectedCount
-        date calculatedAt
     }

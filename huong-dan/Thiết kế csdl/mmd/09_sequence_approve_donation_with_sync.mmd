@@ -1,0 +1,23 @@
+---
+title: Sequence Approve Donation with Central Sync
+---
+sequenceDiagram
+    autonumber
+    actor Staff as Staff / Branch Admin / System Admin
+    participant FE as Frontend Admin
+    participant API as Backend API
+    participant RBAC as JWT + RBAC
+    participant SH as Branch Shard
+    participant SYNC as Sync Worker
+    participant CDB as Central Server
+
+    Staff->>FE: Chon verified hoac rejected
+    FE->>API: PATCH /api/donations/:id/status
+    API->>RBAC: Kiem tra role va branchCode
+    RBAC-->>API: Cho phep
+    API->>SH: Update donation status
+    SH-->>API: Updated
+    API->>SYNC: Dong bo thay doi len trung tam
+    SYNC->>CDB: Cap nhat bao cao tong hop / audit / monitoring
+    CDB-->>SYNC: Success
+    API-->>FE: 200 OK

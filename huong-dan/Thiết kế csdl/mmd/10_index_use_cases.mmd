@@ -1,0 +1,43 @@
+---
+title: Index Use Cases
+---
+flowchart TB
+    subgraph USERS["users"]
+        U1["{ username: 1 } unique"]
+        U2["{ email: 1 } unique"]
+        U3["{ role: 1, branchCode: 1 }"]
+    end
+
+    subgraph CAMPAIGNS["campaigns"]
+        C1["{ code: 1 } unique"]
+        C2["{ isActive: 1, createdAt: -1 }"]
+        C3["{ name: text, code: text }"]
+        C4["{ branchCode: 1, createdAt: -1 }"]
+    end
+
+    subgraph DONATIONS["donations"]
+        D1["{ campaignCode: 1, createdAt: -1 }"]
+        D2["{ status: 1, createdAt: -1 }"]
+        D3["{ donorEmail: 1, createdAt: -1 }"]
+        D4["{ amount: -1 }"]
+    end
+
+    subgraph PAYS["payment_transactions"]
+        P1["{ donationId: 1, createdAt: -1 }"]
+        P2["{ campaignCode: 1, createdAt: -1 }"]
+        P3["{ status: 1, createdAt: -1 }"]
+        P4["{ providerTxnId: 1 } sparse"]
+    end
+
+    subgraph REPS["campaign_reports"]
+        R1["{ campaignCode: 1, reportPeriod: -1 }"]
+        R2["{ branchCode: 1, reportPeriod: -1 }"]
+        R3["{ reportStatus: 1, createdAt: -1 }"]
+    end
+
+    subgraph AUDS["audit_logs"]
+        A1["{ requestId: 1 }"]
+        A2["{ actorId: 1, createdAt: -1 }"]
+        A3["{ resource: 1, resourceId: 1 }"]
+        A4["{ createdAt: -1 }"]
+    end

@@ -25,7 +25,7 @@ Tài liệu ưu tiên mô hình dữ liệu cần trình bày trong báo cáo. M
 
 ## 3. Tổng quan collection
 
-Bộ thiết kế gồm 7 collection. Tần suất truy cập phụ thuộc vào vai trò sử dụng, không chỉ phụ thuộc vào loại dữ liệu.
+Bộ thiết kế gồm 6 collection. Tần suất truy cập phụ thuộc vào vai trò sử dụng, không chỉ phụ thuộc vào loại dữ liệu.
 
 | Collection | Vai trò dữ liệu | Role truy cập chính | Ghi | Đọc | Ghi chú |
 |---|---|---|---:|---:|---|
@@ -35,7 +35,6 @@ Bộ thiết kế gồm 7 collection. Tần suất truy cập phụ thuộc vào
 | `payment_transactions` | Trạng thái thanh toán của donation | Donor, staff, admin chi nhánh | Cao | Trung bình | Tách thanh toán khỏi donation |
 | `campaign_reports` | Báo cáo tiến độ, minh chứng sử dụng quỹ | Staff, admin chi nhánh, admin hệ thống, donor | Trung bình | Cao | Tăng tính minh bạch |
 | `audit_logs` | Nhật ký thao tác quan trọng | Admin hệ thống, QA/Leader | Trung bình | Thấp | Phục vụ truy vết |
-| `stats_snapshots` | Snapshot thống kê định kỳ | Admin hệ thống, admin chi nhánh, staff | Thấp | Cao | Giảm tải dashboard |
 
 ## 4. ERD logic collection
 
@@ -78,16 +77,16 @@ Quan hệ dưới đây là quan hệ logic dùng cho thiết kế báo cáo. Mo
                                                        | +------------------------+
                                                        |
          +---------------------------------------------+------------------+
-         |                                                                |
-         v                                                                v
-+--------+----------+                                      +--------------+------+
-| campaign_reports  |                                      | stats_snapshots     |
-|-------------------|                                      |---------------------|
-| campaignCode      |                                      | scope               |
-| branchCode        |                                      | campaignCode        |
-| reportPeriod      |                                      | totalAmount         |
-| reportStatus      |                                      | calculatedAt        |
-+-------------------+                                      +---------------------+
+         |
+         v
++--------+----------+
+| campaign_reports  |
+|-------------------|
+| campaignCode      |
+| branchCode        |
+| reportPeriod      |
+| reportStatus      |
++-------------------+
 
 +------------------+
 |    audit_logs    |
@@ -108,7 +107,6 @@ Quan hệ hiện tại trong code:
 | `users` 1 - n `campaigns` | Khuyến nghị | Chưa có `campaigns.createdBy` |
 | `users` 1 - n `donations` theo donor | Một phần | Hiện lưu `donorEmail`, chưa có `donorUserId` |
 | `users` 1 - n `donations` theo người duyệt | Khuyến nghị | Chưa có `reviewedBy`, `reviewedAt` |
-| `campaigns` 1 - n `stats_snapshots` | Khuyến nghị | Có thể dùng `campaignCode` khi cần snapshot |
 | `campaigns` 1 - n `campaign_reports` | Bổ sung thiết kế | Lưu báo cáo theo `campaignCode` |
 | `donations` 1 - n `payment_transactions` | Bổ sung thiết kế | Một donation có thể có nhiều lần thanh toán/thử thanh toán |
 
@@ -291,22 +289,6 @@ Hiện tại hệ thống ghi log ở tầng ứng dụng. Nếu cần lưu audi
 | `durationMs` | Number | Thời gian xử lý |
 | `createdAt` | Date | Thời điểm ghi log |
 
-### 8.4. `stats_snapshots`
-
-Hệ thống hiện tính thống kê động bằng aggregation. Khi dữ liệu donation lớn, có thể lưu snapshot để giảm tải truy vấn dashboard.
-
-| Trường | Kiểu | Mô tả |
-|---|---|---|
-| `_id` | ObjectId | Khóa chính |
-| `scope` | String | `global` hoặc `campaign` |
-| `campaignCode` | String | Mã chiến dịch nếu thống kê theo campaign |
-| `totalDonations` | Number | Tổng số donation |
-| `totalAmount` | Number | Tổng số tiền |
-| `pendingCount` | Number | Số donation chờ duyệt |
-| `verifiedCount` | Number | Số donation đã duyệt |
-| `rejectedCount` | Number | Số donation bị từ chối |
-| `calculatedAt` | Date | Thời điểm tính |
-
 ## 9. Index theo use case
 
 | Use case | Collection | Index | Mục đích |
@@ -326,7 +308,6 @@ Hệ thống hiện tính thống kê động bằng aggregation. Khi dữ liệ
 | Xem báo cáo theo chiến dịch | `campaign_reports` | `{ campaignCode: 1, reportPeriod: -1 }` | Theo dõi báo cáo tiến độ chiến dịch |
 | Xem báo cáo theo chi nhánh | `campaign_reports` | `{ branchCode: 1, reportPeriod: -1 }` | Admin chi nhánh và admin hệ thống kiểm tra |
 | Truy log theo request | `audit_logs` | `{ requestId: 1 }` | Truy vết thao tác và lỗi |
-| Đọc snapshot mới nhất | `stats_snapshots` | `{ scope: 1, campaignCode: 1, calculatedAt: -1 }` | Tăng tốc dashboard/thống kê |
 
 Lưu ý: thiết kế báo cáo bổ sung `username`, `payment_transactions`, `campaign_reports` và phân quyền admin theo phạm vi. Nếu code hiện tại chưa có đủ các index này thì cần bổ sung khi triển khai.
 
@@ -382,35 +363,55 @@ Mô hình 6 máy trong tài liệu dùng cho demo/lab CSDL phân tán, gồm 1 m
 | Máy/Server | Vai trò | Dữ liệu chính |
 |---|---|---|
 | Máy 1 | Điều phối | Frontend, Backend, QA, `mongos` |
-| Server dữ liệu trung tâm | Dữ liệu tổng | Metadata, dữ liệu dùng chung, thống kê tổng |
-| Server chi nhánh 1 | Mảnh 1 | Donation/payment/report thuộc chi nhánh 1 |
-| Server chi nhánh 2 | Mảnh 2 | Donation/payment/report thuộc chi nhánh 2 |
-| Server chi nhánh 3 | Mảnh 3 | Donation/payment/report thuộc chi nhánh 3 |
-| Server chi nhánh 4 | Mảnh 4 | Donation/payment/report thuộc chi nhánh 4 |
+| Server dữ liệu trung tâm | Dữ liệu tổng | `users`, `campaigns`, `audit_logs`, metadata, báo cáo tổng hợp |
+| Server chi nhánh 1 | Mảnh 1 | `donations`, `payment_transactions`, `campaign_reports` thuộc chi nhánh 1 |
+| Server chi nhánh 2 | Mảnh 2 | `donations`, `payment_transactions`, `campaign_reports` thuộc chi nhánh 2 |
+| Server chi nhánh 3 | Mảnh 3 | `donations`, `payment_transactions`, `campaign_reports` thuộc chi nhánh 3 |
+| Server chi nhánh 4 | Mảnh 4 | `donations`, `payment_transactions`, `campaign_reports` thuộc chi nhánh 4 |
 
-Phân mảnh nghiệp vụ vẫn là 4 mảnh, tương ứng 4 server chi nhánh. Server dữ liệu trung tâm không tính là mảnh chi nhánh; nó giữ dữ liệu tổng và dữ liệu dùng chung.
+Phân mảnh nghiệp vụ vẫn là 4 mảnh, tương ứng 4 server chi nhánh. Server dữ liệu trung tâm không tính là mảnh chi nhánh; nó giữ dữ liệu dùng chung, dữ liệu quản trị và nhận dữ liệu tổng hợp từ các mảnh chi nhánh.
 
 ```text
 Máy 1 - Điều phối
 Frontend + Backend + QA + mongos
         |
         v
-+-------------------------- Cụm dữ liệu 5 server --------------------------+
-|                                                                          |
-|  Server dữ liệu trung tâm                                                 |
-|  - dữ liệu tổng                                                           |
-|  - metadata / cấu hình                                                    |
-|  - thống kê tổng                                                          |
-|                                                                          |
-|  +----------------+  +----------------+  +----------------+  +---------+ |
-|  | Chi nhánh 1    |  | Chi nhánh 2    |  | Chi nhánh 3    |  | CN 4    | |
-|  | Mảnh 1         |  | Mảnh 2         |  | Mảnh 3         |  | Mảnh 4  | |
-|  +----------------+  +----------------+  +----------------+  +---------+ |
-|                                                                          |
-+--------------------------------------------------------------------------+
+Cụm dữ liệu 5 server
+
+                         +--------------------------------------+
+                         | Server dữ liệu trung tâm             |
+                         | users, campaigns, audit_logs         |
+                         | metadata, báo cáo tổng hợp           |
+                         +-------------------+------------------+
+                                             |
+                  tham chiếu campaign/user/branchCode
+                                             |
+        +--------------------+---------------+---------------+--------------------+
+        |                    |               |               |                    |
+        v                    v               v               v                    |
++---------------+    +---------------+  +---------------+  +---------------+      |
+| Chi nhánh 1   |    | Chi nhánh 2   |  | Chi nhánh 3   |  | Chi nhánh 4   |      |
+| Mảnh 1        |    | Mảnh 2        |  | Mảnh 3        |  | Mảnh 4        |      |
+| donations     |    | donations     |  | donations     |  | donations     |      |
+| payments      |    | payments      |  | payments      |  | payments      |      |
+| reports       |    | reports       |  | reports       |  | reports       |      |
++-------+-------+    +-------+-------+  +-------+-------+  +-------+-------+      |
+        |                    |                  |                  |              |
+        +--------------------+------------------+------------------+--------------+
+        dữ liệu tổng hợp / trạng thái báo cáo trả về server trung tâm
 ```
 
 Collection cần shard chính: `donations`. Các collection `payment_transactions` và `campaign_reports` nên có `campaignCode`/`branchCode` để định vị cùng mảnh chi nhánh khi cần truy vấn liên quan.
+
+Quan hệ giữa server trung tâm và 4 mảnh chi nhánh:
+
+| Quan hệ | Khóa liên kết | Ý nghĩa |
+|---|---|---|
+| Trung tâm -> mảnh chi nhánh | `branchCode` | Xác định chi nhánh sở hữu dữ liệu phát sinh |
+| Trung tâm -> `donations` | `campaignCode`, `branchCode` | Donation thuộc campaign hợp lệ và chi nhánh phụ trách |
+| Trung tâm -> `payment_transactions` | `donationId`, `campaignCode` | Đối soát thanh toán theo donation/campaign |
+| Trung tâm -> `campaign_reports` | `campaignCode`, `branchCode` | Nhận báo cáo tiến độ từ từng chi nhánh |
+| Mảnh chi nhánh -> trung tâm | `campaignCode`, `branchCode`, trạng thái tổng hợp | Trả dữ liệu báo cáo, đối soát và giám sát về server trung tâm |
 
 Shard key đề xuất cho demo:
 
@@ -452,7 +453,6 @@ db.createCollection("donations")
 db.createCollection("payment_transactions")
 db.createCollection("campaign_reports")
 db.createCollection("audit_logs")
-db.createCollection("stats_snapshots")
 
 db.users.createIndex({ username: 1 }, { unique: true })
 db.users.createIndex({ email: 1 }, { unique: true })
@@ -482,9 +482,6 @@ db.audit_logs.createIndex({ requestId: 1 })
 db.audit_logs.createIndex({ actorId: 1, createdAt: -1 })
 db.audit_logs.createIndex({ resource: 1, resourceId: 1 })
 db.audit_logs.createIndex({ createdAt: -1 })
-
-db.stats_snapshots.createIndex({ scope: 1, campaignCode: 1, calculatedAt: -1 })
-db.stats_snapshots.createIndex({ calculatedAt: -1 })
 ```
 
 ### 12.2. Index shard key khi demo sharding
@@ -587,14 +584,14 @@ MongoDB PRIMARY
 MongoDB SECONDARY nodes
   |
   v
-Stats aggregate đọc lại số liệu mới
+Backend aggregate đọc lại số liệu mới
 ```
 
 ### 14.3. Xem thống kê
 
 1. Backend đọc `campaigns` để lấy tổng số campaign.
 2. Backend aggregate `donations` theo `status` và `amount`.
-3. Nếu dữ liệu lớn, có thể đọc nhanh từ `stats_snapshots`.
+3. Nếu dữ liệu lớn, backend có thể tối ưu bằng cache tầng service hoặc batch aggregation, không tạo collection thống kê riêng.
 
 Tổng tiền quyên góp chính thức chỉ tính các donation có `status = "verified"`. Các donation `pending` và `rejected` vẫn được thống kê riêng để phục vụ quản trị, nhưng không cộng vào tổng tiền đã xác nhận.
 
@@ -612,19 +609,18 @@ File `apps/backend/src/common/transactions.example.ts` có một số ý tưởn
 | `status = approved` | Hiện dùng `verified` | Giữ `verified` theo code hiện tại |
 | `goalAmount`, `currentAmount` | Hiện dùng `targetAmount`, chưa có `currentAmount` | Giữ `targetAmount`; thống kê tính động |
 | `campaignCode` trong campaign | Hiện dùng `code` | Ghi rõ `campaigns.code = donations.campaignCode` |
-| `stats` collection | Chưa có model chính thức | Đưa thành `stats_snapshots` khuyến nghị |
 
 ## 16. Đánh giá thiết kế
 
 | Tiêu chí | Đánh giá |
 |---|---|
-| Đúng yêu cầu thiết kế | Mở rộng thành 7 collection: `users`, `campaigns`, `donations`, `payment_transactions`, `campaign_reports`, `audit_logs`, `stats_snapshots` |
+| Đúng yêu cầu thiết kế | Mở rộng thành 6 collection: `users`, `campaigns`, `donations`, `payment_transactions`, `campaign_reports`, `audit_logs` |
 | Dễ triển khai | Phù hợp Express + Mongoose hiện tại |
-| Dễ mở rộng | Có lộ trình thêm thanh toán, báo cáo chiến dịch, audit, snapshot, reviewer fields |
+| Dễ mở rộng | Có lộ trình thêm thanh toán, báo cáo chiến dịch, audit và reviewer fields |
 | Tối ưu truy vấn chính | Có index theo `campaignCode`, `status`, `donorEmail`, `createdAt` |
 | An toàn dữ liệu | Có validation, RBAC, password hash và logging |
 | Phù hợp CSDLPT | Có nhân bản, failover, 5 server dữ liệu và 4 mảnh chi nhánh |
 
 ## 17. Kết luận
 
-Thiết kế dữ liệu nên giữ `donations` làm collection trung tâm, `campaigns` làm dữ liệu nghiệp vụ nền và `users` làm lớp định danh - phân quyền. Bộ 7 collection là vừa đủ: không quá ít để thiếu nghiệp vụ thanh toán/báo cáo, cũng không dư thừa so với phạm vi bài toán. Với mô hình mở rộng 6 máy, cụm dữ liệu gồm 5 server: 1 server dữ liệu tổng trung tâm và 4 server chi nhánh tương ứng 4 mảnh dữ liệu.
+Thiết kế dữ liệu nên giữ `donations` làm collection trung tâm, `campaigns` làm dữ liệu nghiệp vụ nền và `users` làm lớp định danh - phân quyền. Bộ 6 collection là vừa đủ: không quá ít để thiếu nghiệp vụ thanh toán/báo cáo/audit, cũng không dư thừa so với phạm vi bài toán. Với mô hình mở rộng 6 máy, cụm dữ liệu gồm 5 server: 1 server dữ liệu tổng trung tâm và 4 server chi nhánh tương ứng 4 mảnh dữ liệu có quan hệ rõ ràng với trung tâm qua `branchCode`, `campaignCode`, `donationId` và dữ liệu báo cáo tổng hợp.

@@ -1,5 +1,8 @@
+---
+title: Replica Set 3 Nodes
+---
 flowchart TB
-    API["Backend API<br/>connection string: replicaSet=rsCharity"]
+    API["Backend API<br/>replicaSet=rsCharity"]
 
     subgraph RS["MongoDB Replica Set rsCharity"]
         P[("mongo1<br/>PRIMARY")]
@@ -11,6 +14,6 @@ flowchart TB
     P -->|oplog replication| S1
     P -->|oplog replication| S2
 
-    P -. "PRIMARY down" .-> E["Election"]
-    E -. "new PRIMARY" .-> S1
-    E -. "or new PRIMARY" .-> S2
+    P -. neu loi .-> E["Election"]
+    E -. bau primary moi .-> S1
+    E -. bau primary moi .-> S2
