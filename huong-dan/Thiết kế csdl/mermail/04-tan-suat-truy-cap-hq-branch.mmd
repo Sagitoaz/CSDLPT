@@ -1,48 +1,48 @@
 flowchart TB
-    note["Ký hiệu: H = cao, M = trung bình, L = thấp<br/>R = đọc, W = tạo, E = sửa, D = xóa mềm / hủy"]
+    note["Ky hieu: H = cao, M = trung binh, L = thap<br/>R = doc, W = tao, E = sua, D = xoa mem / huy"]
 
-    subgraph hq["Trụ sở chính"]
-        hq_branches["branches<br/>H.R, L.WED"]
-        hq_users["users<br/>H.R, M.WED"]
-        hq_campaigns["campaigns<br/>H.R, M.WED"]
-        hq_contributors["contributors<br/>H.R, M.WE"]
-        hq_contributions["contributions<br/>H.WERD"]
-        hq_beneficiaries["beneficiaries<br/>H.R, M.WE"]
-        hq_aid["aid_distributions<br/>H.R, M.WED"]
-        hq_logs["activity_logs<br/>H.R"]
-        hq_stats["stats_snapshots<br/>H.R, M.W"]
+    subgraph global_scope["Truy cap toan he thong (SUPER_ADMIN)"]
+        g_campaigns["campaigns<br/>H.R, M.WED"]
+        g_contributions["contributions<br/>H.WERD"]
+        g_aid["aid_distributions<br/>H.WERD"]
+        g_logs["activity_logs<br/>H.R, L.W"]
+        g_stats["stats_snapshots<br/>H.R, M.W"]
     end
 
-    subgraph branch["Chi nhánh / trung tâm"]
-        br_branches["branches<br/>H.R"]
-        br_users["users<br/>H.R, M.WE"]
-        br_campaigns["campaigns<br/>H.WER, M.D"]
-        br_contributors["contributors<br/>H.R, M.WE"]
-        br_contributions["contributions<br/>H.WERD"]
-        br_beneficiaries["beneficiaries<br/>H.WER, M.D"]
-        br_aid["aid_distributions<br/>H.WERD"]
-        br_volunteers["volunteers<br/>H.WER"]
-        br_logs["activity_logs<br/>H.R, L.W"]
-        br_stats["stats_snapshots<br/>H.R, M.W"]
+    subgraph branch_scope["Truy cap theo branchId (BRANCH_ADMIN / STAFF)"]
+        b_campaigns["campaigns<br/>H.WER, M.D"]
+        b_contributions["contributions<br/>H.WERD"]
+        b_beneficiaries["beneficiaries<br/>H.WER, M.D"]
+        b_aid["aid_distributions<br/>H.WERD"]
+        b_volunteers["volunteers<br/>H.WER"]
+        b_logs["activity_logs<br/>H.R, L.W"]
+        b_stats["stats_snapshots<br/>H.R, M.W"]
     end
 
-    note --> hq_branches
-    note --> br_branches
+    subgraph public_own_scope["Public / own scope (CONTRIBUTOR, DONOR, VOLUNTEER)"]
+        p_campaigns["campaigns public active<br/>H.R"]
+        p_contributions["contributions own data<br/>M.R"]
+        p_volunteers["volunteers own profile<br/>M.R, L.WE"]
+    end
 
-    hot["Nhóm tăng trưởng nhanh nhất:<br/>contributions, aid_distributions, activity_logs"]
-    axis["branchId là trục phân quyền, lọc dữ liệu,<br/>index và sharding quan trọng nhất"]
-    campaign_root["campaigns là aggregate root trung tâm<br/>cho public view, admin view và dashboard"]
+    note --> g_campaigns
+    note --> b_campaigns
+    note --> p_campaigns
 
-    hq_contributions --> hot
-    br_contributions --> hot
-    br_aid --> hot
-    br_logs --> hot
+    hot["Nhom tang truong nhanh nhat:<br/>contributions, aid_distributions, activity_logs"]
+    axis["branchId la truc phan quyen, loc du lieu,<br/>index va sharding quan trong nhat"]
+    gateway["M1 la app gateway (FE/BE/mongos),<br/>khong phai shard du lieu trung tam"]
+
+    g_contributions --> hot
+    b_contributions --> hot
+    b_aid --> hot
+    b_logs --> hot
     hot --> axis
-    axis --> campaign_root
+    axis --> gateway
 
     classDef high fill:#fff5f5,stroke:#c53030,stroke-width:1px;
     classDef mid fill:#fffaf0,stroke:#c05621,stroke-width:1px;
     classDef info fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
-    class hq_contributions,br_contributions,br_aid,br_logs,hot high;
-    class hq_campaigns,br_campaigns,campaign_root mid;
+    class g_contributions,b_contributions,b_aid,b_logs,hot high;
+    class g_campaigns,b_campaigns,gateway mid;
     class note,axis info;

@@ -10,7 +10,7 @@ Nguồn sơ đồ chuẩn đi kèm tài liệu:
 - Thư mục Mermaid nguồn: `huong-dan/Thiết kế csdl/mermail/`.
 - Mọi sơ đồ `.mmd` trong thư mục `mermail/` phải đồng bộ 1-1 với source đang được render trong `mermail.html`.
 
-Các nhãn chính của bộ sơ đồ: `Document model`, `Aggregate root`, `Embedded / Reference / Snapshot`, `Branch scope + RBAC`, `4 shard MongoDB`.
+Các nhãn chính của bộ sơ đồ: `Document model`, `Aggregate root`, `Embedded / Reference / Snapshot`, `Branch scope + RBAC`, `5 shard MongoDB ngang hàng`.
 
 ---
 
@@ -80,10 +80,10 @@ Ví dụ: `H.R` là đọc tần suất cao; `H.WER` là tạo, sửa, đọc t�
 
 | STT | Tên sơ đồ trong `mermail.html` | File Mermaid | Mô tả chuẩn |
 |---:|---|---|---|
-| 01 | 01. Kiến trúc trung tâm và 4 shard MongoDB | `mermail/01-kien-truc-trung-tam-4-shard.mmd` | Mô tả cụm trung tâm, mongos, config server và 4 shard replica set, mỗi shard giữ khoảng 1/4 chunk dữ liệu sharded. |
+| 01 | 01. Topology 5 shard MongoDB ngang hàng | `mermail/01-kien-truc-trung-tam-4-shard.mmd` | Mô tả M1 chạy mongos + config metadata, còn M2-M6 là 5 shard replica set ngang hàng; balancer phân bổ chunk theo shard key. |
 | 02 | 02. Sơ đồ collection và aggregate root | `mermail/02-so-do-collection-aggregate-root.mmd` | Bản đồ các collection chính, cách reference bằng ObjectId và vai trò aggregate root trong mô hình tài liệu MongoDB. |
 | 03 | 03. Nguyên tắc embed, reference và snapshot | `mermail/03-embedded-reference-snapshot.mmd` | Tóm tắt quyết định thiết kế quan trọng: embed dữ liệu cùng vòng đời, reference dữ liệu độc lập, snapshot dữ liệu lịch sử trong giao dịch. |
-| 04 | 04. Tần suất truy cập theo trụ sở và chi nhánh | `mermail/04-tan-suat-truy-cap-hq-branch.mmd` | Sơ đồ hóa bảng tần suất truy cập, làm nổi bật collection tăng trưởng nhanh và trục branchId. |
+| 04 | 04. Tần suất truy cập theo scope dữ liệu | `mermail/04-tan-suat-truy-cap-hq-branch.mmd` | Sơ đồ hóa bảng tần suất truy cập, làm nổi bật collection tăng trưởng nhanh và trục branchId. |
 | 05 | 05. Phân quyền RBAC và branch scope | `mermail/05-rbac-branch-scope.mmd` | Luồng backend áp filter dữ liệu theo vai trò, đảm bảo chi nhánh không đọc/sửa dữ liệu của chi nhánh khác. |
 | 06 | 06. Document model của campaigns | `mermail/06-campaign-document-model.mmd` | Chiến dịch là aggregate root trung tâm, chứa mục tiêu, nguồn lực cần, thống kê tổng hợp và media/document đính kèm. |
 | 07 | 07. Document model của contributions | `mermail/07-contribution-document-model.mmd` | Nguồn lực đầu vào mở rộng từ donation tiền sang tiền, hiện vật, thuốc, sách, dịch vụ và giờ công. |
@@ -92,7 +92,7 @@ Ví dụ: `H.R` là đọc tần suất cao; `H.WER` là tạo, sửa, đọc t�
 | 10 | 10. Luồng cập nhật nguồn lực đầu ra | `mermail/10-luong-aid-distribution-dau-ra.mmd` | Luồng lập kế hoạch, approve, deliver và complete hỗ trợ, có kiểm soát nguồn lực và chống cộng thống kê lặp. |
 | 11 | 11. State transition của contributions và delta thống kê | `mermail/11-state-contribution-summary-delta.mmd` | Trạng thái nguồn lực đầu vào và thời điểm cộng/trừ summaryStats để chống ghi nhận trùng. |
 | 12 | 12. State transition của aid_distributions | `mermail/12-state-aid-distribution.mmd` | Trạng thái nguồn lực đầu ra từ kế hoạch đến hoàn tất, kèm audit log và cập nhật summaryStats khi COMPLETED. |
-| 13 | 13. Sharding strategy cho 4 shard | `mermail/13-sharding-strategy-4-shard.mmd` | Sơ đồ shard key đề xuất, collection nên shard trong bản demo và cách hashed shard key phân bổ dữ liệu. |
+| 13 | 13. Sharding strategy cho 5 shard ngang hàng | `mermail/13-sharding-strategy-4-shard.mmd` | Sơ đồ shard key đề xuất, collection nên shard trong bản demo và cách hashed shard key phân bổ dữ liệu. |
 | 14 | 14. Index theo use case chính | `mermail/14-index-theo-use-case.mmd` | Các index quan trọng bám theo truy vấn public, branch admin, dashboard, lịch sử contributor, audit log và idempotency thanh toán. |
 | 15 | 15. Toàn vẹn dữ liệu, transaction và audit | `mermail/15-toan-ven-du-lieu-audit-transaction.mmd` | Các chốt bảo vệ dữ liệu khi MongoDB không có foreign key như RDBMS: validate reference, branch scope, transaction/idempotency và audit log. |
 | 16 | 16. API/module map sang collection MongoDB | `mermail/16-api-to-collection-map.mmd` | Ánh xạ các endpoint/module chính sang collection, bao gồm cách giữ API cũ donations/disbursements để tương thích. |
@@ -100,9 +100,9 @@ Ví dụ: `H.R` là đọc tần suất cao; `H.WER` là tạo, sửa, đọc t�
 
 ---
 
-## 01. Kiến trúc trung tâm và 4 shard MongoDB
+## 01. Topology 5 shard MongoDB ngang hàng
 
-**Mô tả chuẩn trong `mermail.html`:** Mô tả cụm trung tâm, mongos, config server và 4 shard replica set, mỗi shard giữ khoảng 1/4 chunk dữ liệu sharded.
+**Mô tả chuẩn trong `mermail.html`:** M1 giữ vai trò điều phối (mongos + config metadata), M2-M6 là 5 shard replica set ngang hàng và balancer phân bổ chunk theo shard key.
 
 **File Mermaid chuẩn:** `mermail/01-kien-truc-trung-tam-4-shard.mmd`
 
@@ -117,11 +117,11 @@ flowchart TB
 
     m1_mongos --> route["Shard routing<br/>query contains shard key -> target better"]
 
-    route --> m2["M2: centralRS<br/>27110/27111/27112<br/>Primary + 2 Secondary"]
-    route --> m3["M3: shard1RS<br/>27120/27121/27122<br/>Primary + 2 Secondary"]
-    route --> m4["M4: shard2RS<br/>27130/27131/27132<br/>Primary + 2 Secondary"]
-    route --> m5["M5: shard3RS<br/>27140/27141/27142<br/>Primary + 2 Secondary"]
-    route --> m6["M6: shard4RS<br/>27150/27151/27152<br/>Primary + 2 Secondary"]
+    route --> m2["M2: shard1RS<br/>27110/27111/27112<br/>Primary + 2 Secondary"]
+    route --> m3["M3: shard2RS<br/>27120/27121/27122<br/>Primary + 2 Secondary"]
+    route --> m4["M4: shard3RS<br/>27130/27131/27132<br/>Primary + 2 Secondary"]
+    route --> m5["M5: shard4RS<br/>27140/27141/27142<br/>Primary + 2 Secondary"]
+    route --> m6["M6: shard5RS<br/>27150/27151/27152<br/>Primary + 2 Secondary"]
 
     subgraph rs1["Replica set nội bộ Shard 01"]
         s1 --> s1p["Primary"]
@@ -161,7 +161,7 @@ flowchart TB
 
 ### Diễn giải thiết kế
 
-Mô hình đề xuất gồm M1 là máy điều phối chạy FE/BE/QA và `mongos`; config server replica set giữ metadata sharding; M2 là `centralRS`; M3-M6 là 4 shard replica set lưu dữ liệu sharded. Mỗi shard nghiệp vụ M3-M6 chứa xấp xỉ 1/4 lượng chunk của các collection được shard theo shard key.
+Mô hình đề xuất gồm M1 là máy điều phối chạy FE/BE/QA và `mongos`; config server replica set giữ metadata sharding; M2-M6 là 5 shard replica set ngang hàng lưu dữ liệu sharded. Mỗi shard M2-M6 nhận chunk theo balancer dựa trên shard key và khối lượng dữ liệu thực tế.
 
 ```text
 User/Admin
@@ -184,7 +184,7 @@ User/Admin
        |               |               |               |               |
        v               v               v               v               v
 +-------------+ +-------------+ +-------------+ +-------------+ +-------------+
-| M2 CentralRS| | M3 shard1RS | | M4 shard2RS | | M5 shard3RS | | M6 shard4RS |
+| M2 shard1RS | | M3 shard2RS | | M4 shard3RS | | M5 shard4RS | | M6 shard5RS |
 | 3 node RS   | | 3 node RS   | | 3 node RS   | | 3 node RS   | | 3 node RS   |
 +-------------+ +-------------+ +-------------+ +-------------+ +-------------+
 ```
@@ -440,7 +440,7 @@ Snapshot là điểm quan trọng giúp MongoDB phát huy thế mạnh document:
 
 ---
 
-## 04. Tần suất truy cập theo trụ sở và chi nhánh
+## 04. Tần suất truy cập theo scope dữ liệu
 
 **Mô tả chuẩn trong `mermail.html`:** Sơ đồ hóa bảng tần suất truy cập, làm nổi bật collection tăng trưởng nhanh và trục branchId.
 
@@ -1216,7 +1216,7 @@ Nguyên tắc: chỉ khi chuyển sang `COMPLETED` lần đầu mới cập nh�
 
 ---
 
-## 13. Sharding strategy cho 4 shard
+## 13. Sharding strategy cho 5 shard ngang hàng
 
 **Mô tả chuẩn trong `mermail.html`:** Sơ đồ shard key đề xuất, collection nên shard trong bản demo và cách hashed shard key phân bổ dữ liệu.
 
@@ -1242,11 +1242,11 @@ flowchart TB
     sharded3 --> hash
 
     hash --> balancer["Balancer distributes chunks"]
-    balancer --> m2["M2 centralRS"]
-    balancer --> m3["M3 shard1RS"]
-    balancer --> m4["M4 shard2RS"]
-    balancer --> m5["M5 shard3RS"]
-    balancer --> m6["M6 shard4RS"]
+    balancer --> m2["M2 shard1RS"]
+    balancer --> m3["M3 shard2RS"]
+    balancer --> m4["M4 shard3RS"]
+    balancer --> m5["M5 shard4RS"]
+    balancer --> m6["M6 shard5RS"]
 
     no_shard["Không cần shard ở demo:<br/>branches, users, contributors<br/>campaigns chỉ shard khi rất lớn"]
     db --> no_shard

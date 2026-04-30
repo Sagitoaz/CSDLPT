@@ -1,45 +1,51 @@
 flowchart TB
     user["User / Admin"] --> m1_app["M1: FE + BE + QA<br/>Controller machine"]
 
-    subgraph central["Cụm máy chủ trung tâm"]
+    subgraph control["M1 control plane"]
         m1_app --> m1_mongos["M1: mongos :27017<br/>entry point"]
-        mongos <--> cfg["Config server replica set<br/>metadata sharding<br/>không lưu document nghiệp vụ chính"]
+        m1_mongos <--> cfg["Config server replica set<br/>metadata sharding<br/>khong luu document nghiep vu chinh"]
     end
 
-    m1_mongos --> route["Shard routing<br/>query contains shard key -> target better"]
+    m1_mongos --> route["Shard routing<br/>query contains shard key -> target shard(s)"]
 
-    route --> m2["M2: centralRS<br/>27110/27111/27112<br/>Primary + 2 Secondary"]
-    route --> m3["M3: shard1RS<br/>27120/27121/27122<br/>Primary + 2 Secondary"]
-    route --> m4["M4: shard2RS<br/>27130/27131/27132<br/>Primary + 2 Secondary"]
-    route --> m5["M5: shard3RS<br/>27140/27141/27142<br/>Primary + 2 Secondary"]
-    route --> m6["M6: shard4RS<br/>27150/27151/27152<br/>Primary + 2 Secondary"]
+    route --> m2["M2: shard1RS<br/>27110/27111/27112<br/>Primary + 2 Secondary"]
+    route --> m3["M3: shard2RS<br/>27120/27121/27122<br/>Primary + 2 Secondary"]
+    route --> m4["M4: shard3RS<br/>27130/27131/27132<br/>Primary + 2 Secondary"]
+    route --> m5["M5: shard4RS<br/>27140/27141/27142<br/>Primary + 2 Secondary"]
+    route --> m6["M6: shard5RS<br/>27150/27151/27152<br/>Primary + 2 Secondary"]
 
-    subgraph rs1["Replica set nội bộ Shard 01"]
+    subgraph rs1["Replica set noi bo Shard 01"]
         s1 --> s1p["Primary"]
         s1 --> s1r1["Secondary"]
         s1 --> s1r2["Secondary"]
     end
 
-    subgraph rs2["Replica set nội bộ Shard 02"]
+    subgraph rs2["Replica set noi bo Shard 02"]
         s2 --> s2p["Primary"]
         s2 --> s2r1["Secondary"]
         s2 --> s2r2["Secondary"]
     end
 
-    subgraph rs3["Replica set nội bộ Shard 03"]
+    subgraph rs3["Replica set noi bo Shard 03"]
         s3 --> s3p["Primary"]
         s3 --> s3r1["Secondary"]
         s3 --> s3r2["Secondary"]
     end
 
-    subgraph rs4["Replica set nội bộ Shard 04"]
+    subgraph rs4["Replica set noi bo Shard 04"]
         s4 --> s4p["Primary"]
         s4 --> s4r1["Secondary"]
         s4 --> s4r2["Secondary"]
     end
 
-    warn["Không dùng createdAt đơn lẻ làm shard key<br/>vì dễ hot shard do giá trị tăng dần"]
-    route -. lưu ý .-> warn
+    subgraph rs5["Replica set noi bo Shard 05"]
+        s5 --> s5p["Primary"]
+        s5 --> s5r1["Secondary"]
+        s5 --> s5r2["Secondary"]
+    end
+
+    warn["Khong dung createdAt don le lam shard key<br/>vi de hot shard do gia tri tang dan"]
+    route -. luu y .-> warn
 
     classDef central fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
     classDef shard fill:#f0fff4,stroke:#2f855a,stroke-width:1px;

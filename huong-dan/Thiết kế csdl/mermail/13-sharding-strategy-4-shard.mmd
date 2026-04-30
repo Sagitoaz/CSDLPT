@@ -1,32 +1,32 @@
 flowchart TB
     db["Logical DB: charity_distributed"] --> choose["Choose shard key by main query"]
 
-    choose --> bkey["branchId hashed<br/>tốt cho branch admin, phân quyền, dashboard chi nhánh"]
-    choose --> ckey["campaignId hashed<br/>tốt khi màn hình chính xoay quanh chiến dịch"]
-    choose --> timekey["{ branchId, createdAt }<br/>tốt cho audit range theo thời gian trong từng branch"]
+    choose --> bkey["branchId hashed<br/>tot cho branch admin, phan quyen, dashboard chi nhanh"]
+    choose --> ckey["campaignId hashed<br/>tot khi man hinh chinh xoay quanh chien dich"]
+    choose --> timekey["{ branchId, createdAt }<br/>tot cho audit range theo thoi gian trong tung branch"]
 
     bkey --> sharded1["contributions<br/>db.contributions.createIndex({ branchId: hashed })"]
     bkey --> sharded2["aid_distributions<br/>db.aid_distributions.createIndex({ branchId: hashed })"]
     bkey --> sharded3["activity_logs<br/>db.activity_logs.createIndex({ branchId: hashed })"]
 
-    ckey -. tùy chọn .-> alt1["contributions<br/>{ campaignId: hashed } nếu campaign là trục truy vấn chính"]
-    timekey -. tùy chọn .-> alt2["activity_logs<br/>{ branchId: 1, createdAt: 1 } nếu cần range time target tốt"]
+    ckey -. tuy chon .-> alt1["contributions<br/>{ campaignId: hashed } neu campaign la truc truy van chinh"]
+    timekey -. tuy chon .-> alt2["activity_logs<br/>{ branchId: 1, createdAt: 1 } neu can range time target tot"]
 
     sharded1 --> hash["hash(shardKey) -> hash space -> chunks"]
     sharded2 --> hash
     sharded3 --> hash
 
     hash --> balancer["Balancer distributes chunks"]
-    balancer --> m2["M2 centralRS"]
-    balancer --> m3["M3 shard1RS"]
-    balancer --> m4["M4 shard2RS"]
-    balancer --> m5["M5 shard3RS"]
-    balancer --> m6["M6 shard4RS"]
+    balancer --> m2["M2 shard1RS"]
+    balancer --> m3["M3 shard2RS"]
+    balancer --> m4["M4 shard3RS"]
+    balancer --> m5["M5 shard4RS"]
+    balancer --> m6["M6 shard5RS"]
 
-    no_shard["Không cần shard ở demo:<br/>branches, users, contributors<br/>campaigns chỉ shard khi rất lớn"]
+    no_shard["Khong can shard o demo:<br/>branches, users, contributors<br/>campaigns chi shard khi rat lon"]
     db --> no_shard
 
-    warning["Tránh shard key chỉ là createdAt<br/>vì ghi mới tăng dần có thể dồn vào một shard"]
+    warning["Tranh shard key chi la createdAt<br/>vi ghi moi tang dan co the don vao mot shard"]
     choose --> warning
 
     classDef shard fill:#f0fff4,stroke:#2f855a,stroke-width:1px;

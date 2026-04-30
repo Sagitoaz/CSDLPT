@@ -68,14 +68,14 @@
       <span class="pill">Aggregate root</span>
       <span class="pill">Embedded / Reference / Snapshot</span>
       <span class="pill">Branch scope + RBAC</span>
-      <span class="pill">4 shard MongoDB</span>
+      <span class="pill">5 shard MongoDB ngang hàng</span>
     </div>
   </header>
   <div class="layout">
     <nav>
       <h2>Danh sách sơ đồ</h2>
       <ol>
-        <li><a href="#diagram-01">01. Kiến trúc trung tâm và 4 shard MongoDB</a><div class="file">mermail/01-kien-truc-trung-tam-4-shard.mmd</div></li><li><a href="#diagram-02">02. Sơ đồ collection và aggregate root</a><div class="file">mermail/02-so-do-collection-aggregate-root.mmd</div></li><li><a href="#diagram-03">03. Nguyên tắc embed, reference và snapshot</a><div class="file">mermail/03-embedded-reference-snapshot.mmd</div></li><li><a href="#diagram-04">04. Tần suất truy cập theo trụ sở và chi nhánh</a><div class="file">mermail/04-tan-suat-truy-cap-hq-branch.mmd</div></li><li><a href="#diagram-05">05. Phân quyền RBAC và branch scope</a><div class="file">mermail/05-rbac-branch-scope.mmd</div></li><li><a href="#diagram-06">06. Document model của campaigns</a><div class="file">mermail/06-campaign-document-model.mmd</div></li><li><a href="#diagram-07">07. Document model của contributions</a><div class="file">mermail/07-contribution-document-model.mmd</div></li><li><a href="#diagram-08">08. Document model của aid_distributions</a><div class="file">mermail/08-aid-distribution-document-model.mmd</div></li><li><a href="#diagram-09">09. Luồng cập nhật nguồn lực đầu vào</a><div class="file">mermail/09-luong-contribution-dau-vao.mmd</div></li><li><a href="#diagram-10">10. Luồng cập nhật nguồn lực đầu ra</a><div class="file">mermail/10-luong-aid-distribution-dau-ra.mmd</div></li><li><a href="#diagram-11">11. State transition của contributions và delta thống kê</a><div class="file">mermail/11-state-contribution-summary-delta.mmd</div></li><li><a href="#diagram-12">12. State transition của aid_distributions</a><div class="file">mermail/12-state-aid-distribution.mmd</div></li><li><a href="#diagram-13">13. Sharding strategy cho 4 shard</a><div class="file">mermail/13-sharding-strategy-4-shard.mmd</div></li><li><a href="#diagram-14">14. Index theo use case chính</a><div class="file">mermail/14-index-theo-use-case.mmd</div></li><li><a href="#diagram-15">15. Toàn vẹn dữ liệu, transaction và audit</a><div class="file">mermail/15-toan-ven-du-lieu-audit-transaction.mmd</div></li><li><a href="#diagram-16">16. API/module map sang collection MongoDB</a><div class="file">mermail/16-api-to-collection-map.mmd</div></li><li><a href="#diagram-17">17. Dashboard và summaryStats denormalized</a><div class="file">mermail/17-dashboard-summary-stats.mmd</div></li>
+        <li><a href="#diagram-01">01. Topology 5 shard MongoDB ngang hàng</a><div class="file">mermail/01-kien-truc-trung-tam-4-shard.mmd</div></li><li><a href="#diagram-02">02. Sơ đồ collection và aggregate root</a><div class="file">mermail/02-so-do-collection-aggregate-root.mmd</div></li><li><a href="#diagram-03">03. Nguyên tắc embed, reference và snapshot</a><div class="file">mermail/03-embedded-reference-snapshot.mmd</div></li><li><a href="#diagram-04">04. Tần suất truy cập theo scope dữ liệu</a><div class="file">mermail/04-tan-suat-truy-cap-hq-branch.mmd</div></li><li><a href="#diagram-05">05. Phân quyền RBAC và branch scope</a><div class="file">mermail/05-rbac-branch-scope.mmd</div></li><li><a href="#diagram-06">06. Document model của campaigns</a><div class="file">mermail/06-campaign-document-model.mmd</div></li><li><a href="#diagram-07">07. Document model của contributions</a><div class="file">mermail/07-contribution-document-model.mmd</div></li><li><a href="#diagram-08">08. Document model của aid_distributions</a><div class="file">mermail/08-aid-distribution-document-model.mmd</div></li><li><a href="#diagram-09">09. Luồng cập nhật nguồn lực đầu vào</a><div class="file">mermail/09-luong-contribution-dau-vao.mmd</div></li><li><a href="#diagram-10">10. Luồng cập nhật nguồn lực đầu ra</a><div class="file">mermail/10-luong-aid-distribution-dau-ra.mmd</div></li><li><a href="#diagram-11">11. State transition của contributions và delta thống kê</a><div class="file">mermail/11-state-contribution-summary-delta.mmd</div></li><li><a href="#diagram-12">12. State transition của aid_distributions</a><div class="file">mermail/12-state-aid-distribution.mmd</div></li><li><a href="#diagram-13">13. Sharding strategy cho 5 shard ngang hàng</a><div class="file">mermail/13-sharding-strategy-4-shard.mmd</div></li><li><a href="#diagram-14">14. Index theo use case chính</a><div class="file">mermail/14-index-theo-use-case.mmd</div></li><li><a href="#diagram-15">15. Toàn vẹn dữ liệu, transaction và audit</a><div class="file">mermail/15-toan-ven-du-lieu-audit-transaction.mmd</div></li><li><a href="#diagram-16">16. API/module map sang collection MongoDB</a><div class="file">mermail/16-api-to-collection-map.mmd</div></li><li><a href="#diagram-17">17. Dashboard và summaryStats denormalized</a><div class="file">mermail/17-dashboard-summary-stats.mmd</div></li>
       </ol>
     </nav>
     <main>
@@ -83,54 +83,60 @@
 <section class="card" id="diagram-01">
   <div class="card-header">
     <div>
-      <h2>01. Kiến trúc trung tâm và 4 shard MongoDB</h2>
-      <p>Mô tả cụm trung tâm, mongos, config server và 4 shard replica set, mỗi shard giữ khoảng 1/4 chunk dữ liệu sharded.</p>
+      <h2>01. Topology 5 shard MongoDB ngang hàng</h2>
+      <p>M1 la may dieu phoi (FE + BE + mongos + configRS). Tu M2 den M6 la 5 shard ngang hang, cung vai tro luu tru va xu ly du lieu sharded.</p>
     </div>
     <div class="filename">mermail/01-kien-truc-trung-tam-4-shard.mmd</div>
   </div>
   <div class="diagram-wrap">
     <pre class="mermaid">flowchart TB
-    user[&quot;User / Admin&quot;] --&gt; m1_app[&quot;M1: FE + BE + QA&lt;br/&gt;Controller machine&quot;]
+    user["User / Admin"] --> m1_app["M1: FE + BE + QA<br/>Controller machine"]
 
-    subgraph central[&quot;Cụm máy chủ trung tâm&quot;]
-        m1_app --&gt; m1_mongos[&quot;M1: mongos :27017&lt;br/&gt;entry point&quot;]
-        mongos &lt;--&gt; cfg[&quot;Config server replica set&lt;br/&gt;metadata sharding&lt;br/&gt;không lưu document nghiệp vụ chính&quot;]
+    subgraph control["M1 control plane"]
+        m1_app --> m1_mongos["M1: mongos :27017<br/>entry point"]
+        m1_mongos <--> cfg["Config server replica set<br/>metadata sharding<br/>khong luu document nghiep vu chinh"]
     end
 
-    m1_mongos --&gt; route[&quot;Shard routing&lt;br/&gt;query contains shard key -&gt; target better&quot;]
+    m1_mongos --> route["Shard routing<br/>query contains shard key -> target shard(s)"]
 
-    route --&gt; m2[&quot;M2: centralRS&lt;br/&gt;27110/27111/27112&lt;br/&gt;Primary + 2 Secondary&quot;]
-    route --&gt; m3[&quot;M3: shard1RS&lt;br/&gt;27120/27121/27122&lt;br/&gt;Primary + 2 Secondary&quot;]
-    route --&gt; m4[&quot;M4: shard2RS&lt;br/&gt;27130/27131/27132&lt;br/&gt;Primary + 2 Secondary&quot;]
-    route --&gt; m5[&quot;M5: shard3RS&lt;br/&gt;27140/27141/27142&lt;br/&gt;Primary + 2 Secondary&quot;]
-    route --&gt; m6[&quot;M6: shard4RS&lt;br/&gt;27150/27151/27152&lt;br/&gt;Primary + 2 Secondary&quot;]
+    route --> m2["M2: shard1RS<br/>27110/27111/27112<br/>Primary + 2 Secondary"]
+    route --> m3["M3: shard2RS<br/>27120/27121/27122<br/>Primary + 2 Secondary"]
+    route --> m4["M4: shard3RS<br/>27130/27131/27132<br/>Primary + 2 Secondary"]
+    route --> m5["M5: shard4RS<br/>27140/27141/27142<br/>Primary + 2 Secondary"]
+    route --> m6["M6: shard5RS<br/>27150/27151/27152<br/>Primary + 2 Secondary"]
 
-    subgraph rs1[&quot;Replica set nội bộ Shard 01&quot;]
-        s1 --&gt; s1p[&quot;Primary&quot;]
-        s1 --&gt; s1r1[&quot;Secondary&quot;]
-        s1 --&gt; s1r2[&quot;Secondary&quot;]
+    subgraph rs1["Replica set noi bo Shard 01"]
+        s1 --> s1p["Primary"]
+        s1 --> s1r1["Secondary"]
+        s1 --> s1r2["Secondary"]
     end
 
-    subgraph rs2[&quot;Replica set nội bộ Shard 02&quot;]
-        s2 --&gt; s2p[&quot;Primary&quot;]
-        s2 --&gt; s2r1[&quot;Secondary&quot;]
-        s2 --&gt; s2r2[&quot;Secondary&quot;]
+    subgraph rs2["Replica set noi bo Shard 02"]
+        s2 --> s2p["Primary"]
+        s2 --> s2r1["Secondary"]
+        s2 --> s2r2["Secondary"]
     end
 
-    subgraph rs3[&quot;Replica set nội bộ Shard 03&quot;]
-        s3 --&gt; s3p[&quot;Primary&quot;]
-        s3 --&gt; s3r1[&quot;Secondary&quot;]
-        s3 --&gt; s3r2[&quot;Secondary&quot;]
+    subgraph rs3["Replica set noi bo Shard 03"]
+        s3 --> s3p["Primary"]
+        s3 --> s3r1["Secondary"]
+        s3 --> s3r2["Secondary"]
     end
 
-    subgraph rs4[&quot;Replica set nội bộ Shard 04&quot;]
-        s4 --&gt; s4p[&quot;Primary&quot;]
-        s4 --&gt; s4r1[&quot;Secondary&quot;]
-        s4 --&gt; s4r2[&quot;Secondary&quot;]
+    subgraph rs4["Replica set noi bo Shard 04"]
+        s4 --> s4p["Primary"]
+        s4 --> s4r1["Secondary"]
+        s4 --> s4r2["Secondary"]
     end
 
-    warn[&quot;Không dùng createdAt đơn lẻ làm shard key&lt;br/&gt;vì dễ hot shard do giá trị tăng dần&quot;]
-    route -. lưu ý .-&gt; warn
+    subgraph rs5["Replica set noi bo Shard 05"]
+        s5 --> s5p["Primary"]
+        s5 --> s5r1["Secondary"]
+        s5 --> s5r2["Secondary"]
+    end
+
+    warn["Khong dung createdAt don le lam shard key<br/>vi de hot shard do gia tri tang dan"]
+    route -. luu y .-> warn
 
     classDef central fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
     classDef shard fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
@@ -142,47 +148,53 @@
   <details>
     <summary>Xem Mermaid source</summary>
     <pre class="source"><code>flowchart TB
-    user[&quot;User / Admin&quot;] --&gt; m1_app[&quot;M1: FE + BE + QA&lt;br/&gt;Controller machine&quot;]
+    user["User / Admin"] --> m1_app["M1: FE + BE + QA<br/>Controller machine"]
 
-    subgraph central[&quot;Cụm máy chủ trung tâm&quot;]
-        m1_app --&gt; m1_mongos[&quot;M1: mongos :27017&lt;br/&gt;entry point&quot;]
-        mongos &lt;--&gt; cfg[&quot;Config server replica set&lt;br/&gt;metadata sharding&lt;br/&gt;không lưu document nghiệp vụ chính&quot;]
+    subgraph control["M1 control plane"]
+        m1_app --> m1_mongos["M1: mongos :27017<br/>entry point"]
+        m1_mongos <--> cfg["Config server replica set<br/>metadata sharding<br/>khong luu document nghiep vu chinh"]
     end
 
-    m1_mongos --&gt; route[&quot;Shard routing&lt;br/&gt;query contains shard key -&gt; target better&quot;]
+    m1_mongos --> route["Shard routing<br/>query contains shard key -> target shard(s)"]
 
-    route --&gt; m2[&quot;M2: centralRS&lt;br/&gt;27110/27111/27112&lt;br/&gt;Primary + 2 Secondary&quot;]
-    route --&gt; m3[&quot;M3: shard1RS&lt;br/&gt;27120/27121/27122&lt;br/&gt;Primary + 2 Secondary&quot;]
-    route --&gt; m4[&quot;M4: shard2RS&lt;br/&gt;27130/27131/27132&lt;br/&gt;Primary + 2 Secondary&quot;]
-    route --&gt; m5[&quot;M5: shard3RS&lt;br/&gt;27140/27141/27142&lt;br/&gt;Primary + 2 Secondary&quot;]
-    route --&gt; m6[&quot;M6: shard4RS&lt;br/&gt;27150/27151/27152&lt;br/&gt;Primary + 2 Secondary&quot;]
+    route --> m2["M2: shard1RS<br/>27110/27111/27112<br/>Primary + 2 Secondary"]
+    route --> m3["M3: shard2RS<br/>27120/27121/27122<br/>Primary + 2 Secondary"]
+    route --> m4["M4: shard3RS<br/>27130/27131/27132<br/>Primary + 2 Secondary"]
+    route --> m5["M5: shard4RS<br/>27140/27141/27142<br/>Primary + 2 Secondary"]
+    route --> m6["M6: shard5RS<br/>27150/27151/27152<br/>Primary + 2 Secondary"]
 
-    subgraph rs1[&quot;Replica set nội bộ Shard 01&quot;]
-        s1 --&gt; s1p[&quot;Primary&quot;]
-        s1 --&gt; s1r1[&quot;Secondary&quot;]
-        s1 --&gt; s1r2[&quot;Secondary&quot;]
+    subgraph rs1["Replica set noi bo Shard 01"]
+        s1 --> s1p["Primary"]
+        s1 --> s1r1["Secondary"]
+        s1 --> s1r2["Secondary"]
     end
 
-    subgraph rs2[&quot;Replica set nội bộ Shard 02&quot;]
-        s2 --&gt; s2p[&quot;Primary&quot;]
-        s2 --&gt; s2r1[&quot;Secondary&quot;]
-        s2 --&gt; s2r2[&quot;Secondary&quot;]
+    subgraph rs2["Replica set noi bo Shard 02"]
+        s2 --> s2p["Primary"]
+        s2 --> s2r1["Secondary"]
+        s2 --> s2r2["Secondary"]
     end
 
-    subgraph rs3[&quot;Replica set nội bộ Shard 03&quot;]
-        s3 --&gt; s3p[&quot;Primary&quot;]
-        s3 --&gt; s3r1[&quot;Secondary&quot;]
-        s3 --&gt; s3r2[&quot;Secondary&quot;]
+    subgraph rs3["Replica set noi bo Shard 03"]
+        s3 --> s3p["Primary"]
+        s3 --> s3r1["Secondary"]
+        s3 --> s3r2["Secondary"]
     end
 
-    subgraph rs4[&quot;Replica set nội bộ Shard 04&quot;]
-        s4 --&gt; s4p[&quot;Primary&quot;]
-        s4 --&gt; s4r1[&quot;Secondary&quot;]
-        s4 --&gt; s4r2[&quot;Secondary&quot;]
+    subgraph rs4["Replica set noi bo Shard 04"]
+        s4 --> s4p["Primary"]
+        s4 --> s4r1["Secondary"]
+        s4 --> s4r2["Secondary"]
     end
 
-    warn[&quot;Không dùng createdAt đơn lẻ làm shard key&lt;br/&gt;vì dễ hot shard do giá trị tăng dần&quot;]
-    route -. lưu ý .-&gt; warn
+    subgraph rs5["Replica set noi bo Shard 05"]
+        s5 --> s5p["Primary"]
+        s5 --> s5r1["Secondary"]
+        s5 --> s5r2["Secondary"]
+    end
+
+    warn["Khong dung createdAt don le lam shard key<br/>vi de hot shard do gia tri tang dan"]
+    route -. luu y .-> warn
 
     classDef central fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
     classDef shard fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
@@ -407,110 +419,110 @@
 <section class="card" id="diagram-04">
   <div class="card-header">
     <div>
-      <h2>04. Tần suất truy cập theo trụ sở và chi nhánh</h2>
-      <p>Sơ đồ hóa bảng tần suất truy cập, làm nổi bật collection tăng trưởng nhanh và trục branchId.</p>
+      <h2>04. Tan suat truy cap theo scope du lieu</h2>
+      <p>So do hoa tan suat truy cap theo pham vi role (toan he thong, theo branch, public/own), phu hop topo 5 shard ngang hang.</p>
     </div>
     <div class="filename">mermail/04-tan-suat-truy-cap-hq-branch.mmd</div>
   </div>
   <div class="diagram-wrap">
     <pre class="mermaid">flowchart TB
-    note[&quot;Ký hiệu: H = cao, M = trung bình, L = thấp&lt;br/&gt;R = đọc, W = tạo, E = sửa, D = xóa mềm / hủy&quot;]
+    note["Ky hieu: H = cao, M = trung binh, L = thap<br/>R = doc, W = tao, E = sua, D = xoa mem / huy"]
 
-    subgraph hq[&quot;Trụ sở chính&quot;]
-        hq_branches[&quot;branches&lt;br/&gt;H.R, L.WED&quot;]
-        hq_users[&quot;users&lt;br/&gt;H.R, M.WED&quot;]
-        hq_campaigns[&quot;campaigns&lt;br/&gt;H.R, M.WED&quot;]
-        hq_contributors[&quot;contributors&lt;br/&gt;H.R, M.WE&quot;]
-        hq_contributions[&quot;contributions&lt;br/&gt;H.WERD&quot;]
-        hq_beneficiaries[&quot;beneficiaries&lt;br/&gt;H.R, M.WE&quot;]
-        hq_aid[&quot;aid_distributions&lt;br/&gt;H.R, M.WED&quot;]
-        hq_logs[&quot;activity_logs&lt;br/&gt;H.R&quot;]
-        hq_stats[&quot;stats_snapshots&lt;br/&gt;H.R, M.W&quot;]
+    subgraph global_scope["Truy cap toan he thong (SUPER_ADMIN)"]
+        g_campaigns["campaigns<br/>H.R, M.WED"]
+        g_contributions["contributions<br/>H.WERD"]
+        g_aid["aid_distributions<br/>H.WERD"]
+        g_logs["activity_logs<br/>H.R, L.W"]
+        g_stats["stats_snapshots<br/>H.R, M.W"]
     end
 
-    subgraph branch[&quot;Chi nhánh / trung tâm&quot;]
-        br_branches[&quot;branches&lt;br/&gt;H.R&quot;]
-        br_users[&quot;users&lt;br/&gt;H.R, M.WE&quot;]
-        br_campaigns[&quot;campaigns&lt;br/&gt;H.WER, M.D&quot;]
-        br_contributors[&quot;contributors&lt;br/&gt;H.R, M.WE&quot;]
-        br_contributions[&quot;contributions&lt;br/&gt;H.WERD&quot;]
-        br_beneficiaries[&quot;beneficiaries&lt;br/&gt;H.WER, M.D&quot;]
-        br_aid[&quot;aid_distributions&lt;br/&gt;H.WERD&quot;]
-        br_volunteers[&quot;volunteers&lt;br/&gt;H.WER&quot;]
-        br_logs[&quot;activity_logs&lt;br/&gt;H.R, L.W&quot;]
-        br_stats[&quot;stats_snapshots&lt;br/&gt;H.R, M.W&quot;]
+    subgraph branch_scope["Truy cap theo branchId (BRANCH_ADMIN / STAFF)"]
+        b_campaigns["campaigns<br/>H.WER, M.D"]
+        b_contributions["contributions<br/>H.WERD"]
+        b_beneficiaries["beneficiaries<br/>H.WER, M.D"]
+        b_aid["aid_distributions<br/>H.WERD"]
+        b_volunteers["volunteers<br/>H.WER"]
+        b_logs["activity_logs<br/>H.R, L.W"]
+        b_stats["stats_snapshots<br/>H.R, M.W"]
     end
 
-    note --&gt; hq_branches
-    note --&gt; br_branches
+    subgraph public_own_scope["Public / own scope (CONTRIBUTOR, DONOR, VOLUNTEER)"]
+        p_campaigns["campaigns public active<br/>H.R"]
+        p_contributions["contributions own data<br/>M.R"]
+        p_volunteers["volunteers own profile<br/>M.R, L.WE"]
+    end
 
-    hot[&quot;Nhóm tăng trưởng nhanh nhất:&lt;br/&gt;contributions, aid_distributions, activity_logs&quot;]
-    axis[&quot;branchId là trục phân quyền, lọc dữ liệu,&lt;br/&gt;index và sharding quan trọng nhất&quot;]
-    campaign_root[&quot;campaigns là aggregate root trung tâm&lt;br/&gt;cho public view, admin view và dashboard&quot;]
+    note --> g_campaigns
+    note --> b_campaigns
+    note --> p_campaigns
 
-    hq_contributions --&gt; hot
-    br_contributions --&gt; hot
-    br_aid --&gt; hot
-    br_logs --&gt; hot
-    hot --&gt; axis
-    axis --&gt; campaign_root
+    hot["Nhom tang truong nhanh nhat:<br/>contributions, aid_distributions, activity_logs"]
+    axis["branchId la truc phan quyen, loc du lieu,<br/>index va sharding quan trong nhat"]
+    gateway["M1 la app gateway (FE/BE/mongos),<br/>khong phai shard du lieu trung tam"]
+
+    g_contributions --> hot
+    b_contributions --> hot
+    b_aid --> hot
+    b_logs --> hot
+    hot --> axis
+    axis --> gateway
 
     classDef high fill:#fff5f5,stroke:#c53030,stroke-width:1px;
     classDef mid fill:#fffaf0,stroke:#c05621,stroke-width:1px;
     classDef info fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
-    class hq_contributions,br_contributions,br_aid,br_logs,hot high;
-    class hq_campaigns,br_campaigns,campaign_root mid;
+    class g_contributions,b_contributions,b_aid,b_logs,hot high;
+    class g_campaigns,b_campaigns,gateway mid;
     class note,axis info;</pre>
   </div>
   <details>
     <summary>Xem Mermaid source</summary>
     <pre class="source"><code>flowchart TB
-    note[&quot;Ký hiệu: H = cao, M = trung bình, L = thấp&lt;br/&gt;R = đọc, W = tạo, E = sửa, D = xóa mềm / hủy&quot;]
+    note["Ky hieu: H = cao, M = trung binh, L = thap<br/>R = doc, W = tao, E = sua, D = xoa mem / huy"]
 
-    subgraph hq[&quot;Trụ sở chính&quot;]
-        hq_branches[&quot;branches&lt;br/&gt;H.R, L.WED&quot;]
-        hq_users[&quot;users&lt;br/&gt;H.R, M.WED&quot;]
-        hq_campaigns[&quot;campaigns&lt;br/&gt;H.R, M.WED&quot;]
-        hq_contributors[&quot;contributors&lt;br/&gt;H.R, M.WE&quot;]
-        hq_contributions[&quot;contributions&lt;br/&gt;H.WERD&quot;]
-        hq_beneficiaries[&quot;beneficiaries&lt;br/&gt;H.R, M.WE&quot;]
-        hq_aid[&quot;aid_distributions&lt;br/&gt;H.R, M.WED&quot;]
-        hq_logs[&quot;activity_logs&lt;br/&gt;H.R&quot;]
-        hq_stats[&quot;stats_snapshots&lt;br/&gt;H.R, M.W&quot;]
+    subgraph global_scope["Truy cap toan he thong (SUPER_ADMIN)"]
+        g_campaigns["campaigns<br/>H.R, M.WED"]
+        g_contributions["contributions<br/>H.WERD"]
+        g_aid["aid_distributions<br/>H.WERD"]
+        g_logs["activity_logs<br/>H.R, L.W"]
+        g_stats["stats_snapshots<br/>H.R, M.W"]
     end
 
-    subgraph branch[&quot;Chi nhánh / trung tâm&quot;]
-        br_branches[&quot;branches&lt;br/&gt;H.R&quot;]
-        br_users[&quot;users&lt;br/&gt;H.R, M.WE&quot;]
-        br_campaigns[&quot;campaigns&lt;br/&gt;H.WER, M.D&quot;]
-        br_contributors[&quot;contributors&lt;br/&gt;H.R, M.WE&quot;]
-        br_contributions[&quot;contributions&lt;br/&gt;H.WERD&quot;]
-        br_beneficiaries[&quot;beneficiaries&lt;br/&gt;H.WER, M.D&quot;]
-        br_aid[&quot;aid_distributions&lt;br/&gt;H.WERD&quot;]
-        br_volunteers[&quot;volunteers&lt;br/&gt;H.WER&quot;]
-        br_logs[&quot;activity_logs&lt;br/&gt;H.R, L.W&quot;]
-        br_stats[&quot;stats_snapshots&lt;br/&gt;H.R, M.W&quot;]
+    subgraph branch_scope["Truy cap theo branchId (BRANCH_ADMIN / STAFF)"]
+        b_campaigns["campaigns<br/>H.WER, M.D"]
+        b_contributions["contributions<br/>H.WERD"]
+        b_beneficiaries["beneficiaries<br/>H.WER, M.D"]
+        b_aid["aid_distributions<br/>H.WERD"]
+        b_volunteers["volunteers<br/>H.WER"]
+        b_logs["activity_logs<br/>H.R, L.W"]
+        b_stats["stats_snapshots<br/>H.R, M.W"]
     end
 
-    note --&gt; hq_branches
-    note --&gt; br_branches
+    subgraph public_own_scope["Public / own scope (CONTRIBUTOR, DONOR, VOLUNTEER)"]
+        p_campaigns["campaigns public active<br/>H.R"]
+        p_contributions["contributions own data<br/>M.R"]
+        p_volunteers["volunteers own profile<br/>M.R, L.WE"]
+    end
 
-    hot[&quot;Nhóm tăng trưởng nhanh nhất:&lt;br/&gt;contributions, aid_distributions, activity_logs&quot;]
-    axis[&quot;branchId là trục phân quyền, lọc dữ liệu,&lt;br/&gt;index và sharding quan trọng nhất&quot;]
-    campaign_root[&quot;campaigns là aggregate root trung tâm&lt;br/&gt;cho public view, admin view và dashboard&quot;]
+    note --> g_campaigns
+    note --> b_campaigns
+    note --> p_campaigns
 
-    hq_contributions --&gt; hot
-    br_contributions --&gt; hot
-    br_aid --&gt; hot
-    br_logs --&gt; hot
-    hot --&gt; axis
-    axis --&gt; campaign_root
+    hot["Nhom tang truong nhanh nhat:<br/>contributions, aid_distributions, activity_logs"]
+    axis["branchId la truc phan quyen, loc du lieu,<br/>index va sharding quan trong nhat"]
+    gateway["M1 la app gateway (FE/BE/mongos),<br/>khong phai shard du lieu trung tam"]
+
+    g_contributions --> hot
+    b_contributions --> hot
+    b_aid --> hot
+    b_logs --> hot
+    hot --> axis
+    axis --> gateway
 
     classDef high fill:#fff5f5,stroke:#c53030,stroke-width:1px;
     classDef mid fill:#fffaf0,stroke:#c05621,stroke-width:1px;
     classDef info fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
-    class hq_contributions,br_contributions,br_aid,br_logs,hot high;
-    class hq_campaigns,br_campaigns,campaign_root mid;
+    class g_contributions,b_contributions,b_aid,b_logs,hot high;
+    class g_campaigns,b_campaigns,gateway mid;
     class note,axis info;</code></pre>
   </details>
 </section>
@@ -1149,42 +1161,42 @@
 <section class="card" id="diagram-13">
   <div class="card-header">
     <div>
-      <h2>13. Sharding strategy cho 4 shard</h2>
-      <p>Sơ đồ shard key đề xuất, collection nên shard trong bản demo và cách hashed shard key phân bổ dữ liệu.</p>
+      <h2>13. Sharding strategy cho 5 shard ngang hàng</h2>
+      <p>So do shard key de xuat, collection nen shard trong ban demo va cach hashed shard key phan bo du lieu deu tren 5 shard ngang hang.</p>
     </div>
     <div class="filename">mermail/13-sharding-strategy-4-shard.mmd</div>
   </div>
   <div class="diagram-wrap">
     <pre class="mermaid">flowchart TB
-    db[&quot;Logical DB: charity_distributed&quot;] --&gt; choose[&quot;Choose shard key by main query&quot;]
+    db["Logical DB: charity_distributed"] --> choose["Choose shard key by main query"]
 
-    choose --&gt; bkey[&quot;branchId hashed&lt;br/&gt;tốt cho branch admin, phân quyền, dashboard chi nhánh&quot;]
-    choose --&gt; ckey[&quot;campaignId hashed&lt;br/&gt;tốt khi màn hình chính xoay quanh chiến dịch&quot;]
-    choose --&gt; timekey[&quot;{ branchId, createdAt }&lt;br/&gt;tốt cho audit range theo thời gian trong từng branch&quot;]
+    choose --> bkey["branchId hashed<br/>tot cho branch admin, phan quyen, dashboard chi nhanh"]
+    choose --> ckey["campaignId hashed<br/>tot khi man hinh chinh xoay quanh chien dich"]
+    choose --> timekey["{ branchId, createdAt }<br/>tot cho audit range theo thoi gian trong tung branch"]
 
-    bkey --&gt; sharded1[&quot;contributions&lt;br/&gt;db.contributions.createIndex({ branchId: hashed })&quot;]
-    bkey --&gt; sharded2[&quot;aid_distributions&lt;br/&gt;db.aid_distributions.createIndex({ branchId: hashed })&quot;]
-    bkey --&gt; sharded3[&quot;activity_logs&lt;br/&gt;db.activity_logs.createIndex({ branchId: hashed })&quot;]
+    bkey --> sharded1["contributions<br/>db.contributions.createIndex({ branchId: hashed })"]
+    bkey --> sharded2["aid_distributions<br/>db.aid_distributions.createIndex({ branchId: hashed })"]
+    bkey --> sharded3["activity_logs<br/>db.activity_logs.createIndex({ branchId: hashed })"]
 
-    ckey -. tùy chọn .-&gt; alt1[&quot;contributions&lt;br/&gt;{ campaignId: hashed } nếu campaign là trục truy vấn chính&quot;]
-    timekey -. tùy chọn .-&gt; alt2[&quot;activity_logs&lt;br/&gt;{ branchId: 1, createdAt: 1 } nếu cần range time target tốt&quot;]
+    ckey -. tuy chon .-> alt1["contributions<br/>{ campaignId: hashed } neu campaign la truc truy van chinh"]
+    timekey -. tuy chon .-> alt2["activity_logs<br/>{ branchId: 1, createdAt: 1 } neu can range time target tot"]
 
-    sharded1 --&gt; hash[&quot;hash(shardKey) -&gt; hash space -&gt; chunks&quot;]
-    sharded2 --&gt; hash
-    sharded3 --&gt; hash
+    sharded1 --> hash["hash(shardKey) -> hash space -> chunks"]
+    sharded2 --> hash
+    sharded3 --> hash
 
-    hash --&gt; balancer[&quot;Balancer distributes chunks&quot;]
-    balancer --&gt; m2[&quot;M2 centralRS&quot;]
-    balancer --&gt; m3[&quot;M3 shard1RS&quot;]
-    balancer --&gt; m4[&quot;M4 shard2RS&quot;]
-    balancer --&gt; m5[&quot;M5 shard3RS&quot;]
-    balancer --&gt; m6[&quot;M6 shard4RS&quot;]
+    hash --> balancer["Balancer distributes chunks"]
+    balancer --> m2["M2 shard1RS"]
+    balancer --> m3["M3 shard2RS"]
+    balancer --> m4["M4 shard3RS"]
+    balancer --> m5["M5 shard4RS"]
+    balancer --> m6["M6 shard5RS"]
 
-    no_shard[&quot;Không cần shard ở demo:&lt;br/&gt;branches, users, contributors&lt;br/&gt;campaigns chỉ shard khi rất lớn&quot;]
-    db --&gt; no_shard
+    no_shard["Khong can shard o demo:<br/>branches, users, contributors<br/>campaigns chi shard khi rat lon"]
+    db --> no_shard
 
-    warning[&quot;Tránh shard key chỉ là createdAt&lt;br/&gt;vì ghi mới tăng dần có thể dồn vào một shard&quot;]
-    choose --&gt; warning
+    warning["Tranh shard key chi la createdAt<br/>vi ghi moi tang dan co the don vao mot shard"]
+    choose --> warning
 
     classDef shard fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
     classDef key fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
@@ -1196,35 +1208,35 @@
   <details>
     <summary>Xem Mermaid source</summary>
     <pre class="source"><code>flowchart TB
-    db[&quot;Logical DB: charity_distributed&quot;] --&gt; choose[&quot;Choose shard key by main query&quot;]
+    db["Logical DB: charity_distributed"] --> choose["Choose shard key by main query"]
 
-    choose --&gt; bkey[&quot;branchId hashed&lt;br/&gt;tốt cho branch admin, phân quyền, dashboard chi nhánh&quot;]
-    choose --&gt; ckey[&quot;campaignId hashed&lt;br/&gt;tốt khi màn hình chính xoay quanh chiến dịch&quot;]
-    choose --&gt; timekey[&quot;{ branchId, createdAt }&lt;br/&gt;tốt cho audit range theo thời gian trong từng branch&quot;]
+    choose --> bkey["branchId hashed<br/>tot cho branch admin, phan quyen, dashboard chi nhanh"]
+    choose --> ckey["campaignId hashed<br/>tot khi man hinh chinh xoay quanh chien dich"]
+    choose --> timekey["{ branchId, createdAt }<br/>tot cho audit range theo thoi gian trong tung branch"]
 
-    bkey --&gt; sharded1[&quot;contributions&lt;br/&gt;db.contributions.createIndex({ branchId: hashed })&quot;]
-    bkey --&gt; sharded2[&quot;aid_distributions&lt;br/&gt;db.aid_distributions.createIndex({ branchId: hashed })&quot;]
-    bkey --&gt; sharded3[&quot;activity_logs&lt;br/&gt;db.activity_logs.createIndex({ branchId: hashed })&quot;]
+    bkey --> sharded1["contributions<br/>db.contributions.createIndex({ branchId: hashed })"]
+    bkey --> sharded2["aid_distributions<br/>db.aid_distributions.createIndex({ branchId: hashed })"]
+    bkey --> sharded3["activity_logs<br/>db.activity_logs.createIndex({ branchId: hashed })"]
 
-    ckey -. tùy chọn .-&gt; alt1[&quot;contributions&lt;br/&gt;{ campaignId: hashed } nếu campaign là trục truy vấn chính&quot;]
-    timekey -. tùy chọn .-&gt; alt2[&quot;activity_logs&lt;br/&gt;{ branchId: 1, createdAt: 1 } nếu cần range time target tốt&quot;]
+    ckey -. tuy chon .-> alt1["contributions<br/>{ campaignId: hashed } neu campaign la truc truy van chinh"]
+    timekey -. tuy chon .-> alt2["activity_logs<br/>{ branchId: 1, createdAt: 1 } neu can range time target tot"]
 
-    sharded1 --&gt; hash[&quot;hash(shardKey) -&gt; hash space -&gt; chunks&quot;]
-    sharded2 --&gt; hash
-    sharded3 --&gt; hash
+    sharded1 --> hash["hash(shardKey) -> hash space -> chunks"]
+    sharded2 --> hash
+    sharded3 --> hash
 
-    hash --&gt; balancer[&quot;Balancer distributes chunks&quot;]
-    balancer --&gt; m2[&quot;M2 centralRS&quot;]
-    balancer --&gt; m3[&quot;M3 shard1RS&quot;]
-    balancer --&gt; m4[&quot;M4 shard2RS&quot;]
-    balancer --&gt; m5[&quot;M5 shard3RS&quot;]
-    balancer --&gt; m6[&quot;M6 shard4RS&quot;]
+    hash --> balancer["Balancer distributes chunks"]
+    balancer --> m2["M2 shard1RS"]
+    balancer --> m3["M3 shard2RS"]
+    balancer --> m4["M4 shard3RS"]
+    balancer --> m5["M5 shard4RS"]
+    balancer --> m6["M6 shard5RS"]
 
-    no_shard[&quot;Không cần shard ở demo:&lt;br/&gt;branches, users, contributors&lt;br/&gt;campaigns chỉ shard khi rất lớn&quot;]
-    db --&gt; no_shard
+    no_shard["Khong can shard o demo:<br/>branches, users, contributors<br/>campaigns chi shard khi rat lon"]
+    db --> no_shard
 
-    warning[&quot;Tránh shard key chỉ là createdAt&lt;br/&gt;vì ghi mới tăng dần có thể dồn vào một shard&quot;]
-    choose --&gt; warning
+    warning["Tranh shard key chi la createdAt<br/>vi ghi moi tang dan co the don vao mot shard"]
+    choose --> warning
 
     classDef shard fill:#f0fff4,stroke:#2f855a,stroke-width:1px;
     classDef key fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
