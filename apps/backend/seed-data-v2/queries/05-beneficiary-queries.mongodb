@@ -1,0 +1,39 @@
+// ============= BENEFICIARY QUERIES (10 queries) =============
+
+// 5.1 - Lấy tất cả beneficiaries của 1 branch
+db.beneficiaries.find({ branchId: ObjectId("...") });
+
+// 5.2 - Lấy beneficiaries theo incomeLevel
+db.beneficiaries.find({ incomeLevel: "VERY_LOW" });
+
+// 5.3 - Lấy beneficiaries theo reason
+db.beneficiaries.find({ reason: "POVERTY" });
+
+// 5.4 - Tìm beneficiary by email
+db.beneficiaries.findOne({ email: "tranvanx@example.com" });
+
+// 5.5 - Lấy beneficiaries với children
+db.beneficiaries.find({ children: { $gt: 0 } });
+
+// 5.6 - Count beneficiaries by reason
+db.beneficiaries.aggregate([
+  { $group: { _id: "$reason", count: { $sum: 1 } } }
+]);
+
+// 5.7 - Lấy beneficiaries by health issues
+db.beneficiaries.find({ healthIssues: "Cao tuổi" });
+
+// 5.8 - Tính average household size
+db.beneficiaries.aggregate([
+  { $group: { _id: null, avgHousehold: { $avg: "$householdSize" } } }
+]);
+
+// 5.9 - Lấy beneficiaries với ngôn ngữ education
+db.beneficiaries.find({ education: { $in: ["ILLITERATE", "PRIMARY_SCHOOL"] } });
+
+// 5.10 - Count beneficiaries by employment status
+db.beneficiaries.aggregate([
+  { $group: { _id: "$employment", count: { $sum: 1 } } }
+]);
+
+print("✅ Beneficiary queries loaded!");

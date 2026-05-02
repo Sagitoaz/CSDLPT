@@ -1,0 +1,32 @@
+// ============= SEED DATA INDEX =============
+// Load all seed data files
+// Run: mongosh < seeds/index.mongodb
+
+// use charity_distributed;
+
+print("🌱 Loading all seed data...");
+print("");
+
+load('./01-branches.mongodb');
+load('./02-campaigns.mongodb');
+load('./03-contributors.mongodb');
+load('./04-contributions.mongodb');
+load('./05-beneficiaries.mongodb');
+load('./06-aid-distributions.mongodb');
+load('./07-activity-logs.mongodb');
+
+print("");
+print("==========================================");
+print("✅ All seed data loaded successfully!");
+print("==========================================");
+print("");
+print("Collections seeded:");
+print("  - branches (5)");
+print("  - campaigns (5)");
+print("  - contributors (3)");
+print("  - contributions (8)");
+print("  - beneficiaries (6)");
+print("  - aid_distributions (4)");
+print("  - activity_logs (4)");
+print("");
+print("Next step: Load queries from queries/index.mongodb");

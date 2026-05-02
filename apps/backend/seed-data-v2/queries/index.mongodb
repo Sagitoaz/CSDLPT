@@ -1,0 +1,33 @@
+// ============= COMMON QUERIES INDEX =============
+// Load all query files
+// Run: mongosh < queries/index.mongodb
+
+print("");
+print("==========================================");
+print("📊 Loading all query files...");
+print("==========================================");
+print("");
+
+load('./01-campaign-queries.mongodb');
+load('./02-contributor-queries.mongodb');
+load('./03-contribution-queries.mongodb');
+load('./04-aid-distribution-queries.mongodb');
+load('./05-beneficiary-queries.mongodb');
+load('./06-branch-queries.mongodb');
+load('./07-statistics-queries.mongodb');
+
+print("");
+print("==========================================");
+print("✅ All queries loaded successfully!");
+print("==========================================");
+print("");
+print("📋 Query Categories:");
+print("  - Campaign (10 queries)");
+print("  - Contributor (10 queries)");
+print("  - Contribution (10 queries)");
+print("  - Aid_distribution (10 queries)");
+print("  - Beneficiary (10 queries)");
+print("  - Branch (5 queries)");
+print("  - Statistics & Dashboard (8 queries)");
+print("");
+print("💡 Tip: Copy the queries you need and run them individually!");

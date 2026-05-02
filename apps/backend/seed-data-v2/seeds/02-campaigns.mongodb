@@ -1,0 +1,148 @@
+// ============= CAMPAIGNS (10 chiến dịch) =============
+db.campaigns.insertMany([
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HQ"})._id,
+    createdBy: ObjectId(),
+    name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
+    description: "Quyên góp hỗ trợ gia đình khó khăn dịp Tết Nguyên Đán 2024",
+    timeRange: {
+      startDate: new Date("2024-01-01"),
+      endDate: new Date("2024-02-15")
+    },
+    goals: {
+      targetMoneyAmount: 100000000,
+      targetItemSummary: "Yến sào, bánh chưng, quần áo ấm",
+      targetVolunteerCount: 50
+    },
+    requiredResources: [
+      {
+        resourceType: "MONEY",
+        name: "Tiền mặt hỗ trợ trực tiếp",
+        quantity: 100,
+        unit: "triệu VNĐ",
+        estimatedValue: 100000000
+      }
+    ],
+    summaryStats: {
+      totalMoneyReceived: 45000000,
+      totalEstimatedItemValue: 15000000,
+      totalVolunteerHours: 200,
+      totalMoneyDistributed: 30000000,
+      totalEstimatedAidValue: 12000000,
+      beneficiaryCount: 150
+    },
+    visibility: "PUBLIC",
+    status: "ACTIVE"
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HCMC"})._id,
+    createdBy: ObjectId(),
+    name: "Chiến dịch từ thiện Tết 2024 - TP.HCM",
+    description: "Quyên góp hỗ trợ gia đình khó khăn tại TP.HCM",
+    timeRange: {
+      startDate: new Date("2024-01-10"),
+      endDate: new Date("2024-02-20")
+    },
+    goals: {
+      targetMoneyAmount: 80000000,
+      targetItemSummary: "Nhu yếu phẩm, quần áo",
+      targetVolunteerCount: 40
+    },
+    requiredResources: [],
+    summaryStats: {
+      totalMoneyReceived: 55000000,
+      totalEstimatedItemValue: 20000000,
+      totalVolunteerHours: 150,
+      totalMoneyDistributed: 40000000,
+      totalEstimatedAidValue: 15000000,
+      beneficiaryCount: 120
+    },
+    visibility: "PUBLIC",
+    status: "ACTIVE"
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "DNG"})._id,
+    createdBy: ObjectId(),
+    name: "Quỹ giáo dục - Hỗ trợ học bổng 2024",
+    description: "Cấp học bổng cho học sinh có hoàn cảnh khó khăn",
+    timeRange: {
+      startDate: new Date("2024-03-01"),
+      endDate: new Date("2024-06-30")
+    },
+    goals: {
+      targetMoneyAmount: 200000000,
+      targetItemSummary: "Sách vở, dụng cụ học tập",
+      targetVolunteerCount: 30
+    },
+    requiredResources: [],
+    summaryStats: {
+      totalMoneyReceived: 150000000,
+      totalEstimatedItemValue: 10000000,
+      totalVolunteerHours: 100,
+      totalMoneyDistributed: 120000000,
+      totalEstimatedAidValue: 8000000,
+      beneficiaryCount: 100
+    },
+    visibility: "PUBLIC",
+    status: "ACTIVE"
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HQ"})._id,
+    createdBy: ObjectId(),
+    name: "Chiến dịch khám sức khỏe miễn phí",
+    description: "Tổ chức khám sức khỏe miễn phí cho người dân",
+    timeRange: {
+      startDate: new Date("2024-04-01"),
+      endDate: new Date("2024-04-30")
+    },
+    goals: {
+      targetMoneyAmount: 50000000,
+      targetItemSummary: "Thuốc, dụng cụ y tế",
+      targetVolunteerCount: 60
+    },
+    requiredResources: [],
+    summaryStats: {
+      totalMoneyReceived: 35000000,
+      totalEstimatedItemValue: 15000000,
+      totalVolunteerHours: 300,
+      totalMoneyDistributed: 25000000,
+      totalEstimatedAidValue: 12000000,
+      beneficiaryCount: 200
+    },
+    visibility: "PUBLIC",
+    status: "ACTIVE"
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HCMC"})._id,
+    createdBy: ObjectId(),
+    name: "Chương trình hỗ trợ bão lũ 2024",
+    description: "Quyên góp hỗ trợ các vùng bị ảnh hưởng bão lũ",
+    timeRange: {
+      startDate: new Date("2024-05-01"),
+      endDate: new Date("2024-06-30")
+    },
+    goals: {
+      targetMoneyAmount: 300000000,
+      targetItemSummary: "Nhu yếu phẩm, quần áo, chăn ga",
+      targetVolunteerCount: 100
+    },
+    requiredResources: [],
+    summaryStats: {
+      totalMoneyReceived: 250000000,
+      totalEstimatedItemValue: 80000000,
+      totalVolunteerHours: 500,
+      totalMoneyDistributed: 200000000,
+      totalEstimatedAidValue: 70000000,
+      beneficiaryCount: 500
+    },
+    visibility: "PUBLIC",
+    status: "ACTIVE"
+  }
+]);
+
+print("✅ Campaigns inserted successfully!");

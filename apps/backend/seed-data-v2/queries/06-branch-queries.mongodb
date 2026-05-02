@@ -1,0 +1,18 @@
+// ============= BRANCH QUERIES (5 queries) =============
+
+// 6.1 - Lấy tất cả branches
+db.branches.find();
+
+// 6.2 - Lấy branches ACTIVE
+db.branches.find({ status: "ACTIVE" });
+
+// 6.3 - Lấy branches theo type
+db.branches.find({ type: "BRANCH" });
+
+// 6.4 - Tìm branch by code
+db.branches.findOne({ code: "HQ" });
+
+// 6.5 - Lấy branches by province
+db.branches.find({ province: "Hà Nội" });
+
+print("✅ Branch queries loaded!");

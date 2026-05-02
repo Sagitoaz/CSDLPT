@@ -1,0 +1,80 @@
+// ============= BRANCHES (5 chi nhánh) =============
+db.branches.insertMany([
+  {
+    _id: ObjectId(),
+    name: "Trung tâm từ thiện trung ương",
+    code: "HQ",
+    type: "HEADQUARTER",
+    province: "Hà Nội",
+    district: "Ba Đình",
+    address: "123 Đường Bà Triệu, Ba Đình, Hà Nội",
+    phone: "024-1234-5678",
+    email: "hq@charity.local",
+    status: "ACTIVE",
+    description: "Trung tâm chính của tổ chức",
+    createdAt: new Date("2023-01-01"),
+    updatedAt: new Date("2023-01-01")
+  },
+  {
+    _id: ObjectId(),
+    name: "Chi nhánh TP. Hồ Chí Minh",
+    code: "HCMC",
+    type: "BRANCH",
+    province: "TP. Hồ Chí Minh",
+    district: "Quận 1",
+    address: "456 Đường Nguyễn Huệ, Quận 1, TP.HCM",
+    phone: "028-9876-5432",
+    email: "hcm@charity.local",
+    status: "ACTIVE",
+    description: "Chi nhánh phía Nam",
+    createdAt: new Date("2023-02-01"),
+    updatedAt: new Date("2023-02-01")
+  },
+  {
+    _id: ObjectId(),
+    name: "Chi nhánh Đà Nẵng",
+    code: "DNG",
+    type: "BRANCH",
+    province: "Đà Nẵng",
+    district: "Hải Châu",
+    address: "789 Đường Bạch Đằng, Hải Châu, Đà Nẵng",
+    phone: "0236-382-8888",
+    email: "danang@charity.local",
+    status: "ACTIVE",
+    description: "Chi nhánh phía Trung",
+    createdAt: new Date("2023-03-01"),
+    updatedAt: new Date("2023-03-01")
+  },
+  {
+    _id: ObjectId(),
+    name: "Chi nhánh Hải Phòng",
+    code: "HP",
+    type: "BRANCH",
+    province: "Hải Phòng",
+    district: "Hồng Bàng",
+    address: "321 Đường Lê Hồng Phong, Hồng Bàng, Hải Phòng",
+    phone: "0225-382-8888",
+    email: "haiphong@charity.local",
+    status: "ACTIVE",
+    description: "Chi nhánh phía Bắc",
+    createdAt: new Date("2023-04-01"),
+    updatedAt: new Date("2023-04-01")
+  },
+  {
+    _id: ObjectId(),
+    name: "Chi nhánh Cần Thơ",
+    code: "CT",
+    type: "BRANCH",
+    province: "Cần Thơ",
+    district: "Ninh Kiều",
+    address: "654 Đường Hòa Bình, Ninh Kiều, Cần Thơ",
+    phone: "0292-382-8888",
+    email: "cantho@charity.local",
+    status: "ACTIVE",
+    description: "Chi nhánh phía Tây Nam",
+    createdAt: new Date("2023-05-01"),
+    updatedAt: new Date("2023-05-01")
+  }
+]);
+
+print("✅ Branches inserted successfully!");

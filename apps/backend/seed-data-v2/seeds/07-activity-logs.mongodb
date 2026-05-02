@@ -1,0 +1,61 @@
+// ============= ACTIVITY_LOGS (15 logs) =============
+db.activity_logs.insertMany([
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HQ"})._id,
+    userId: ObjectId(),
+    action: "CAMPAIGN_CREATED",
+    targetType: "CAMPAIGN",
+    targetId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
+    description: "Created campaign: Chiến dịch từ thiện Tết 2024 - Hà Nội",
+    changes: {
+      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
+      status: "ACTIVE"
+    },
+    createdAt: new Date("2024-01-01")
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HQ"})._id,
+    userId: ObjectId(),
+    action: "CONTRIBUTION_RECEIVED",
+    targetType: "CONTRIBUTION",
+    targetId: db.contributions.findOne({type: "MONEY"})._id,
+    description: "Received contribution: 5.000.000 VND",
+    changes: {
+      status: "RECEIVED",
+      amount: 5000000
+    },
+    createdAt: new Date("2024-01-15")
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HQ"})._id,
+    userId: ObjectId(),
+    action: "AID_DISTRIBUTION_APPROVED",
+    targetType: "AID_DISTRIBUTION",
+    targetId: db.aid_distributions.findOne({status: "COMPLETED"})._id,
+    description: "Approved aid distribution for beneficiary",
+    changes: {
+      status: "APPROVED",
+      amount: 3000000
+    },
+    createdAt: new Date("2024-01-24")
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HQ"})._id,
+    userId: ObjectId(),
+    action: "AID_DISTRIBUTION_DELIVERED",
+    targetType: "AID_DISTRIBUTION",
+    targetId: db.aid_distributions.findOne({status: "COMPLETED"})._id,
+    description: "Delivered aid to beneficiary",
+    changes: {
+      status: "DELIVERED",
+      deliveredAt: new Date("2024-01-25")
+    },
+    createdAt: new Date("2024-01-25")
+  }
+]);
+
+print("✅ Activity_logs inserted successfully!");

@@ -1,0 +1,77 @@
+// ============= AID_DISTRIBUTION QUERIES (10 queries) =============
+
+// 4.1 - Lấy tất cả aid distributions của campaign
+db.aid_distributions.find({ campaignId: ObjectId("...") });
+
+// 4.2 - Lấy aid distributions theo status
+db.aid_distributions.find({ status: "COMPLETED" });
+
+// 4.3 - Lấy aid distributions cho beneficiary
+db.aid_distributions.find({ beneficiaryId: ObjectId("...") });
+
+// 4.4 - Tính tổng tiền phát hành (MONEY type)
+db.aid_distributions.aggregate([
+  { $match: { type: { $in: ["MONEY", "MIXED"] } } },
+  {
+    $group: {
+      _id: null,
+      totalMoney: { $sum: "$moneySupport.amount" }
+    }
+  }
+]);
+
+// 4.5 - Tính aid distribution value by beneficiary
+db.aid_distributions.aggregate([
+  {
+    $group: {
+      _id: "$beneficiaryId",
+      totalValue: {
+        $sum: {
+          $add: [
+            { $ifNull: ["$moneySupport.amount", 0] },
+            {
+              $sum: {
+                $map: {
+                  input: "$itemSupports",
+                  as: "item",
+                  in: "$$item.estimatedValue"
+                }
+              }
+            }
+          ]
+        }
+      },
+      count: { $sum: 1 }
+    }
+  }
+]);
+
+// 4.6 - Lấy PENDING aid distributions
+db.aid_distributions.find({ status: "PENDING" });
+
+// 4.7 - Count aid distributions by status
+db.aid_distributions.aggregate([
+  { $group: { _id: "$status", count: { $sum: 1 } } }
+]);
+
+// 4.8 - Lấy aid distributions chưa phát hành (status != DELIVERED/COMPLETED)
+db.aid_distributions.find({
+  status: { $nin: ["DELIVERED", "COMPLETED"] }
+});
+
+// 4.9 - Update aid distribution status to APPROVED
+db.aid_distributions.updateOne(
+  { _id: ObjectId("...") },
+  { $set: { status: "APPROVED", approvedAt: new Date() } }
+);
+
+// 4.10 - Lấy aid distributions by branch and date
+db.aid_distributions.find({
+  branchId: ObjectId("..."),
+  createdAt: {
+    $gte: new Date("2024-01-01"),
+    $lte: new Date("2024-12-31")
+  }
+});
+
+print("✅ Aid_distribution queries loaded!");

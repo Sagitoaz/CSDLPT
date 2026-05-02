@@ -1,0 +1,168 @@
+// ============= STATISTICS & DASHBOARD QUERIES (8 queries) =============
+
+// 8.1 - Dashboard: Tổng quan toàn hệ thống
+db.campaigns.aggregate([
+  {
+    $facet: {
+      totalCampaigns: [{ $count: "count" }],
+      totalMoney: [
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$summaryStats.totalMoneyReceived" }
+          }
+        }
+      ],
+      totalBeneficiaries: [
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$summaryStats.beneficiaryCount" }
+          }
+        }
+      ],
+      totalVolunteerHours: [
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$summaryStats.totalVolunteerHours" }
+          }
+        }
+      ]
+    }
+  }
+]);
+
+// 8.2 - Chi nhánh nào nhận được tiền nhiều nhất
+db.campaigns.aggregate([
+  {
+    $lookup: {
+      from: "branches",
+      localField: "branchId",
+      foreignField: "_id",
+      as: "branch"
+    }
+  },
+  { $unwind: "$branch" },
+  {
+    $group: {
+      _id: "$branch.name",
+      totalMoney: { $sum: "$summaryStats.totalMoneyReceived" },
+      campaignCount: { $sum: 1 }
+    }
+  },
+  { $sort: { totalMoney: -1 } }
+]);
+
+// 8.3 - Tỷ lệ DELIVERY: tiền nhận vs tiền phát hành
+db.campaigns.aggregate([
+  {
+    $project: {
+      name: 1,
+      received: "$summaryStats.totalMoneyReceived",
+      distributed: "$summaryStats.totalMoneyDistributed",
+      distributionRate: {
+        $cond: [
+          { $eq: ["$summaryStats.totalMoneyReceived", 0] },
+          0,
+          {
+            $multiply: [
+              {
+                $divide: [
+                  "$summaryStats.totalMoneyDistributed",
+                  "$summaryStats.totalMoneyReceived"
+                ]
+              },
+              100
+            ]
+          }
+        ]
+      }
+    }
+  },
+  { $sort: { distributionRate: -1 } }
+]);
+
+// 8.4 - Top 5 contributors tích cực nhất
+db.contributions.aggregate([
+  { $group: { _id: "$contributorId", count: { $sum: 1 } } },
+  { $sort: { count: -1 } },
+  { $limit: 5 },
+  {
+    $lookup: {
+      from: "contributors",
+      localField: "_id",
+      foreignField: "_id",
+      as: "contributor"
+    }
+  }
+]);
+
+// 8.5 - Loại đóng góp nào chiếm nhiều nhất (by value)
+db.contributions.aggregate([
+  {
+    $facet: {
+      money: [
+        { $match: { type: "MONEY" } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$moneyDetail.amount" }
+          }
+        }
+      ],
+      item: [
+        { $match: { type: { $in: ["ITEM", "MEDICINE", "CLOTHES", "BOOK"] } } },
+        { $unwind: "$itemDetails" },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$itemDetails.estimatedValue" }
+          }
+        }
+      ],
+      service: [
+        { $match: { type: "SERVICE" } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$serviceDetail.estimatedValue" }
+          }
+        }
+      ]
+    }
+  }
+]);
+
+// 8.6 - Beneficiaries chưa nhận được hỗ trợ (no aid_distribution records)
+db.beneficiaries.aggregate([
+  {
+    $lookup: {
+      from: "aid_distributions",
+      localField: "_id",
+      foreignField: "beneficiaryId",
+      as: "aids"
+    }
+  },
+  { $match: { aids: { $size: 0 } } }
+]);
+
+// 8.7 - Average donation per contributor
+db.contributions.aggregate([
+  { $group: { _id: "$contributorId", avgAmount: { $avg: "$moneyDetail.amount" } } },
+  { $sort: { avgAmount: -1 } }
+]);
+
+// 8.8 - Monthly contribution trend
+db.contributions.aggregate([
+  {
+    $group: {
+      _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+      count: { $sum: 1 },
+      totalMoney: { $sum: { $ifNull: ["$moneyDetail.amount", 0] } }
+    }
+  },
+  { $sort: { _id: 1 } }
+]);
+
+print("✅ Statistics queries loaded!");

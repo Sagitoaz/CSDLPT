@@ -1,0 +1,140 @@
+// ============= AID_DISTRIBUTIONS (15 phiếu phát hành) =============
+db.aid_distributions.insertMany([
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HQ"})._id,
+    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
+    beneficiaryId: db.beneficiaries.findOne({name: "Gia đình Trần Văn X"})._id,
+    type: "MONEY",
+    moneySupport: {
+      amount: 3000000,
+      currency: "VND",
+      method: "CASH"
+    },
+    status: "COMPLETED",
+    beneficiarySnapshot: {
+      name: "Gia đình Trần Văn X",
+      email: "tranvanx@example.com"
+    },
+    campaignSnapshot: {
+      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
+      code: "TET2024_HN"
+    },
+    branchSnapshot: {
+      name: "Trung tâm từ thiện trung ương",
+      code: "HQ"
+    },
+    proofs: [
+      {
+        type: "RECEIPT",
+        url: "https://example.com/aid001.pdf",
+        description: "Aid delivery receipt",
+        uploadedAt: new Date("2024-01-25")
+      }
+    ],
+    createdAt: new Date("2024-01-24"),
+    approvedAt: new Date("2024-01-24"),
+    deliveredAt: new Date("2024-01-25"),
+    completedAt: new Date("2024-01-25")
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HQ"})._id,
+    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
+    beneficiaryId: db.beneficiaries.findOne({name: "Bà Nguyễn Thị Y"})._id,
+    type: "ITEM",
+    itemSupports: [
+      {
+        name: "Yến sào",
+        category: "FOOD",
+        quantity: 2,
+        unit: "hộp",
+        estimatedValue: 500000,
+        note: "Yến sào cao cấp"
+      }
+    ],
+    status: "COMPLETED",
+    beneficiarySnapshot: {
+      name: "Bà Nguyễn Thị Y",
+      email: "nguyenthiy@example.com"
+    },
+    campaignSnapshot: {
+      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
+      code: "TET2024_HN"
+    },
+    branchSnapshot: {
+      name: "Trung tâm từ thiện trung ương",
+      code: "HQ"
+    },
+    createdAt: new Date("2024-01-24"),
+    approvedAt: new Date("2024-01-24"),
+    deliveredAt: new Date("2024-01-26"),
+    completedAt: new Date("2024-01-26")
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HQ"})._id,
+    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
+    beneficiaryId: db.beneficiaries.findOne({name: "Gia đình Lê Văn Z"})._id,
+    type: "MIXED",
+    moneySupport: {
+      amount: 2000000,
+      currency: "VND",
+      method: "BANK_TRANSFER"
+    },
+    itemSupports: [
+      {
+        name: "Quần áo ấm",
+        category: "CLOTHING",
+        quantity: 5,
+        unit: "bộ",
+        estimatedValue: 500000,
+        note: "Quần áo mùa đông"
+      }
+    ],
+    status: "DELIVERED",
+    beneficiarySnapshot: {
+      name: "Gia đình Lê Văn Z",
+      email: "levanz@example.com"
+    },
+    campaignSnapshot: {
+      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
+      code: "TET2024_HN"
+    },
+    branchSnapshot: {
+      name: "Trung tâm từ thiện trung ương",
+      code: "HQ"
+    },
+    createdAt: new Date("2024-01-24"),
+    approvedAt: new Date("2024-01-24"),
+    deliveredAt: new Date("2024-01-27")
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HQ"})._id,
+    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
+    beneficiaryId: db.beneficiaries.findOne({name: "Cơ sở bảo trợ xã hội"})._id,
+    type: "MONEY",
+    moneySupport: {
+      amount: 10000000,
+      currency: "VND",
+      method: "BANK_TRANSFER"
+    },
+    status: "PENDING",
+    beneficiarySnapshot: {
+      name: "Cơ sở bảo trợ xã hội",
+      email: "socialcare@example.com"
+    },
+    campaignSnapshot: {
+      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
+      code: "TET2024_HN"
+    },
+    branchSnapshot: {
+      name: "Trung tâm từ thiện trung ương",
+      code: "HQ"
+    },
+    createdAt: new Date("2024-01-28")
+  }
+]);
+
+print("✅ Aid_distributions inserted successfully!");

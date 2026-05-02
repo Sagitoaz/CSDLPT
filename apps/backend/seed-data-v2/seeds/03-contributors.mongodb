@@ -1,0 +1,80 @@
+// ============= CONTRIBUTORS (12 người hiến tặng/tổ chức) =============
+db.contributors.insertMany([
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HQ"})._id,
+    type: "INDIVIDUAL",
+    name: "Nguyễn Văn A",
+    email: "nguyenvana@email.com",
+    phone: "0912-345-678",
+    address: {
+      street: "123 Đường Bà Triệu",
+      district: "Ba Đình",
+      province: "Hà Nội",
+      country: "Việt Nam"
+    },
+    totalContributionStats: {
+      moneyCount: 5,
+      totalMoneyAmount: 15000000,
+      itemCount: 3,
+      totalEstimatedItemValue: 5000000,
+      serviceCount: 0,
+      totalServiceValue: 0,
+      volunteerCount: 10,
+      totalVolunteerHours: 50
+    },
+    isActive: true
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HQ"})._id,
+    type: "ORGANIZATION",
+    name: "Công ty TNHH ABC",
+    email: "contact@abc-company.vn",
+    phone: "024-1234-5678",
+    address: {
+      street: "123 Đường Lê Duẩn",
+      district: "Ba Đình",
+      province: "Hà Nội",
+      country: "Việt Nam"
+    },
+    totalContributionStats: {
+      moneyCount: 12,
+      totalMoneyAmount: 500000000,
+      itemCount: 8,
+      totalEstimatedItemValue: 50000000,
+      serviceCount: 2,
+      totalServiceValue: 100000000,
+      volunteerCount: 30,
+      totalVolunteerHours: 200
+    },
+    isActive: true
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HCMC"})._id,
+    type: "SERVICE_PROVIDER",
+    name: "Bệnh viện Bạch Mai",
+    email: "contact@bachmai.gov.vn",
+    phone: "024-3756-3756",
+    address: {
+      street: "78 Giải Phóng",
+      district: "Đống Đa",
+      province: "Hà Nội",
+      country: "Việt Nam"
+    },
+    totalContributionStats: {
+      moneyCount: 0,
+      totalMoneyAmount: 0,
+      itemCount: 0,
+      totalEstimatedItemValue: 0,
+      serviceCount: 5,
+      totalServiceValue: 500000000,
+      volunteerCount: 0,
+      totalVolunteerHours: 0
+    },
+    isActive: true
+  }
+]);
+
+print("✅ Contributors inserted successfully!");

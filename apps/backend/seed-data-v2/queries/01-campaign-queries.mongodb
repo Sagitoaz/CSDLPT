@@ -1,0 +1,57 @@
+// ============= CAMPAIGN QUERIES (10 queries) =============
+
+// 1.1 - Lấy tất cả chiến dịch của 1 chi nhánh
+db.campaigns.find({ branchId: ObjectId("...") });
+
+// 1.2 - Lấy chiến dịch ACTIVE
+db.campaigns.find({ status: "ACTIVE" });
+
+// 1.3 - Tìm chiến dịch by tên (like search)
+db.campaigns.find({ name: { $regex: "Tết", $options: "i" } });
+
+// 1.4 - Lấy chiến dịch trong khoảng thời gian
+db.campaigns.find({
+  "timeRange.startDate": { $gte: new Date("2024-01-01") },
+  "timeRange.endDate": { $lte: new Date("2024-12-31") }
+});
+
+// 1.5 - Lấy TOP 5 chiến dịch có lượng từ thiện cao nhất
+db.campaigns.find()
+  .sort({ "summaryStats.totalMoneyReceived": -1 })
+  .limit(5);
+
+// 1.6 - Tính tổng tiền nhận được all campaigns
+db.campaigns.aggregate([
+  { $group: { _id: null, totalMoney: { $sum: "$summaryStats.totalMoneyReceived" } } }
+]);
+
+// 1.7 - Tính tiền đã phát hành vs còn lại by campaign
+db.campaigns.aggregate([
+  {
+    $project: {
+      name: 1,
+      branchId: 1,
+      moneyReceived: "$summaryStats.totalMoneyReceived",
+      moneyDistributed: "$summaryStats.totalMoneyDistributed",
+      moneyRemaining: {
+        $subtract: [
+          "$summaryStats.totalMoneyReceived",
+          "$summaryStats.totalMoneyDistributed"
+        ]
+      }
+    }
+  }
+]);
+
+// 1.8 - Lấy chiến dịch theo visibility
+db.campaigns.find({ visibility: "PUBLIC" });
+
+// 1.9 - Count chiến dịch theo status
+db.campaigns.aggregate([
+  { $group: { _id: "$status", count: { $sum: 1 } } }
+]);
+
+// 1.10 - Lấy chiến dịch và sort by createdAt mới nhất
+db.campaigns.find().sort({ createdAt: -1 }).limit(10);
+
+print("✅ Campaign queries loaded!");

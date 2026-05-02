@@ -1,0 +1,137 @@
+// ============= BENEFICIARIES (10 hộ gia đình/cá nhân được hỗ trợ) =============
+db.beneficiaries.insertMany([
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HQ"})._id,
+    name: "Gia đình Trần Văn X",
+    email: "tranvanx@example.com",
+    phone: "0912-111-111",
+    address: {
+      street: "123 Ngách 15 Hàng Đặc",
+      district: "Hoàn Kiếm",
+      province: "Hà Nội",
+      country: "Việt Nam"
+    },
+    householdSize: 4,
+    incomeLevel: "VERY_LOW",
+    reason: "POVERTY",
+    healthIssues: ["Bệnh nền", "Khuyết tật"],
+    education: "PRIMARY_SCHOOL",
+    employment: "UNEMPLOYED",
+    children: 2,
+    children_ages: [5, 8],
+    status: "ACTIVE"
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HQ"})._id,
+    name: "Bà Nguyễn Thị Y",
+    email: "nguyenthiy@example.com",
+    phone: "0912-111-112",
+    address: {
+      street: "456 Lê Nguyễn",
+      district: "Ba Đình",
+      province: "Hà Nội",
+      country: "Việt Nam"
+    },
+    householdSize: 1,
+    incomeLevel: "LOW",
+    reason: "ELDERLY_ALONE",
+    healthIssues: ["Cao huyết áp", "Tiểu đường"],
+    education: "SECONDARY_SCHOOL",
+    employment: "RETIRED",
+    children: 0,
+    children_ages: [],
+    status: "ACTIVE"
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HQ"})._id,
+    name: "Gia đình Lê Văn Z (Người khuyết tật)",
+    email: "levanz@example.com",
+    phone: "0912-111-113",
+    address: {
+      street: "789 Phố Huế",
+      district: "Hai Bà Trưng",
+      province: "Hà Nội",
+      country: "Việt Nam"
+    },
+    householdSize: 3,
+    incomeLevel: "VERY_LOW",
+    reason: "DISABILITY",
+    healthIssues: ["Khuyết tật vận động", "Bệnh tâm thần"],
+    education: "PRIMARY_SCHOOL",
+    employment: "UNEMPLOYED",
+    children: 1,
+    children_ages: [10],
+    status: "ACTIVE"
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HCMC"})._id,
+    name: "Gia đình Phạm Văn A",
+    email: "phamvana@example.com",
+    phone: "0912-222-111",
+    address: {
+      street: "123 Đường Lý Thường Kiệt",
+      district: "Quận 10",
+      province: "TP.HCM",
+      country: "Việt Nam"
+    },
+    householdSize: 5,
+    incomeLevel: "VERY_LOW",
+    reason: "POVERTY",
+    healthIssues: [],
+    education: "PRIMARY_SCHOOL",
+    employment: "INFORMAL_JOB",
+    children: 3,
+    children_ages: [4, 7, 10],
+    status: "ACTIVE"
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "HCMC"})._id,
+    name: "Cơ sở bảo trợ xã hội",
+    email: "socialcare@example.com",
+    phone: "0912-222-113",
+    address: {
+      street: "789 Đường Cộng Hòa",
+      district: "Quận 1",
+      province: "TP.HCM",
+      country: "Việt Nam"
+    },
+    householdSize: 50,
+    incomeLevel: "VERY_LOW",
+    reason: "SOCIAL_WELFARE",
+    healthIssues: ["Cao tuổi", "Bệnh nền"],
+    education: "ILLITERATE",
+    employment: "NONE",
+    children: 0,
+    children_ages: [],
+    status: "ACTIVE"
+  },
+  {
+    _id: ObjectId(),
+    branchId: db.branches.findOne({code: "DNG"})._id,
+    name: "Gia đình Đỗ Văn C (Thôn dã)",
+    email: "dovance@example.com",
+    phone: "0912-333-111",
+    address: {
+      street: "123 Thôn Bạch Đằng",
+      district: "Hòa Vang",
+      province: "Đà Nẵng",
+      country: "Việt Nam"
+    },
+    householdSize: 6,
+    incomeLevel: "VERY_LOW",
+    reason: "POVERTY",
+    healthIssues: [],
+    education: "ILLITERATE",
+    employment: "FARMER",
+    children: 4,
+    children_ages: [5, 7, 10, 12],
+    status: "ACTIVE"
+  }
+]);
+
+print("✅ Beneficiaries inserted successfully!");

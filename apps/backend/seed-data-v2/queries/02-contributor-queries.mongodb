@@ -1,0 +1,58 @@
+// ============= CONTRIBUTOR QUERIES (10 queries) =============
+
+// 2.1 - Lấy tất cả contributors của 1 branch
+db.contributors.find({ branchId: ObjectId("...") });
+
+// 2.2 - Lấy contributors theo type
+db.contributors.find({ type: "ORGANIZATION" });
+
+// 2.3 - Lấy contributors đang hoạt động (isActive: true)
+db.contributors.find({ isActive: true });
+
+// 2.4 - Tìm contributors by email
+db.contributors.findOne({ email: "nguyenvana@email.com" });
+
+// 2.5 - Lấy TOP 10 contributors donate nhiều tiền nhất
+db.contributors.find()
+  .sort({ "totalContributionStats.totalMoneyAmount": -1 })
+  .limit(10);
+
+// 2.6 - Lấy TOP 10 SERVICE_PROVIDER
+db.contributors.find({ type: "SERVICE_PROVIDER" })
+  .sort({ "totalContributionStats.totalServiceValue": -1 })
+  .limit(10);
+
+// 2.7 - Tính tổng tiền từ ORGANIZATION contributors
+db.contributors.aggregate([
+  { $match: { type: "ORGANIZATION" } },
+  {
+    $group: {
+      _id: null,
+      totalMoney: { $sum: "$totalContributionStats.totalMoneyAmount" }
+    }
+  }
+]);
+
+// 2.8 - Lấy contributors với stats nhất định
+db.contributors.find({
+  "totalContributionStats.totalMoneyAmount": { $gt: 10000000 }
+});
+
+// 2.9 - Tính trung bình tiền donated per contributor by type
+db.contributors.aggregate([
+  {
+    $group: {
+      _id: "$type",
+      avgMoney: { $avg: "$totalContributionStats.totalMoneyAmount" },
+      count: { $sum: 1 }
+    }
+  }
+]);
+
+// 2.10 - Update contributor isActive status
+db.contributors.updateOne(
+  { _id: ObjectId("...") },
+  { $set: { isActive: false } }
+);
+
+print("✅ Contributor queries loaded!");

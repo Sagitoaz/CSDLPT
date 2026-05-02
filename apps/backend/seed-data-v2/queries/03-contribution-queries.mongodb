@@ -1,0 +1,61 @@
+// ============= CONTRIBUTION QUERIES (10 queries) =============
+
+// 3.1 - Lấy tất cả contributions của campaign
+db.contributions.find({ campaignId: ObjectId("...") });
+
+// 3.2 - Lấy contributions theo type (MONEY, ITEM, etc)
+db.contributions.find({ type: "MONEY" });
+
+// 3.3 - Lấy contributions theo status
+db.contributions.find({ status: "RECEIVED" });
+
+// 3.4 - Lấy contributions từ contributor cụ thể
+db.contributions.find({ contributorId: ObjectId("...") });
+
+// 3.5 - Tính tổng tiền MONEY contributions
+db.contributions.aggregate([
+  { $match: { type: "MONEY" } },
+  { $group: { _id: null, totalMoney: { $sum: "$moneyDetail.amount" } } }
+]);
+
+// 3.6 - Tính ITEM contributions value
+db.contributions.aggregate([
+  { $match: { type: "ITEM" } },
+  { $unwind: "$itemDetails" },
+  {
+    $group: {
+      _id: null,
+      totalValue: { $sum: "$itemDetails.estimatedValue" }
+    }
+  }
+]);
+
+// 3.7 - Lấy contributions with pending status
+db.contributions.find({ status: "PENDING" });
+
+// 3.8 - Tính volunteer hours by contributor
+db.contributions.aggregate([
+  { $match: { type: "VOLUNTEER_WORK" } },
+  {
+    $group: {
+      _id: "$contributorId",
+      totalHours: { $sum: "$volunteerWorkDetail.hours" }
+    }
+  },
+  { $sort: { totalHours: -1 } }
+]);
+
+// 3.9 - Count contributions by type
+db.contributions.aggregate([
+  { $group: { _id: "$type", count: { $sum: 1 } } }
+]);
+
+// 3.10 - Lấy contributions within date range
+db.contributions.find({
+  createdAt: {
+    $gte: new Date("2024-01-01"),
+    $lte: new Date("2024-12-31")
+  }
+});
+
+print("✅ Contribution queries loaded!");
