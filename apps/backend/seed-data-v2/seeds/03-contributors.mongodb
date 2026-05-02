@@ -1,80 +1,49 @@
-// ============= CONTRIBUTORS (12 người hiến tặng/tổ chức) =============
-db.contributors.insertMany([
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    type: "INDIVIDUAL",
-    name: "Nguyễn Văn A",
-    email: "nguyenvana@email.com",
-    phone: "0912-345-678",
-    address: {
-      street: "123 Đường Bà Triệu",
-      district: "Ba Đình",
-      province: "Hà Nội",
-      country: "Việt Nam"
-    },
-    totalContributionStats: {
-      moneyCount: 5,
-      totalMoneyAmount: 15000000,
-      itemCount: 3,
-      totalEstimatedItemValue: 5000000,
-      serviceCount: 0,
-      totalServiceValue: 0,
-      volunteerCount: 10,
-      totalVolunteerHours: 50
-    },
-    isActive: true
-  },
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    type: "ORGANIZATION",
-    name: "Công ty TNHH ABC",
-    email: "contact@abc-company.vn",
-    phone: "024-1234-5678",
-    address: {
-      street: "123 Đường Lê Duẩn",
-      district: "Ba Đình",
-      province: "Hà Nội",
-      country: "Việt Nam"
-    },
-    totalContributionStats: {
-      moneyCount: 12,
-      totalMoneyAmount: 500000000,
-      itemCount: 8,
-      totalEstimatedItemValue: 50000000,
-      serviceCount: 2,
-      totalServiceValue: 100000000,
-      volunteerCount: 30,
-      totalVolunteerHours: 200
-    },
-    isActive: true
-  },
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HCMC"})._id,
-    type: "SERVICE_PROVIDER",
-    name: "Bệnh viện Bạch Mai",
-    email: "contact@bachmai.gov.vn",
-    phone: "024-3756-3756",
-    address: {
-      street: "78 Giải Phóng",
-      district: "Đống Đa",
-      province: "Hà Nội",
-      country: "Việt Nam"
-    },
-    totalContributionStats: {
-      moneyCount: 0,
-      totalMoneyAmount: 0,
-      itemCount: 0,
-      totalEstimatedItemValue: 0,
-      serviceCount: 5,
-      totalServiceValue: 500000000,
-      volunteerCount: 0,
-      totalVolunteerHours: 0
-    },
-    isActive: true
-  }
-]);
+// Seed contributors for mongosh copy-paste.
 
-print("✅ Contributors inserted successfully!");
+db = db.getSiblingDB("charity_distributed");
+db.contributors.drop();
+
+const branches03 = db.branches.find({ status: "ACTIVE" }).sort({ code: 1 }).toArray();
+if (branches03.length === 0) {
+  throw new Error("Run 01-branches.mongodb first.");
+}
+
+const contributorTypes03 = ["INDIVIDUAL", "ORGANIZATION", "SERVICE_PROVIDER"];
+const contributors03 = Array.from({ length: 120 }, (_, i) => {
+  const n = i + 1;
+  const branch = branches03[(i * 7) % branches03.length];
+  const type = contributorTypes03[i % contributorTypes03.length];
+  const fullName = type === "INDIVIDUAL" ? `Nguoi dong gop ${String(n).padStart(3, "0")}` : `To chuc thien nguyen ${String(n).padStart(3, "0")}`;
+  return {
+    _id: ObjectId(),
+    branchId: branch._id,
+    type,
+    name: fullName,
+    fullName,
+    organizationName: type === "INDIVIDUAL" ? undefined : fullName,
+    email: `contributor${String(n).padStart(3, "0")}@example.com`,
+    phone: `08${String(20000000 + n).slice(-8)}`,
+    address: {
+      street: `${200 + n} Duong Dong Gop`,
+      district: branch.district,
+      province: branch.province,
+      country: "Viet Nam"
+    },
+    totalContributionStats: {
+      moneyCount: i % 9,
+      totalMoneyAmount: (i + 1) * 750000,
+      itemCount: i % 7,
+      totalEstimatedItemValue: (i + 1) * 250000,
+      serviceCount: type === "SERVICE_PROVIDER" ? (i % 5) + 1 : 0,
+      totalServiceValue: type === "SERVICE_PROVIDER" ? (i + 1) * 500000 : 0,
+      volunteerCount: i % 6,
+      totalVolunteerHours: (i % 6) * 4
+    },
+    isActive: i % 17 !== 0,
+    createdAt: new Date(2024, i % 12, (i % 28) + 1),
+    updatedAt: new Date(2024, (i % 12), (i % 28) + 1)
+  };
+});
+
+db.contributors.insertMany(contributors03, { ordered: false });
+print(`OK contributors inserted: ${db.contributors.countDocuments()}`);

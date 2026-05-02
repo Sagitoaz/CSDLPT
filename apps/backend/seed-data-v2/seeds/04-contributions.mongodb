@@ -1,270 +1,114 @@
-// ============= CONTRIBUTIONS (20 đóng góp) =============
-db.contributions.insertMany([
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
-    contributorId: db.contributors.findOne({name: "Nguyễn Văn A"})._id,
-    type: "MONEY",
-    moneyDetail: {
-      amount: 5000000,
-      currency: "VND",
-      paymentMethod: "BANK_TRANSFER",
-      paymentStatus: "COMPLETED",
-      transactionCode: "TXN001",
-      paidAt: new Date("2024-01-15")
-    },
-    status: "RECEIVED",
-    contributorSnapshot: {
-      name: "Nguyễn Văn A",
-      email: "nguyenvana@email.com",
-      type: "INDIVIDUAL"
-    },
-    campaignSnapshot: {
-      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
-      code: "TET2024_HN"
-    },
-    branchSnapshot: {
-      name: "Trung tâm từ thiện trung ương",
-      code: "HQ"
-    },
-    proofs: [
-      {
-        type: "RECEIPT",
-        url: "https://example.com/receipt001.pdf",
-        description: "Bank receipt",
-        uploadedAt: new Date("2024-01-15")
-      }
-    ],
-    createdAt: new Date("2024-01-15"),
-    updatedAt: new Date("2024-01-20")
-  },
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
-    contributorId: db.contributors.findOne({name: "Công ty TNHH ABC"})._id,
-    type: "MONEY",
-    moneyDetail: {
-      amount: 100000000,
-      currency: "VND",
-      paymentMethod: "BANK_TRANSFER",
-      paymentStatus: "COMPLETED",
-      transactionCode: "TXN002",
-      paidAt: new Date("2024-01-16")
-    },
-    status: "RECEIVED",
-    contributorSnapshot: {
-      name: "Công ty TNHH ABC",
-      email: "contact@abc-company.vn",
-      type: "ORGANIZATION"
-    },
-    campaignSnapshot: {
-      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
-      code: "TET2024_HN"
-    },
-    branchSnapshot: {
-      name: "Trung tâm từ thiện trung ương",
-      code: "HQ"
-    },
-    createdAt: new Date("2024-01-16"),
-    updatedAt: new Date("2024-01-20")
-  },
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
-    contributorId: db.contributors.findOne({name: "Nguyễn Văn A"})._id,
-    type: "ITEM",
-    itemDetails: [
-      {
-        name: "Yến sào",
-        category: "FOOD",
-        quantity: 20,
-        unit: "hộp",
-        condition: "NEW",
-        estimatedValue: 5000000,
-        note: "Yến sào cao cấp"
-      }
-    ],
-    status: "RECEIVED",
-    contributorSnapshot: {
-      name: "Nguyễn Văn A",
-      email: "nguyenvana@email.com",
-      type: "INDIVIDUAL"
-    },
-    campaignSnapshot: {
-      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
-      code: "TET2024_HN"
-    },
-    branchSnapshot: {
-      name: "Trung tâm từ thiện trung ương",
-      code: "HQ"
-    },
-    createdAt: new Date("2024-01-17"),
-    updatedAt: new Date("2024-01-20")
-  },
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
-    contributorId: db.contributors.findOne({name: "Nguyễn Văn A"})._id,
-    type: "MEDICINE",
-    itemDetails: [
-      {
-        name: "Thuốc hạ sốt",
-        category: "MEDICINE",
-        quantity: 500,
-        unit: "viên",
-        condition: "NEW",
-        estimatedValue: 5000000,
-        note: "Thuốc hạ sốt chất lượng"
-      }
-    ],
-    status: "CONFIRMED",
-    contributorSnapshot: {
-      name: "Nguyễn Văn A",
-      email: "nguyenvana@email.com",
-      type: "INDIVIDUAL"
-    },
-    campaignSnapshot: {
-      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
-      code: "TET2024_HN"
-    },
-    branchSnapshot: {
-      name: "Trung tâm từ thiện trung ương",
-      code: "HQ"
-    },
-    createdAt: new Date("2024-01-18"),
-    updatedAt: new Date("2024-01-20")
-  },
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
-    contributorId: db.contributors.findOne({name: "Nguyễn Văn A"})._id,
-    type: "CLOTHES",
-    itemDetails: [
-      {
-        name: "Áo khoác mùa đông",
-        category: "CLOTHING",
-        quantity: 50,
-        unit: "cái",
-        condition: "NEW",
-        estimatedValue: 2000000,
-        note: "Quần áo ấm"
-      }
-    ],
-    status: "RECEIVED",
-    contributorSnapshot: {
-      name: "Nguyễn Văn A",
-      email: "nguyenvana@email.com",
-      type: "INDIVIDUAL"
-    },
-    campaignSnapshot: {
-      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
-      code: "TET2024_HN"
-    },
-    branchSnapshot: {
-      name: "Trung tâm từ thiện trung ương",
-      code: "HQ"
-    },
-    createdAt: new Date("2024-01-19"),
-    updatedAt: new Date("2024-01-20")
-  },
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
-    contributorId: db.contributors.findOne({name: "Nguyễn Văn A"})._id,
-    type: "BOOK",
-    itemDetails: [
-      {
-        name: "Sách giáo khoa",
-        category: "EDUCATION",
-        quantity: 100,
-        unit: "cuốn",
-        condition: "NEW",
-        estimatedValue: 2000000,
-        note: "Sách for students"
-      }
-    ],
-    status: "RECEIVED",
-    contributorSnapshot: {
-      name: "Nguyễn Văn A",
-      email: "nguyenvana@email.com",
-      type: "INDIVIDUAL"
-    },
-    campaignSnapshot: {
-      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
-      code: "TET2024_HN"
-    },
-    branchSnapshot: {
-      name: "Trung tâm từ thiện trung ương",
-      code: "HQ"
-    },
-    createdAt: new Date("2024-01-20"),
-    updatedAt: new Date("2024-01-20")
-  },
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
-    contributorId: db.contributors.findOne({name: "Bệnh viện Bạch Mai"})._id,
-    type: "SERVICE",
-    serviceDetail: {
-      serviceName: "Khám sức khỏe tổng quát",
-      provider: "Bệnh viện Bạch Mai",
-      estimatedHours: 40,
-      estimatedValue: 50000000,
-      note: "Khám miễn phí cho 100 người"
-    },
-    status: "CONFIRMED",
-    contributorSnapshot: {
-      name: "Bệnh viện Bạch Mai",
-      email: "contact@bachmai.gov.vn",
-      type: "SERVICE_PROVIDER"
-    },
-    campaignSnapshot: {
-      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
-      code: "TET2024_HN"
-    },
-    branchSnapshot: {
-      name: "Trung tâm từ thiện trung ương",
-      code: "HQ"
-    },
-    createdAt: new Date("2024-01-21"),
-    updatedAt: new Date("2024-01-21")
-  },
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
-    contributorId: db.contributors.findOne({name: "Nguyễn Văn A"})._id,
-    type: "VOLUNTEER_WORK",
-    volunteerWorkDetail: {
-      skill: "Tổ chức sự kiện",
-      hours: 8,
-      workDate: new Date("2024-01-15"),
-      description: "Hỗ trợ tổ chức ngày phát quà"
-    },
-    status: "CONFIRMED",
-    contributorSnapshot: {
-      name: "Nguyễn Văn A",
-      email: "nguyenvana@email.com",
-      type: "INDIVIDUAL"
-    },
-    campaignSnapshot: {
-      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
-      code: "TET2024_HN"
-    },
-    branchSnapshot: {
-      name: "Trung tâm từ thiện trung ương",
-      code: "HQ"
-    },
-    createdAt: new Date("2024-01-15"),
-    updatedAt: new Date("2024-01-20")
-  }
-]);
+// Seed contributions for mongosh copy-paste.
+// Uses many branchId values to spread hashed shard chunks.
 
-print("✅ Contributions inserted successfully!");
+db = db.getSiblingDB("charity_distributed");
+db.contributions.drop();
+
+try {
+  if (typeof sh !== "undefined") {
+    sh.enableSharding("charity_distributed");
+    try {
+      sh.shardCollection("charity_distributed.contributions", { branchId: "hashed" }, false, { numInitialChunks: 50 });
+    } catch (errWithOptions) {
+      sh.shardCollection("charity_distributed.contributions", { branchId: "hashed" });
+    }
+  }
+} catch (err) {
+  print(`Shard setup for contributions skipped: ${err.message}`);
+}
+
+const branches04 = db.branches.find({ status: "ACTIVE" }).sort({ code: 1 }).toArray();
+const campaigns04 = db.campaigns.find({}).sort({ code: 1 }).toArray();
+const contributors04 = db.contributors.find({}).sort({ email: 1 }).toArray();
+if (branches04.length === 0 || campaigns04.length === 0 || contributors04.length === 0) {
+  throw new Error("Run 01, 02 and 03 seed files first.");
+}
+
+const contributionTypes04 = ["MONEY", "ITEM", "MEDICINE", "CLOTHES", "BOOK", "SERVICE", "VOLUNTEER_WORK"];
+const contributionStatuses04 = ["PENDING", "CONFIRMED", "RECEIVED", "RECEIVED", "REJECTED"];
+const itemNames04 = ["Gao", "Sua", "Thuoc cam", "Ao khoac", "Sach giao khoa", "Nuoc sach", "Chan am"];
+
+const contributions04 = Array.from({ length: 220 }, (_, i) => {
+  const n = i + 1;
+  const branch = branches04[(i * 11) % branches04.length];
+  const campaignPool = campaigns04.filter(c => String(c.branchId) === String(branch._id));
+  const campaign = campaignPool.length ? campaignPool[i % campaignPool.length] : campaigns04[i % campaigns04.length];
+  const contributor = contributors04[(i * 13) % contributors04.length];
+  const type = contributionTypes04[i % contributionTypes04.length];
+  const status = contributionStatuses04[i % contributionStatuses04.length];
+  const createdAt = new Date(2024, i % 12, (i % 28) + 1);
+  const doc = {
+    _id: ObjectId(),
+    branchId: branch._id,
+    campaignId: campaign._id,
+    contributorId: contributor._id,
+    type,
+    status,
+    receivedAt: ["CONFIRMED", "RECEIVED"].includes(status) ? createdAt : undefined,
+    createdBy: ObjectId(),
+    contributorSnapshot: {
+      fullName: contributor.fullName || contributor.name,
+      organizationName: contributor.organizationName,
+      phone: contributor.phone,
+      email: contributor.email,
+      type: contributor.type
+    },
+    campaignSnapshot: {
+      code: campaign.code,
+      title: campaign.title || campaign.name
+    },
+    branchSnapshot: {
+      code: branch.code,
+      name: branch.name
+    },
+    proofs: [{
+      type: "RECEIPT",
+      url: `https://example.com/proofs/contribution-${String(n).padStart(4, "0")}.pdf`,
+      description: `Seed proof for contribution ${n}`,
+      uploadedAt: createdAt
+    }],
+    createdAt,
+    updatedAt: createdAt
+  };
+
+  if (type === "MONEY") {
+    doc.moneyDetail = {
+      amount: 100000 + (n * 50000),
+      currency: "VND",
+      paymentMethod: n % 2 === 0 ? "BANK_TRANSFER" : "CASH",
+      paymentStatus: status === "REJECTED" ? "FAILED" : "SUCCESS",
+      transactionCode: `TXN-SEED-${String(n).padStart(5, "0")}`,
+      paidAt: createdAt
+    };
+  } else if (type === "SERVICE") {
+    doc.serviceDetail = {
+      serviceName: `Dich vu ho tro ${n}`,
+      provider: contributor.organizationName || contributor.fullName || contributor.name,
+      estimatedHours: 2 + (i % 24),
+      estimatedValue: 300000 + (i * 50000),
+      note: "Seed service contribution"
+    };
+  } else if (type === "VOLUNTEER_WORK") {
+    doc.volunteerWorkDetail = {
+      skill: ["Van chuyen", "Y te", "Day hoc", "To chuc su kien"][i % 4],
+      hours: 2 + (i % 10),
+      workDate: createdAt,
+      description: "Seed volunteer work"
+    };
+  } else {
+    doc.itemDetails = [{
+      name: itemNames04[i % itemNames04.length],
+      category: type,
+      quantity: 1 + (i % 30),
+      unit: i % 2 === 0 ? "phan" : "thung",
+      condition: "NEW",
+      estimatedValue: 50000 + (i * 10000),
+      note: "Seed item contribution"
+    }];
+  }
+
+  return doc;
+});
+
+db.contributions.insertMany(contributions04, { ordered: false });
+print(`OK contributions inserted: ${db.contributions.countDocuments()}`);

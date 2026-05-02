@@ -6,12 +6,12 @@
 
 | Máy | Vai trò | Dịch vụ | Port | Người được gán |
 |---|---|---|---|---|
-| **May 1** | Controller | FE + BE + mongos | 5174, 8080, 27017 | Người 1 |
-| **May 2** | Shard 1 RS | 3 node MongoDB | 27110-27112 | Người 2 |
-| **May 3** | Shard 2 RS | 3 node MongoDB | 27120-27122 | Người 3 |
-| **May 4** | Shard 3 RS | 3 node MongoDB | 27130-27132 | Người 4 |
-| **May 5** | Shard 4 RS | 3 node MongoDB | 27140-27142 | Người 5 |
-| **May 6** | Shard 5 RS | 3 node MongoDB | 27150-27152 | Người 6 |
+| **May 1 - Trung** | Controller | FE + BE + mongos | 5174, 8080, 27017 | Trung |
+| **May 2 - Hieu** | Shard 1 RS | 3 node MongoDB | 27110-27112 | Hieu |
+| **May 3 - Hau** | Shard 2 RS | 3 node MongoDB | 27120-27122 | Hau |
+| **May 4 - Toan** | Shard 3 RS | 3 node MongoDB | 27130-27132 | Toan |
+| **May 5 - Dung** | Shard 4 RS | 3 node MongoDB | 27140-27142 | Dung |
+| **May 6 - Lam** | Shard 5 RS | 3 node MongoDB | 27150-27152 | Lam |
 
 ## 🚀 Bước 1: Chuẩn bị chung - TẤT CẢ 6 máy
 
@@ -38,7 +38,7 @@ choco install mongodb-community
 
 **May 1** (Controller):
 ```powershell
-New-Item -ItemType Directory -Force "C:\mongodb\mongos\log" | Out-Null
+New-Item -ItemType Directory -Force "E:\MongoDemo\mongos\log" | Out-Null
 ```
 
 **May 2-6** (Shard nodes):
@@ -71,11 +71,11 @@ New-NetFirewallRule -DisplayName "Frontend-5174" -Direction Inbound -Protocol TC
 
 ### 1.5 Kiểm tra kết nối từ May 1
 ```powershell
-Test-NetConnection M2_IP -Port 27110
-Test-NetConnection M3_IP -Port 27120
-Test-NetConnection M4_IP -Port 27130
-Test-NetConnection M5_IP -Port 27140
-Test-NetConnection M6_IP -Port 27150
+Test-NetConnection 100.106.101.66 -Port 27110
+Test-NetConnection 100.70.25.109 -Port 27120
+Test-NetConnection 100.86.128.18 -Port 27130
+Test-NetConnection 100.125.201.49 -Port 27140
+Test-NetConnection 100.79.175.92 -Port 27150
 ```
 
 ---
@@ -125,15 +125,15 @@ $mongoPath = "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe"
 
 **Terminal 4 - Khởi tạo Replica Set**:
 ```powershell
-mongosh --host M2_IP:27110
+mongosh --host 100.106.101.66:27110
 
 # Trong mongosh:
 rs.initiate({
   _id: "shard1RS",
   members: [
-    { _id: 0, host: "M2_IP:27110", priority: 1 },
-    { _id: 1, host: "M2_IP:27111" },
-    { _id: 2, host: "M2_IP:27112" }
+    { _id: 0, host: "100.106.101.66:27110", priority: 1 },
+    { _id: 1, host: "100.106.101.66:27111" },
+    { _id: 2, host: "100.106.101.66:27112" }
   ]
 })
 
@@ -156,26 +156,78 @@ rs.status()
 
 ## ⚡ Bước 3: Khởi động May 1 (Controller)
 
-### 3.1 Khởi động mongos (Terminal 1)
+### 3.0 Khởi động Config Server replica set (bắt buộc trước mongos)
+
+Tạo file `E:\MongoDemo\configsvr\configsvr.yml`:
+```yaml
+systemLog:
+  destination: file
+  path: E:\MongoDemo\configsvr\log\mongod.log
+  logAppend: true
+storage:
+  dbPath: E:\MongoDemo\configsvr\data
+net:
+  bindIp: 0.0.0.0
+  port: 27019
+replication:
+  replSetName: cfgRS
+sharding:
+  clusterRole: configsvr
+```
+
+Khởi động config server:
 ```powershell
-$mongoPath = "C:\Program Files\MongoDB\Server\7.0\bin\mongos.exe"
-& $mongoPath `
-  --bind_ip 0.0.0.0 `
-  --port 27017 `
-  --logpath C:\mongodb\mongos\log\mongos.log `
-  --logappend
+New-Item -ItemType Directory -Force "E:\MongoDemo\configsvr\data" | Out-Null
+New-Item -ItemType Directory -Force "E:\MongoDemo\configsvr\log" | Out-Null
+mongod --config "E:\MongoDemo\configsvr\configsvr.yml"
+```
+
+Mở Terminal khác để khởi tạo `cfgRS`:
+```powershell
+mongosh --host 100.105.34.84:27019
+```
+
+```javascript
+rs.initiate({
+  _id: "cfgRS",
+  configsvr: true,
+  members: [
+    { _id: 0, host: "100.105.34.84:27019" }
+  ]
+})
+rs.status()
+```
+
+### 3.1 Khởi động mongos (Terminal 1)
+
+Tạo file `E:\MongoDemo\mongos\mongos.yml`:
+```yaml
+systemLog:
+  destination: file
+  path: E:\MongoDemo\mongos\log\mongos.log
+  logAppend: true
+net:
+  bindIp: 0.0.0.0
+  port: 27017
+sharding:
+  configDB: cfgRS/100.105.34.84:27019
+```
+
+```powershell
+New-Item -ItemType Directory -Force "E:\MongoDemo\mongos\log" | Out-Null
+mongos --config "E:\MongoDemo\mongos\mongos.yml"
 ```
 
 ### 3.2 Đăng ký Shard (Terminal 2)
 ```powershell
-mongosh --host localhost:27017
+mongosh --host 100.105.34.84:27017
 
 # Trong mongosh:
-sh.addShard("shard1RS/M2_IP:27110,M2_IP:27111,M2_IP:27112")
-sh.addShard("shard2RS/M3_IP:27120,M3_IP:27121,M3_IP:27122")
-sh.addShard("shard3RS/M4_IP:27130,M4_IP:27131,M4_IP:27132")
-sh.addShard("shard4RS/M5_IP:27140,M5_IP:27141,M5_IP:27142")
-sh.addShard("shard5RS/M6_IP:27150,M6_IP:27151,M6_IP:27152")
+sh.addShard("shard1RS/100.106.101.66:27110,100.106.101.66:27111,100.106.101.66:27112")
+sh.addShard("shard2RS/100.70.25.109:27120,100.70.25.109:27121,100.70.25.109:27122")
+sh.addShard("shard3RS/100.86.128.18:27130,100.86.128.18:27131,100.86.128.18:27132")
+sh.addShard("shard4RS/100.125.201.49:27140,100.125.201.49:27141,100.125.201.49:27142")
+sh.addShard("shard5RS/100.79.175.92:27150,100.79.175.92:27151,100.79.175.92:27152")
 
 # Kiểm tra
 sh.status()
@@ -185,7 +237,7 @@ sh.status()
 ```javascript
 sh.enableSharding("charity_distributed")
 sh.shardCollection("charity_distributed.contributions", { branchId: "hashed" })
-sh.shardCollection("charity_distributed.aidistributions", { branchId: "hashed" })
+sh.shardCollection("charity_distributed.aid_distributions", { branchId: "hashed" })
 sh.shardCollection("charity_distributed.activity_logs", { branchId: "hashed" })
 ```
 
@@ -193,14 +245,14 @@ sh.shardCollection("charity_distributed.activity_logs", { branchId: "hashed" })
 ```powershell
 cd ".\apps\backend"
 npm install
-npm run dev  # Backend: http://localhost:8080
+npm run dev  # Backend: http://100.105.34.84:8080
 ```
 
 ### 3.5 Khởi động Frontend (Terminal 4)
 ```powershell
 cd ".\apps\frontend"
 npm install
-npm run dev  # Frontend: http://localhost:5174
+npm run dev  # Frontend: http://100.105.34.84:5174
 ```
 
 ---

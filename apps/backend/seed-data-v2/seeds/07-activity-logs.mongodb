@@ -1,61 +1,83 @@
-// ============= ACTIVITY_LOGS (15 logs) =============
-db.activity_logs.insertMany([
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    userId: ObjectId(),
-    action: "CAMPAIGN_CREATED",
-    targetType: "CAMPAIGN",
-    targetId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
-    description: "Created campaign: Chiến dịch từ thiện Tết 2024 - Hà Nội",
-    changes: {
-      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
-      status: "ACTIVE"
-    },
-    createdAt: new Date("2024-01-01")
-  },
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    userId: ObjectId(),
-    action: "CONTRIBUTION_RECEIVED",
-    targetType: "CONTRIBUTION",
-    targetId: db.contributions.findOne({type: "MONEY"})._id,
-    description: "Received contribution: 5.000.000 VND",
-    changes: {
-      status: "RECEIVED",
-      amount: 5000000
-    },
-    createdAt: new Date("2024-01-15")
-  },
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    userId: ObjectId(),
-    action: "AID_DISTRIBUTION_APPROVED",
-    targetType: "AID_DISTRIBUTION",
-    targetId: db.aid_distributions.findOne({status: "COMPLETED"})._id,
-    description: "Approved aid distribution for beneficiary",
-    changes: {
-      status: "APPROVED",
-      amount: 3000000
-    },
-    createdAt: new Date("2024-01-24")
-  },
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    userId: ObjectId(),
-    action: "AID_DISTRIBUTION_DELIVERED",
-    targetType: "AID_DISTRIBUTION",
-    targetId: db.aid_distributions.findOne({status: "COMPLETED"})._id,
-    description: "Delivered aid to beneficiary",
-    changes: {
-      status: "DELIVERED",
-      deliveredAt: new Date("2024-01-25")
-    },
-    createdAt: new Date("2024-01-25")
-  }
-]);
+// Seed activity_logs for mongosh copy-paste.
+// Uses many branchId values to spread hashed shard chunks.
 
-print("✅ Activity_logs inserted successfully!");
+db = db.getSiblingDB("charity_distributed");
+db.activity_logs.drop();
+
+try {
+  if (typeof sh !== "undefined") {
+    sh.enableSharding("charity_distributed");
+    try {
+      sh.shardCollection("charity_distributed.activity_logs", { branchId: "hashed" }, false, { numInitialChunks: 50 });
+    } catch (errWithOptions) {
+      sh.shardCollection("charity_distributed.activity_logs", { branchId: "hashed" });
+    }
+  }
+} catch (err) {
+  print(`Shard setup for activity_logs skipped: ${err.message}`);
+}
+
+const branches07 = db.branches.find({ status: "ACTIVE" }).sort({ code: 1 }).toArray();
+const campaigns07 = db.campaigns.find({}).sort({ code: 1 }).toArray();
+const contributions07 = db.contributions.find({}).sort({ createdAt: 1 }).toArray();
+const aids07 = db.aid_distributions.find({}).sort({ createdAt: 1 }).toArray();
+if (branches07.length === 0) {
+  throw new Error("Run previous seed files first.");
+}
+
+const actions07 = [
+  "CAMPAIGN_CREATED",
+  "CONTRIBUTION_RECEIVED",
+  "CONTRIBUTION_CONFIRMED",
+  "AID_DISTRIBUTION_APPROVED",
+  "AID_DISTRIBUTION_DELIVERED",
+  "BENEFICIARY_VERIFIED",
+  "REPORT_VIEWED"
+];
+
+const logs07 = Array.from({ length: 260 }, (_, i) => {
+  const n = i + 1;
+  const branch = branches07[(i * 19) % branches07.length];
+  const action = actions07[i % actions07.length];
+  const campaign = campaigns07[i % Math.max(campaigns07.length, 1)];
+  const contribution = contributions07[i % Math.max(contributions07.length, 1)];
+  const aid = aids07[i % Math.max(aids07.length, 1)];
+  let entityType = "Campaign";
+  let entityId = campaign ? String(campaign._id) : String(ObjectId());
+  if (action.startsWith("CONTRIBUTION") && contribution) {
+    entityType = "Contribution";
+    entityId = String(contribution._id);
+  }
+  if (action.startsWith("AID") && aid) {
+    entityType = "AidDistribution";
+    entityId = String(aid._id);
+  }
+  if (action.startsWith("BENEFICIARY")) {
+    entityType = "Beneficiary";
+    entityId = String(ObjectId());
+  }
+  return {
+    _id: ObjectId(),
+    branchId: branch._id,
+    targetBranchId: branch._id,
+    actorId: ObjectId(),
+    actorRole: i % 5 === 0 ? "ADMIN" : "BRANCH_STAFF",
+    actorBranchId: branch._id,
+    userId: ObjectId(),
+    action,
+    entityType,
+    entityId,
+    targetType: entityType,
+    targetId: entityId,
+    description: `Seed activity ${n}: ${action} at ${branch.code}`,
+    before: { status: i % 2 === 0 ? "PENDING" : "DRAFT" },
+    after: { status: i % 3 === 0 ? "COMPLETED" : "ACTIVE" },
+    changes: { seedNo: n, branchCode: branch.code },
+    ipAddress: `100.105.${i % 255}.${(i * 7) % 255}`,
+    userAgent: "mongosh-seed-data-v2",
+    createdAt: new Date(2024, i % 12, (i % 28) + 1)
+  };
+});
+
+db.activity_logs.insertMany(logs07, { ordered: false });
+print(`OK activity_logs inserted: ${db.activity_logs.countDocuments()}`);

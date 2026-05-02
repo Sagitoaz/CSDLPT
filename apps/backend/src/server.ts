@@ -7,7 +7,7 @@ async function bootstrap(): Promise<void> {
   const app = createApp();
 
   app.listen(config.port, () => {
-    console.log(`Backend listening on http://localhost:${config.port}`);
+    console.log(`Backend listening on http://0.0.0.0:${config.port}`);
   });
 }
 

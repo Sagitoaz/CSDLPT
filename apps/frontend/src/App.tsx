@@ -13,7 +13,7 @@ type Donation = {
   createdAt: string;
 };
 
-const API_BASE = "http://localhost:8080/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://100.105.34.84:8080/api";
 
 export function App() {
   const [rows, setRows] = useState<Donation[]>([]);

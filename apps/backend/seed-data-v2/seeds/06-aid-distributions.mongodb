@@ -1,140 +1,108 @@
-// ============= AID_DISTRIBUTIONS (15 phiếu phát hành) =============
-db.aid_distributions.insertMany([
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
-    beneficiaryId: db.beneficiaries.findOne({name: "Gia đình Trần Văn X"})._id,
-    type: "MONEY",
-    moneySupport: {
-      amount: 3000000,
-      currency: "VND",
-      method: "CASH"
-    },
-    status: "COMPLETED",
-    beneficiarySnapshot: {
-      name: "Gia đình Trần Văn X",
-      email: "tranvanx@example.com"
-    },
-    campaignSnapshot: {
-      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
-      code: "TET2024_HN"
-    },
-    branchSnapshot: {
-      name: "Trung tâm từ thiện trung ương",
-      code: "HQ"
-    },
-    proofs: [
-      {
-        type: "RECEIPT",
-        url: "https://example.com/aid001.pdf",
-        description: "Aid delivery receipt",
-        uploadedAt: new Date("2024-01-25")
-      }
-    ],
-    createdAt: new Date("2024-01-24"),
-    approvedAt: new Date("2024-01-24"),
-    deliveredAt: new Date("2024-01-25"),
-    completedAt: new Date("2024-01-25")
-  },
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
-    beneficiaryId: db.beneficiaries.findOne({name: "Bà Nguyễn Thị Y"})._id,
-    type: "ITEM",
-    itemSupports: [
-      {
-        name: "Yến sào",
-        category: "FOOD",
-        quantity: 2,
-        unit: "hộp",
-        estimatedValue: 500000,
-        note: "Yến sào cao cấp"
-      }
-    ],
-    status: "COMPLETED",
-    beneficiarySnapshot: {
-      name: "Bà Nguyễn Thị Y",
-      email: "nguyenthiy@example.com"
-    },
-    campaignSnapshot: {
-      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
-      code: "TET2024_HN"
-    },
-    branchSnapshot: {
-      name: "Trung tâm từ thiện trung ương",
-      code: "HQ"
-    },
-    createdAt: new Date("2024-01-24"),
-    approvedAt: new Date("2024-01-24"),
-    deliveredAt: new Date("2024-01-26"),
-    completedAt: new Date("2024-01-26")
-  },
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
-    beneficiaryId: db.beneficiaries.findOne({name: "Gia đình Lê Văn Z"})._id,
-    type: "MIXED",
-    moneySupport: {
-      amount: 2000000,
-      currency: "VND",
-      method: "BANK_TRANSFER"
-    },
-    itemSupports: [
-      {
-        name: "Quần áo ấm",
-        category: "CLOTHING",
-        quantity: 5,
-        unit: "bộ",
-        estimatedValue: 500000,
-        note: "Quần áo mùa đông"
-      }
-    ],
-    status: "DELIVERED",
-    beneficiarySnapshot: {
-      name: "Gia đình Lê Văn Z",
-      email: "levanz@example.com"
-    },
-    campaignSnapshot: {
-      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
-      code: "TET2024_HN"
-    },
-    branchSnapshot: {
-      name: "Trung tâm từ thiện trung ương",
-      code: "HQ"
-    },
-    createdAt: new Date("2024-01-24"),
-    approvedAt: new Date("2024-01-24"),
-    deliveredAt: new Date("2024-01-27")
-  },
-  {
-    _id: ObjectId(),
-    branchId: db.branches.findOne({code: "HQ"})._id,
-    campaignId: db.campaigns.findOne({name: {$regex: "Tết 2024.*Hà Nội"}})._id,
-    beneficiaryId: db.beneficiaries.findOne({name: "Cơ sở bảo trợ xã hội"})._id,
-    type: "MONEY",
-    moneySupport: {
-      amount: 10000000,
-      currency: "VND",
-      method: "BANK_TRANSFER"
-    },
-    status: "PENDING",
-    beneficiarySnapshot: {
-      name: "Cơ sở bảo trợ xã hội",
-      email: "socialcare@example.com"
-    },
-    campaignSnapshot: {
-      name: "Chiến dịch từ thiện Tết 2024 - Hà Nội",
-      code: "TET2024_HN"
-    },
-    branchSnapshot: {
-      name: "Trung tâm từ thiện trung ương",
-      code: "HQ"
-    },
-    createdAt: new Date("2024-01-28")
-  }
-]);
+// Seed aid_distributions for mongosh copy-paste.
+// Uses many branchId values to spread hashed shard chunks.
 
-print("✅ Aid_distributions inserted successfully!");
+db = db.getSiblingDB("charity_distributed");
+db.aid_distributions.drop();
+
+try {
+  if (typeof sh !== "undefined") {
+    sh.enableSharding("charity_distributed");
+    try {
+      sh.shardCollection("charity_distributed.aid_distributions", { branchId: "hashed" }, false, { numInitialChunks: 50 });
+    } catch (errWithOptions) {
+      sh.shardCollection("charity_distributed.aid_distributions", { branchId: "hashed" });
+    }
+  }
+} catch (err) {
+  print(`Shard setup for aid_distributions skipped: ${err.message}`);
+}
+
+const branches06 = db.branches.find({ status: "ACTIVE" }).sort({ code: 1 }).toArray();
+const campaigns06 = db.campaigns.find({}).sort({ code: 1 }).toArray();
+const beneficiaries06 = db.beneficiaries.find({}).sort({ name: 1 }).toArray();
+if (branches06.length === 0 || campaigns06.length === 0 || beneficiaries06.length === 0) {
+  throw new Error("Run 01, 02 and 05 seed files first.");
+}
+
+const aidTypes06 = ["MONEY", "ITEM", "SERVICE", "MIXED"];
+const aidStatuses06 = ["PENDING", "APPROVED", "DELIVERED", "COMPLETED", "COMPLETED", "REJECTED"];
+const aidItems06 = ["Gao", "Sua", "Thuoc", "Sach vo", "Ao am", "Nuoc sach"];
+
+const aids06 = Array.from({ length: 180 }, (_, i) => {
+  const n = i + 1;
+  const branch = branches06[(i * 17) % branches06.length];
+  const campaignPool = campaigns06.filter(c => String(c.branchId) === String(branch._id));
+  const beneficiaryPool = beneficiaries06.filter(b => String(b.branchId) === String(branch._id));
+  const campaign = campaignPool.length ? campaignPool[i % campaignPool.length] : campaigns06[i % campaigns06.length];
+  const beneficiary = beneficiaryPool.length ? beneficiaryPool[i % beneficiaryPool.length] : beneficiaries06[i % beneficiaries06.length];
+  const type = aidTypes06[i % aidTypes06.length];
+  const status = aidStatuses06[i % aidStatuses06.length];
+  const createdAt = new Date(2024, i % 12, (i % 28) + 1);
+  const doc = {
+    _id: ObjectId(),
+    branchId: branch._id,
+    campaignId: campaign._id,
+    beneficiaryId: beneficiary._id,
+    type,
+    status,
+    approvedBy: ["APPROVED", "DELIVERED", "COMPLETED"].includes(status) ? ObjectId() : undefined,
+    deliveredAt: ["DELIVERED", "COMPLETED"].includes(status) ? createdAt : undefined,
+    completedAt: status === "COMPLETED" ? createdAt : undefined,
+    createdBy: ObjectId(),
+    beneficiarySnapshot: {
+      name: beneficiary.name,
+      type: beneficiary.type || "INDIVIDUAL",
+      phone: beneficiary.phone,
+      addressSummary: `${beneficiary.location?.district || branch.district}, ${beneficiary.location?.province || branch.province}`
+    },
+    campaignSnapshot: {
+      code: campaign.code,
+      title: campaign.title || campaign.name
+    },
+    branchSnapshot: {
+      code: branch.code,
+      name: branch.name
+    },
+    proofs: status === "COMPLETED" ? [{
+      type: "DELIVERY_RECEIPT",
+      url: `https://example.com/proofs/aid-${String(n).padStart(4, "0")}.pdf`,
+      description: `Seed delivery proof ${n}`,
+      uploadedAt: createdAt
+    }] : [],
+    note: `Seed aid distribution ${n}`,
+    createdAt,
+    updatedAt: createdAt
+  };
+
+  if (type === "MONEY" || type === "MIXED") {
+    doc.moneySupport = {
+      amount: 200000 + (n * 40000),
+      currency: "VND",
+      method: n % 2 === 0 ? "BANK_TRANSFER" : "CASH"
+    };
+  }
+  if (type === "ITEM" || type === "MIXED") {
+    doc.itemSupports = [{
+      name: aidItems06[i % aidItems06.length],
+      category: "ESSENTIAL",
+      quantity: 1 + (i % 20),
+      unit: "phan",
+      estimatedValue: 100000 + (i * 15000),
+      note: "Seed item support"
+    }];
+  }
+  if (type === "SERVICE") {
+    doc.serviceSupport = {
+      serviceName: `Tu van va ho tro ${n}`,
+      provider: `Doi dich vu ${branch.code}`,
+      estimatedHours: 1 + (i % 12),
+      estimatedValue: 200000 + (i * 25000),
+      note: "Seed service support"
+    };
+  }
+
+  return doc;
+});
+
+db.aid_distributions.insertMany(aids06, { ordered: false });
+print(`OK aid_distributions inserted: ${db.aid_distributions.countDocuments()}`);
