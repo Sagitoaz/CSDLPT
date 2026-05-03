@@ -2,7 +2,7 @@
 // Aligned with Baocao.tex, mermail.html, 16-thiet-ke-csdl-mongodb.md and 08 guide.
 // Model: May 1 controller in Ha Noi; May 2-6 are 5 shard replica sets.
 // Ha Noi is controller/mongos only, so seed data has 5 branch records.
-// Sharded demo collections: contributions, aid_distributions, activity_logs.
+// Sharded demo collections: contributions, aid_distributions, activity_logs by { branchId: "hashed" }.
 
 db = db.getSiblingDB("charity_distributed");
 print("Seed data v2 starting...");
@@ -66,10 +66,10 @@ var campaignStatuses = ["ACTIVE", "ACTIVE", "COMPLETED", "PAUSED", "DRAFT"];
 var resourceNames = ["Tien mat", "Gao", "Thuoc", "Sach vo", "Quan ao", "Gio cong tinh nguyen"];
 var campaigns = [];
 branches.forEach((branch, branchIndex) => {
-  for (var j = 0; j < 8; j += 1) {
+  for (var j = 0; j < 2; j += 1) {
     var startDate = new Date(2024, j % 12, (j * 2) + 1);
     var endDate = new Date(2024, (j % 12) + 1, (j * 2) + 8);
-    var targetAmount = 50000000 + (((branchIndex * 8) + j + 1) * 3000000);
+    var targetAmount = 50000000 + (((branchIndex * 2) + j + 1) * 3000000);
     var currentAmount = Math.floor(targetAmount * (0.35 + ((j % 5) * 0.09)));
     var disbursedAmount = Math.floor(currentAmount * (0.25 + ((j % 4) * 0.1)));
     campaigns.push({
@@ -108,8 +108,8 @@ db.campaigns.insertMany(campaigns, { ordered: false });
 var contributorTypes = ["INDIVIDUAL", "ORGANIZATION", "SERVICE_PROVIDER"];
 var contributors = [];
 branches.forEach((branch, branchIndex) => {
-  for (var j = 0; j < 10; j += 1) {
-    var n = (branchIndex * 10) + j + 1;
+  for (var j = 0; j < 3; j += 1) {
+    var n = (branchIndex * 3) + j + 1;
     var type = contributorTypes[j % contributorTypes.length];
     var fullName = type === "INDIVIDUAL" ? `Nguoi dong gop ${String(n).padStart(3, "0")} ${branch.province}` : `To chuc ho tro ${String(n).padStart(3, "0")} ${branch.province}`;
     contributors.push({
@@ -153,8 +153,8 @@ var skills = ["logistics", "medical-support", "education", "warehouse", "transpo
 var volunteers = [];
 branches.forEach((branch, branchIndex) => {
   var campaignPool = campaigns.filter((campaign) => String(campaign.branchId) === String(branch._id));
-  for (var j = 0; j < 8; j += 1) {
-    var n = (branchIndex * 8) + j + 1;
+  for (var j = 0; j < 3; j += 1) {
+    var n = (branchIndex * 3) + j + 1;
     volunteers.push({ _id: ObjectId(), branchId: branch._id, fullName: `Tinh nguyen vien ${String(n).padStart(3, "0")} - ${branch.province}`, phone: `089${String(2000000 + n).slice(-7)}`, email: `volunteer${String(n).padStart(3, "0")}@example.com`, skills: [skills[j % skills.length], skills[(j + 2) % skills.length]], joinedCampaignIds: campaignPool.slice(0, 2).map((campaign) => campaign._id), status: j === 7 ? "INACTIVE" : "ACTIVE", createdAt: new Date(2024, branchIndex, j + 1), updatedAt: new Date(2024, branchIndex, j + 1) });
   }
 });
@@ -168,8 +168,8 @@ var contributions = [];
 shardBranches.forEach((branch, branchIndex) => {
   var campaignPool = campaigns.filter((c) => String(c.branchId) === String(branch._id));
   var contributorPool = contributors.filter((c) => String(c.branchId) === String(branch._id));
-  for (var j = 0; j < 60; j += 1) {
-    var n = (branchIndex * 60) + j + 1;
+  for (var j = 0; j < 10; j += 1) {
+    var n = (branchIndex * 10) + j + 1;
     var campaign = campaignPool[j % campaignPool.length];
     var contributor = contributorPool[j % contributorPool.length];
     var type = contributionTypes[j % contributionTypes.length];
@@ -211,8 +211,8 @@ var reasons = ["POVERTY", "DISABILITY", "ELDERLY_ALONE", "SOCIAL_WELFARE", "DISA
 var beneficiaries = [];
 shardBranches.forEach((branch, branchIndex) => {
   var campaignPool = campaigns.filter((c) => String(c.branchId) === String(branch._id));
-  for (var j = 0; j < 24; j += 1) {
-    var n = (branchIndex * 24) + j + 1;
+  for (var j = 0; j < 4; j += 1) {
+    var n = (branchIndex * 4) + j + 1;
     var campaign = campaignPool[j % campaignPool.length];
     var type = beneficiaryTypes[j % beneficiaryTypes.length];
     var verificationStatus = verificationStatuses[j % verificationStatuses.length];
@@ -253,8 +253,8 @@ var aids = [];
 shardBranches.forEach((branch, branchIndex) => {
   var campaignPool = campaigns.filter((c) => String(c.branchId) === String(branch._id));
   var beneficiaryPool = beneficiaries.filter((b) => String(b.branchId) === String(branch._id));
-  for (var j = 0; j < 42; j += 1) {
-    var n = (branchIndex * 42) + j + 1;
+  for (var j = 0; j < 5; j += 1) {
+    var n = (branchIndex * 5) + j + 1;
     var campaign = campaignPool[j % campaignPool.length];
     var beneficiary = beneficiaryPool[j % beneficiaryPool.length];
     var type = aidTypes[j % aidTypes.length];
@@ -299,8 +299,8 @@ shardBranches.forEach((branch, branchIndex) => {
   var campaignPool = campaigns.filter((c) => String(c.branchId) === String(branch._id));
   var contributionPool = contributions.filter((c) => String(c.branchId) === String(branch._id));
   var aidPool = aids.filter((a) => String(a.branchId) === String(branch._id));
-  for (var j = 0; j < 70; j += 1) {
-    var n = (branchIndex * 70) + j + 1;
+  for (var j = 0; j < 10; j += 1) {
+    var n = (branchIndex * 10) + j + 1;
     var action = actions[j % actions.length];
     var campaign = campaignPool[j % campaignPool.length];
     var contribution = contributionPool[j % contributionPool.length];
@@ -395,8 +395,16 @@ print(`volunteers: ${db.volunteers.countDocuments()}`);
 print(`activity_logs: ${db.activity_logs.countDocuments()}`);
 print(`stats_snapshots: ${db.stats_snapshots.countDocuments()}`);
 print("");
-print("Expected branch placement after moveChunk:");
-print("HP-S1 -> shard1RS, TH-S2 -> shard2RS, DN-S3 -> shard3RS, HCM-S4 -> shard4RS, BT-S5 -> shard5RS");
+print("Expected compact demo counts:");
+print("branches=5, users=11, campaigns=10, contributors=15, contributions=50, beneficiaries=20, aid_distributions=25, volunteers=15, activity_logs=50, stats_snapshots=5");
+print("");
+print("Branch-level counts for sharded collections:");
+db.contributions.aggregate([{ $group: { _id: "$branchSnapshot.code", count: { $sum: 1 } } }, { $sort: { _id: 1 } }]).forEach((row) => print(`contributions ${row._id}: ${row.count}`));
+db.aid_distributions.aggregate([{ $group: { _id: "$branchSnapshot.code", count: { $sum: 1 } } }, { $sort: { _id: 1 } }]).forEach((row) => print(`aid_distributions ${row._id}: ${row.count}`));
+db.activity_logs.aggregate([{ $group: { _id: "$changes.branchCode", count: { $sum: 1 } } }, { $sort: { _id: 1 } }]).forEach((row) => print(`activity_logs ${row._id}: ${row.count}`));
+print("");
+print("Shard key for hot collections: { branchId: \"hashed\" }");
+print("Physical shard counts may differ with compact demo data. Use branch-level counts above as the logical correctness check.");
 print("");
 print("Check distribution:");
 print("db.contributions.getShardDistribution()");

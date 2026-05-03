@@ -13,8 +13,8 @@ var skills09 = ["logistics", "medical-support", "education", "warehouse", "trans
 var volunteers09 = [];
 branches09.forEach((branch, branchIndex) => {
   var campaignPool = campaigns09.filter((campaign) => String(campaign.branchId) === String(branch._id));
-  for (var j = 0; j < 8; j += 1) {
-    var n = (branchIndex * 8) + j + 1;
+  for (var j = 0; j < 3; j += 1) {
+    var n = (branchIndex * 3) + j + 1;
     volunteers09.push({
       _id: ObjectId(),
       branchId: branch._id,

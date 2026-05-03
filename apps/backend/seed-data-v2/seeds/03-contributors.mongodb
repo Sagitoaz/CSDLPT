@@ -11,8 +11,8 @@ if (branches03.length === 0) {
 var contributorTypes03 = ["INDIVIDUAL", "ORGANIZATION", "SERVICE_PROVIDER"];
 var contributors03 = [];
 branches03.forEach((branch, branchIndex) => {
-  for (var j = 0; j < 10; j += 1) {
-    var n = (branchIndex * 10) + j + 1;
+  for (var j = 0; j < 3; j += 1) {
+    var n = (branchIndex * 3) + j + 1;
     var type = contributorTypes03[j % contributorTypes03.length];
     var fullName = type === "INDIVIDUAL"
       ? `Nguoi dong gop ${String(n).padStart(3, "0")} ${branch.province}`

@@ -1,4 +1,4 @@
-// Seed activity_logs. This is a hot collection sharded by { branchId: "hashed" }.
+// Seed activity_logs. This hot collection is sharded by { branchId: "hashed" }.
 // Copy-paste directly into mongosh connected through mongos.
 
 db = db.getSiblingDB("charity_distributed");
@@ -32,8 +32,6 @@ function moveBranchChunks07(collectionName, branches, shardNames) {
   });
 }
 
-setupHashedShard07("activity_logs");
-
 var branches07 = db.branches.find({ status: "ACTIVE" }).sort({ _id: 1 }).toArray();
 var campaigns07 = db.campaigns.find({}).sort({ branchId: 1, code: 1 }).toArray();
 var contributions07 = db.contributions.find({}).sort({ createdAt: 1 }).toArray();
@@ -54,13 +52,15 @@ var actions07 = [
 var shardBranches07 = branches07;
 var logs07 = [];
 
+setupHashedShard07("activity_logs");
+
 shardBranches07.forEach((branch, branchIndex) => {
   var campaignPool = campaigns07.filter((c) => String(c.branchId) === String(branch._id));
   var contributionPool = contributions07.filter((c) => String(c.branchId) === String(branch._id));
   var aidPool = aids07.filter((a) => String(a.branchId) === String(branch._id));
 
-  for (var j = 0; j < 70; j += 1) {
-    var n = (branchIndex * 70) + j + 1;
+  for (var j = 0; j < 10; j += 1) {
+    var n = (branchIndex * 10) + j + 1;
     var action = actions07[j % actions07.length];
     var campaign = campaignPool[j % campaignPool.length];
     var contribution = contributionPool.length ? contributionPool[j % contributionPool.length] : null;
@@ -107,5 +107,7 @@ shardBranches07.forEach((branch, branchIndex) => {
 db.activity_logs.insertMany(logs07, { ordered: false });
 moveBranchChunks07("activity_logs", shardBranches07, ["shard1RS", "shard2RS", "shard3RS", "shard4RS", "shard5RS"]);
 print(`OK activity_logs inserted: ${db.activity_logs.countDocuments()}`);
-print("Expected branch placement: HP-S1->shard1RS, TH-S2->shard2RS, DN-S3->shard3RS, HCM-S4->shard4RS, BT-S5->shard5RS");
+print("Expected total: 50 = 10 records x 5 branches");
+db.activity_logs.aggregate([{ $group: { _id: "$changes.branchCode", count: { $sum: 1 } } }, { $sort: { _id: 1 } }]).forEach(printjson);
+print("Shard key: { branchId: \"hashed\" }. Physical shard counts can differ with small demo data; verify logical branch counts above through mongos.");
 print("Run: db.activity_logs.getShardDistribution()");

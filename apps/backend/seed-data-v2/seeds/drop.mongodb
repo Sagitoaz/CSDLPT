@@ -1,0 +1,12 @@
+db = db.getSiblingDB("charity_distributed");
+
+db.branches.drop();
+db.campaigns.drop();
+db.contributors.drop();
+db.contributions.drop();
+db.beneficiaries.drop();
+db.aid_distributions.drop();
+db.activity_logs.drop();
+db.users.drop();
+db.volunteers.drop();
+db.stats_snapshots.drop();

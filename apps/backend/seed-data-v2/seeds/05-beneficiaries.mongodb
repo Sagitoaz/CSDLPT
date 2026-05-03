@@ -17,8 +17,8 @@ var beneficiaries05 = [];
 branches05.forEach((branch, branchIndex) => {
   var campaignPool = campaigns05.filter((c) => String(c.branchId) === String(branch._id));
 
-  for (var j = 0; j < 24; j += 1) {
-    var n = (branchIndex * 24) + j + 1;
+  for (var j = 0; j < 4; j += 1) {
+    var n = (branchIndex * 4) + j + 1;
     var campaign = campaignPool[j % campaignPool.length];
     var type = beneficiaryTypes05[j % beneficiaryTypes05.length];
     var verificationStatus = verificationStatuses05[j % verificationStatuses05.length];

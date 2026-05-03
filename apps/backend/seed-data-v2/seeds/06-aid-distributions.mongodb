@@ -1,4 +1,4 @@
-// Seed aid_distributions. This is a hot collection sharded by { branchId: "hashed" }.
+// Seed aid_distributions. This hot collection is sharded by { branchId: "hashed" }.
 // Copy-paste directly into mongosh connected through mongos.
 
 db = db.getSiblingDB("charity_distributed");
@@ -32,8 +32,6 @@ function moveBranchChunks06(collectionName, branches, shardNames) {
   });
 }
 
-setupHashedShard06("aid_distributions");
-
 var branches06 = db.branches.find({ status: "ACTIVE" }).sort({ _id: 1 }).toArray();
 var campaigns06 = db.campaigns.find({}).sort({ branchId: 1, code: 1 }).toArray();
 var beneficiaries06 = db.beneficiaries.find({}).sort({ name: 1 }).toArray();
@@ -47,12 +45,14 @@ var aidItems06 = ["Gao", "Sua", "Thuoc", "Sach vo", "Ao am", "Nuoc sach"];
 var shardBranches06 = branches06;
 var aids06 = [];
 
+setupHashedShard06("aid_distributions");
+
 shardBranches06.forEach((branch, branchIndex) => {
   var campaignPool = campaigns06.filter((c) => String(c.branchId) === String(branch._id));
   var beneficiaryPool = beneficiaries06.filter((b) => String(b.branchId) === String(branch._id));
 
-  for (var j = 0; j < 42; j += 1) {
-    var n = (branchIndex * 42) + j + 1;
+  for (var j = 0; j < 5; j += 1) {
+    var n = (branchIndex * 5) + j + 1;
     var campaign = campaignPool[j % campaignPool.length];
     var beneficiary = beneficiaryPool[j % beneficiaryPool.length];
     var type = aidTypes06[j % aidTypes06.length];
@@ -128,5 +128,7 @@ shardBranches06.forEach((branch, branchIndex) => {
 db.aid_distributions.insertMany(aids06, { ordered: false });
 moveBranchChunks06("aid_distributions", shardBranches06, ["shard1RS", "shard2RS", "shard3RS", "shard4RS", "shard5RS"]);
 print(`OK aid_distributions inserted: ${db.aid_distributions.countDocuments()}`);
-print("Expected branch placement: HP-S1->shard1RS, TH-S2->shard2RS, DN-S3->shard3RS, HCM-S4->shard4RS, BT-S5->shard5RS");
+print("Expected total: 25 = 5 records x 5 branches");
+db.aid_distributions.aggregate([{ $group: { _id: "$branchSnapshot.code", count: { $sum: 1 } } }, { $sort: { _id: 1 } }]).forEach(printjson);
+print("Shard key: { branchId: \"hashed\" }. Physical shard counts can differ with small demo data; verify logical branch counts above through mongos.");
 print("Run: db.aid_distributions.getShardDistribution()");

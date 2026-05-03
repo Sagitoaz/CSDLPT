@@ -15,8 +15,8 @@ var resourceNames02 = ["Tien mat", "Gao", "Thuoc", "Sach vo", "Quan ao", "Gio co
 
 var campaigns02 = [];
 branches02.forEach((branch, branchIndex) => {
-  for (var j = 0; j < 8; j += 1) {
-    var n = (branchIndex * 8) + j + 1;
+  for (var j = 0; j < 2; j += 1) {
+    var n = (branchIndex * 2) + j + 1;
     var startDate = new Date(2024, j % 12, (j * 2) + 1);
     var endDate = new Date(2024, (j % 12) + 1, (j * 2) + 8);
     var targetAmount = 50000000 + (n * 3000000);
