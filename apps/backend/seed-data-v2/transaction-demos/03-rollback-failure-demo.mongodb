@@ -1,0 +1,62 @@
+// Demo 03: forced failure rollback.
+// The campaign increment and temporary log must disappear after abortTransaction().
+
+db = db.getSiblingDB("charity_distributed");
+
+var demo03RunId = `TX-DEMO-ROLLBACK-${Date.now()}`;
+var demo03Amount = 9999999;
+var demo03Campaign = db.campaigns.findOne({ branchId: { $ne: ObjectId("660000000000000000000001") } });
+if (!demo03Campaign) {
+  throw new Error("No local campaign found. Run seeds/index.mongodb first.");
+}
+
+var demo03Before = db.campaigns.findOne({ _id: demo03Campaign._id });
+var demo03Session = db.getMongo().startSession();
+var demo03TxDb = demo03Session.getDatabase("charity_distributed");
+
+try {
+  demo03Session.startTransaction({ readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });
+
+  demo03TxDb.campaigns.updateOne(
+    { _id: demo03Campaign._id },
+    { $inc: { currentAmount: demo03Amount, "summaryStats.totalMoneyReceived": demo03Amount }, $set: { updatedAt: new Date() } }
+  );
+
+  demo03TxDb.activity_logs.insertOne({
+    _id: ObjectId(),
+    branchId: demo03Campaign.branchId,
+    targetBranchId: demo03Campaign.branchId,
+    actorId: ObjectId(),
+    actorRole: "ADMIN",
+    actorBranchId: demo03Campaign.branchId,
+    action: "TX_DEMO_SHOULD_ROLLBACK",
+    entityType: "Campaign",
+    entityId: String(demo03Campaign._id),
+    description: "This log must be rolled back",
+    demoBatch: demo03RunId,
+    createdAt: new Date()
+  });
+
+  throw new Error("Forced demo error after writes. Transaction must rollback.");
+} catch (err) {
+  demo03Session.abortTransaction();
+  print(`EXPECTED ROLLBACK: ${err.message}`);
+} finally {
+  demo03Session.endSession();
+}
+
+var demo03After = db.campaigns.findOne({ _id: demo03Campaign._id });
+var demo03AfterLogCount = db.activity_logs.countDocuments({ demoBatch: demo03RunId });
+
+printjson({
+  demoBatch: demo03RunId,
+  beforeCurrentAmount: demo03Before.currentAmount,
+  afterCurrentAmount: demo03After.currentAmount,
+  beforeSummaryMoneyReceived: demo03Before.summaryStats?.totalMoneyReceived,
+  afterSummaryMoneyReceived: demo03After.summaryStats?.totalMoneyReceived,
+  rollbackLogCount: demo03AfterLogCount,
+  rollbackOk:
+    demo03Before.currentAmount === demo03After.currentAmount &&
+    demo03Before.summaryStats?.totalMoneyReceived === demo03After.summaryStats?.totalMoneyReceived &&
+    demo03AfterLogCount === 0
+});

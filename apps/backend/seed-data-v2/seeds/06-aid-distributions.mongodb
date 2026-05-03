@@ -1,108 +1,130 @@
-// Seed aid_distributions for mongosh copy-paste.
-// Uses many branchId values to spread hashed shard chunks.
+// Seed aid_distributions. This is a hot collection sharded by { branchId: "hashed" }.
+// Copy-paste directly into mongosh connected through mongos.
 
 db = db.getSiblingDB("charity_distributed");
 db.aid_distributions.drop();
 
-try {
-  if (typeof sh !== "undefined") {
-    sh.enableSharding("charity_distributed");
-    try {
-      sh.shardCollection("charity_distributed.aid_distributions", { branchId: "hashed" }, false, { numInitialChunks: 50 });
-    } catch (errWithOptions) {
-      sh.shardCollection("charity_distributed.aid_distributions", { branchId: "hashed" });
+function setupHashedShard06(collectionName) {
+  try {
+    if (typeof sh !== "undefined") {
+      sh.enableSharding("charity_distributed");
+      try {
+        sh.shardCollection(`charity_distributed.${collectionName}`, { branchId: "hashed" }, false, { numInitialChunks: 50 });
+      } catch (errWithOptions) {
+        sh.shardCollection(`charity_distributed.${collectionName}`, { branchId: "hashed" });
+      }
     }
+  } catch (err) {
+    print(`Shard setup for ${collectionName} skipped: ${err.message}`);
   }
-} catch (err) {
-  print(`Shard setup for aid_distributions skipped: ${err.message}`);
 }
 
-const branches06 = db.branches.find({ status: "ACTIVE" }).sort({ code: 1 }).toArray();
-const campaigns06 = db.campaigns.find({}).sort({ code: 1 }).toArray();
-const beneficiaries06 = db.beneficiaries.find({}).sort({ name: 1 }).toArray();
+function moveBranchChunks06(collectionName, branches, shardNames) {
+  if (typeof sh === "undefined") {
+    return;
+  }
+  branches.forEach((branch, i) => {
+    try {
+      sh.moveChunk(`charity_distributed.${collectionName}`, { branchId: branch._id }, shardNames[i % shardNames.length]);
+    } catch (err) {
+      print(`moveChunk ${collectionName}/${branch.code} skipped: ${err.message}`);
+    }
+  });
+}
+
+setupHashedShard06("aid_distributions");
+
+var branches06 = db.branches.find({ status: "ACTIVE" }).sort({ code: 1 }).toArray();
+var campaigns06 = db.campaigns.find({}).sort({ code: 1 }).toArray();
+var beneficiaries06 = db.beneficiaries.find({}).sort({ name: 1 }).toArray();
 if (branches06.length === 0 || campaigns06.length === 0 || beneficiaries06.length === 0) {
   throw new Error("Run 01, 02 and 05 seed files first.");
 }
 
-const aidTypes06 = ["MONEY", "ITEM", "SERVICE", "MIXED"];
-const aidStatuses06 = ["PENDING", "APPROVED", "DELIVERED", "COMPLETED", "COMPLETED", "REJECTED"];
-const aidItems06 = ["Gao", "Sua", "Thuoc", "Sach vo", "Ao am", "Nuoc sach"];
+var aidTypes06 = ["MONEY", "ITEM", "SERVICE", "MIXED"];
+var aidStatuses06 = ["PENDING", "APPROVED", "DELIVERED", "COMPLETED", "COMPLETED", "REJECTED"];
+var aidItems06 = ["Gao", "Sua", "Thuoc", "Sach vo", "Ao am", "Nuoc sach"];
+var shardBranches06 = branches06.filter((b) => b.type !== "HEADQUARTER");
+var aids06 = [];
 
-const aids06 = Array.from({ length: 180 }, (_, i) => {
-  const n = i + 1;
-  const branch = branches06[(i * 17) % branches06.length];
-  const campaignPool = campaigns06.filter(c => String(c.branchId) === String(branch._id));
-  const beneficiaryPool = beneficiaries06.filter(b => String(b.branchId) === String(branch._id));
-  const campaign = campaignPool.length ? campaignPool[i % campaignPool.length] : campaigns06[i % campaigns06.length];
-  const beneficiary = beneficiaryPool.length ? beneficiaryPool[i % beneficiaryPool.length] : beneficiaries06[i % beneficiaries06.length];
-  const type = aidTypes06[i % aidTypes06.length];
-  const status = aidStatuses06[i % aidStatuses06.length];
-  const createdAt = new Date(2024, i % 12, (i % 28) + 1);
-  const doc = {
-    _id: ObjectId(),
-    branchId: branch._id,
-    campaignId: campaign._id,
-    beneficiaryId: beneficiary._id,
-    type,
-    status,
-    approvedBy: ["APPROVED", "DELIVERED", "COMPLETED"].includes(status) ? ObjectId() : undefined,
-    deliveredAt: ["DELIVERED", "COMPLETED"].includes(status) ? createdAt : undefined,
-    completedAt: status === "COMPLETED" ? createdAt : undefined,
-    createdBy: ObjectId(),
-    beneficiarySnapshot: {
-      name: beneficiary.name,
-      type: beneficiary.type || "INDIVIDUAL",
-      phone: beneficiary.phone,
-      addressSummary: `${beneficiary.location?.district || branch.district}, ${beneficiary.location?.province || branch.province}`
-    },
-    campaignSnapshot: {
-      code: campaign.code,
-      title: campaign.title || campaign.name
-    },
-    branchSnapshot: {
-      code: branch.code,
-      name: branch.name
-    },
-    proofs: status === "COMPLETED" ? [{
-      type: "DELIVERY_RECEIPT",
-      url: `https://example.com/proofs/aid-${String(n).padStart(4, "0")}.pdf`,
-      description: `Seed delivery proof ${n}`,
-      uploadedAt: createdAt
-    }] : [],
-    note: `Seed aid distribution ${n}`,
-    createdAt,
-    updatedAt: createdAt
-  };
+shardBranches06.forEach((branch, branchIndex) => {
+  var campaignPool = campaigns06.filter((c) => String(c.branchId) === String(branch._id));
+  var beneficiaryPool = beneficiaries06.filter((b) => String(b.branchId) === String(branch._id));
 
-  if (type === "MONEY" || type === "MIXED") {
-    doc.moneySupport = {
-      amount: 200000 + (n * 40000),
-      currency: "VND",
-      method: n % 2 === 0 ? "BANK_TRANSFER" : "CASH"
+  for (var j = 0; j < 42; j += 1) {
+    var n = (branchIndex * 42) + j + 1;
+    var campaign = campaignPool[j % campaignPool.length];
+    var beneficiary = beneficiaryPool[j % beneficiaryPool.length];
+    var type = aidTypes06[j % aidTypes06.length];
+    var status = aidStatuses06[j % aidStatuses06.length];
+    var createdAt = new Date(2024, branchIndex, (j % 28) + 1);
+    var doc = {
+      _id: ObjectId(),
+      branchId: branch._id,
+      campaignId: campaign._id,
+      beneficiaryId: beneficiary._id,
+      type,
+      status,
+      approvedBy: ["APPROVED", "DELIVERED", "COMPLETED"].includes(status) ? ObjectId() : undefined,
+      deliveredAt: ["DELIVERED", "COMPLETED"].includes(status) ? createdAt : undefined,
+      completedAt: status === "COMPLETED" ? createdAt : undefined,
+      createdBy: ObjectId(),
+      beneficiarySnapshot: {
+        name: beneficiary.name,
+        type: beneficiary.type || "INDIVIDUAL",
+        phone: beneficiary.phone,
+        addressSummary: `${beneficiary.location?.district || branch.district}, ${beneficiary.location?.province || branch.province}`
+      },
+      campaignSnapshot: {
+        code: campaign.code,
+        title: campaign.title || campaign.name
+      },
+      branchSnapshot: {
+        code: branch.code,
+        name: branch.name
+      },
+      proofs: status === "COMPLETED" ? [{
+        type: "DELIVERY_RECEIPT",
+        url: `https://example.com/proofs/aid-${String(n).padStart(4, "0")}.pdf`,
+        description: `Seed delivery proof ${n}`,
+        uploadedAt: createdAt
+      }] : [],
+      note: `Seed aid distribution ${n}`,
+      createdAt,
+      updatedAt: createdAt
     };
-  }
-  if (type === "ITEM" || type === "MIXED") {
-    doc.itemSupports = [{
-      name: aidItems06[i % aidItems06.length],
-      category: "ESSENTIAL",
-      quantity: 1 + (i % 20),
-      unit: "phan",
-      estimatedValue: 100000 + (i * 15000),
-      note: "Seed item support"
-    }];
-  }
-  if (type === "SERVICE") {
-    doc.serviceSupport = {
-      serviceName: `Tu van va ho tro ${n}`,
-      provider: `Doi dich vu ${branch.code}`,
-      estimatedHours: 1 + (i % 12),
-      estimatedValue: 200000 + (i * 25000),
-      note: "Seed service support"
-    };
-  }
 
-  return doc;
+    if (type === "MONEY" || type === "MIXED") {
+      doc.moneySupport = {
+        amount: 200000 + (n * 30000),
+        currency: "VND",
+        method: n % 2 === 0 ? "BANK_TRANSFER" : "CASH"
+      };
+    }
+    if (type === "ITEM" || type === "MIXED") {
+      doc.itemSupports = [{
+        name: aidItems06[j % aidItems06.length],
+        category: "ESSENTIAL",
+        quantity: 1 + (j % 20),
+        unit: "phan",
+        estimatedValue: 100000 + (j * 15000),
+        note: "Seed item support"
+      }];
+    }
+    if (type === "SERVICE") {
+      doc.serviceSupport = {
+        serviceName: `Tu van va ho tro ${j + 1}`,
+        provider: `Doi dich vu ${branch.code}`,
+        estimatedHours: 1 + (j % 12),
+        estimatedValue: 200000 + (j * 25000),
+        note: "Seed service support"
+      };
+    }
+
+    aids06.push(doc);
+  }
 });
 
 db.aid_distributions.insertMany(aids06, { ordered: false });
+moveBranchChunks06("aid_distributions", shardBranches06, ["shard1RS", "shard2RS", "shard3RS", "shard4RS", "shard5RS"]);
 print(`OK aid_distributions inserted: ${db.aid_distributions.countDocuments()}`);

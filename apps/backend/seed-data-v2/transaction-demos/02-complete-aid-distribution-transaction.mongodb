@@ -1,0 +1,100 @@
+// Demo 02: create COMPLETED aid distribution + update campaign distributed stats + audit log.
+// Copy-paste directly into mongosh connected through mongos.
+
+db = db.getSiblingDB("charity_distributed");
+
+var demo02RunId = `TX-DEMO-AID-${Date.now()}`;
+var demo02Amount = 765432;
+var demo02Branch = db.branches.findOne({ status: "ACTIVE", type: { $ne: "HEADQUARTER" } });
+if (!demo02Branch) {
+  throw new Error("No local branch found. Run seeds/index.mongodb first.");
+}
+
+var demo02Campaign = db.campaigns.findOne({ branchId: demo02Branch._id });
+var demo02Beneficiary = db.beneficiaries.findOne({ branchId: demo02Branch._id, verificationStatus: "VERIFIED" }) ||
+  db.beneficiaries.findOne({ branchId: demo02Branch._id });
+if (!demo02Campaign || !demo02Beneficiary) {
+  throw new Error("Missing campaign or beneficiary. Run seeds/index.mongodb first.");
+}
+
+var demo02BeforeCampaign = db.campaigns.findOne({ _id: demo02Campaign._id });
+var demo02Session = db.getMongo().startSession();
+var demo02TxDb = demo02Session.getDatabase("charity_distributed");
+
+try {
+  demo02Session.startTransaction({ readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });
+
+  var aidId = ObjectId();
+  demo02TxDb.aid_distributions.insertOne({
+    _id: aidId,
+    branchId: demo02Branch._id,
+    campaignId: demo02Campaign._id,
+    beneficiaryId: demo02Beneficiary._id,
+    type: "MONEY",
+    status: "COMPLETED",
+    approvedBy: ObjectId(),
+    deliveredAt: new Date(),
+    completedAt: new Date(),
+    createdBy: ObjectId(),
+    beneficiarySnapshot: {
+      name: demo02Beneficiary.name,
+      type: demo02Beneficiary.type || "INDIVIDUAL",
+      phone: demo02Beneficiary.phone,
+      addressSummary: `${demo02Beneficiary.location?.district || demo02Branch.district}, ${demo02Beneficiary.location?.province || demo02Branch.province}`
+    },
+    campaignSnapshot: { code: demo02Campaign.code, title: demo02Campaign.title || demo02Campaign.name },
+    branchSnapshot: { code: demo02Branch.code, name: demo02Branch.name },
+    moneySupport: { amount: demo02Amount, currency: "VND", method: "CASH" },
+    proofs: [{ type: "DELIVERY_RECEIPT", url: `https://example.com/transaction-demo/${demo02RunId}.pdf`, uploadedAt: new Date() }],
+    note: "Transaction demo completed aid distribution",
+    demoBatch: demo02RunId,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+
+  demo02TxDb.campaigns.updateOne(
+    { _id: demo02Campaign._id },
+    {
+      $inc: {
+        disbursedAmount: demo02Amount,
+        "summaryStats.totalMoneyDistributed": demo02Amount,
+        "summaryStats.totalEstimatedAidValue": demo02Amount
+      },
+      $set: { updatedAt: new Date() }
+    }
+  );
+
+  demo02TxDb.activity_logs.insertOne({
+    _id: ObjectId(),
+    branchId: demo02Branch._id,
+    targetBranchId: demo02Branch._id,
+    actorId: ObjectId(),
+    actorRole: "BRANCH_ADMIN",
+    actorBranchId: demo02Branch._id,
+    action: "TX_DEMO_AID_COMPLETED",
+    entityType: "AidDistribution",
+    entityId: String(aidId),
+    description: `Transaction demo aid distribution ${demo02RunId}`,
+    before: { campaignDisbursedAmount: demo02BeforeCampaign.disbursedAmount },
+    after: { campaignDisbursedAmount: (demo02BeforeCampaign.disbursedAmount || 0) + demo02Amount },
+    demoBatch: demo02RunId,
+    createdAt: new Date()
+  });
+
+  demo02Session.commitTransaction();
+  print(`COMMIT OK: ${demo02RunId}`);
+} catch (err) {
+  demo02Session.abortTransaction();
+  print(`ROLLBACK: ${err.message}`);
+  throw err;
+} finally {
+  demo02Session.endSession();
+}
+
+printjson({
+  demoBatch: demo02RunId,
+  branch: demo02Branch.code,
+  aidInserted: db.aid_distributions.countDocuments({ demoBatch: demo02RunId }),
+  auditLogsInserted: db.activity_logs.countDocuments({ demoBatch: demo02RunId }),
+  campaignAfter: db.campaigns.findOne({ _id: demo02Campaign._id }, { code: 1, disbursedAmount: 1, "summaryStats.totalMoneyDistributed": 1 })
+});

@@ -1,61 +1,65 @@
-// Seed beneficiaries for mongosh copy-paste.
+// Seed beneficiaries. Beneficiaries are not sharded in the demo, but keep branchId/campaignId.
 
 db = db.getSiblingDB("charity_distributed");
 db.beneficiaries.drop();
 
-const branches05 = db.branches.find({ status: "ACTIVE" }).sort({ code: 1 }).toArray();
-const campaigns05 = db.campaigns.find({}).sort({ code: 1 }).toArray();
+var branches05 = db.branches.find({ status: "ACTIVE" }).sort({ code: 1 }).toArray();
+var campaigns05 = db.campaigns.find({}).sort({ code: 1 }).toArray();
 if (branches05.length === 0 || campaigns05.length === 0) {
   throw new Error("Run 01 and 02 seed files first.");
 }
 
-const beneficiaryTypes05 = ["INDIVIDUAL", "FAMILY", "ORGANIZATION", "COMMUNITY"];
-const verificationStatuses05 = ["PENDING", "VERIFIED", "VERIFIED", "REJECTED"];
-const reasons05 = ["POVERTY", "DISABILITY", "ELDERLY_ALONE", "SOCIAL_WELFARE", "DISASTER_AFFECTED"];
+var beneficiaryTypes05 = ["INDIVIDUAL", "FAMILY", "ORGANIZATION", "COMMUNITY"];
+var verificationStatuses05 = ["PENDING", "VERIFIED", "VERIFIED", "REJECTED"];
+var reasons05 = ["POVERTY", "DISABILITY", "ELDERLY_ALONE", "SOCIAL_WELFARE", "DISASTER_AFFECTED"];
+var beneficiaries05 = [];
 
-const beneficiaries05 = Array.from({ length: 140 }, (_, i) => {
-  const n = i + 1;
-  const branch = branches05[(i * 5) % branches05.length];
-  const campaignPool = campaigns05.filter(c => String(c.branchId) === String(branch._id));
-  const campaign = campaignPool.length ? campaignPool[i % campaignPool.length] : campaigns05[i % campaigns05.length];
-  const type = beneficiaryTypes05[i % beneficiaryTypes05.length];
-  const verificationStatus = verificationStatuses05[i % verificationStatuses05.length];
-  return {
-    _id: ObjectId(),
-    branchId: branch._id,
-    campaignId: campaign._id,
-    name: `${type === "FAMILY" ? "Gia dinh" : "Nguoi nhan ho tro"} ${String(n).padStart(3, "0")}`,
-    type,
-    email: `beneficiary${String(n).padStart(3, "0")}@example.com`,
-    phone: `07${String(30000000 + n).slice(-8)}`,
-    address: {
-      street: `${300 + n} Duong Ho Tro`,
-      district: branch.district,
-      province: branch.province,
-      country: "Viet Nam"
-    },
-    location: {
-      province: branch.province,
-      district: branch.district,
-      ward: branch.ward,
-      address: `${300 + n} Duong Ho Tro`
-    },
-    householdSize: 1 + (i % 8),
-    incomeLevel: i % 3 === 0 ? "VERY_LOW" : "LOW",
-    reason: reasons05[i % reasons05.length],
-    healthIssues: i % 4 === 0 ? ["Benh nen"] : [],
-    education: ["ILLITERATE", "PRIMARY_SCHOOL", "SECONDARY_SCHOOL", "HIGH_SCHOOL"][i % 4],
-    employment: ["UNEMPLOYED", "INFORMAL_JOB", "FARMER", "RETIRED"][i % 4],
-    children: i % 5,
-    children_ages: Array.from({ length: i % 5 }, (_, k) => 4 + k + (i % 6)),
-    situationDescription: `Seed beneficiary ${n} in ${branch.province}.`,
-    verificationStatus,
-    verifiedBy: verificationStatus === "VERIFIED" ? ObjectId() : undefined,
-    verifiedAt: verificationStatus === "VERIFIED" ? new Date(2024, i % 12, (i % 28) + 1) : undefined,
-    status: verificationStatus === "REJECTED" ? "INACTIVE" : "ACTIVE",
-    createdAt: new Date(2024, i % 12, (i % 28) + 1),
-    updatedAt: new Date(2024, i % 12, (i % 28) + 1)
-  };
+branches05.filter((b) => b.type !== "HEADQUARTER").forEach((branch, branchIndex) => {
+  var campaignPool = campaigns05.filter((c) => String(c.branchId) === String(branch._id));
+
+  for (var j = 0; j < 24; j += 1) {
+    var n = (branchIndex * 24) + j + 1;
+    var campaign = campaignPool[j % campaignPool.length];
+    var type = beneficiaryTypes05[j % beneficiaryTypes05.length];
+    var verificationStatus = verificationStatuses05[j % verificationStatuses05.length];
+
+    beneficiaries05.push({
+      _id: ObjectId(),
+      branchId: branch._id,
+      campaignId: campaign._id,
+      name: `${type === "FAMILY" ? "Gia dinh" : "Nguoi nhan ho tro"} ${String(n).padStart(3, "0")} - ${branch.province}`,
+      type,
+      email: `beneficiary${String(n).padStart(3, "0")}@example.com`,
+      phone: `07${String(30000000 + n).slice(-8)}`,
+      address: {
+        street: `${300 + n} Duong Ho Tro`,
+        district: branch.district,
+        province: branch.province,
+        country: "Viet Nam"
+      },
+      location: {
+        province: branch.province,
+        district: branch.district,
+        ward: branch.ward,
+        address: `${300 + n} Duong Ho Tro`
+      },
+      householdSize: 1 + (j % 8),
+      incomeLevel: j % 3 === 0 ? "VERY_LOW" : "LOW",
+      reason: reasons05[j % reasons05.length],
+      healthIssues: j % 4 === 0 ? ["Benh nen"] : [],
+      education: ["ILLITERATE", "PRIMARY_SCHOOL", "SECONDARY_SCHOOL", "HIGH_SCHOOL"][j % 4],
+      employment: ["UNEMPLOYED", "INFORMAL_JOB", "FARMER", "RETIRED"][j % 4],
+      children: j % 5,
+      children_ages: Array.from({ length: j % 5 }, (_, k) => 4 + k + (j % 6)),
+      situationDescription: `Seed beneficiary ${n} in ${branch.province}.`,
+      verificationStatus,
+      verifiedBy: verificationStatus === "VERIFIED" ? ObjectId() : undefined,
+      verifiedAt: verificationStatus === "VERIFIED" ? new Date(2024, branchIndex, (j % 28) + 1) : undefined,
+      status: verificationStatus === "REJECTED" ? "INACTIVE" : "ACTIVE",
+      createdAt: new Date(2024, branchIndex, (j % 28) + 1),
+      updatedAt: new Date(2024, branchIndex, (j % 28) + 1)
+    });
+  }
 });
 
 db.beneficiaries.insertMany(beneficiaries05, { ordered: false });

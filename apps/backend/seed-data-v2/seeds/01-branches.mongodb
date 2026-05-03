@@ -1,35 +1,101 @@
-// Seed branches for mongosh copy-paste.
-// Creates many branch ObjectIds so hashed branchId shard keys have enough variety.
+// Seed branches aligned with Baocao.tex and 08-tich-hop-be-fe-6-may.md.
+// Copy-paste directly into mongosh.
 
 db = db.getSiblingDB("charity_distributed");
 db.branches.drop();
 
-const provinces01 = [
-  "Ha Noi", "TP Ho Chi Minh", "Da Nang", "Hai Phong", "Can Tho",
-  "Hue", "Nghe An", "Thanh Hoa", "Binh Dinh", "Khanh Hoa",
-  "Dak Lak", "Lam Dong", "Dong Nai", "Binh Duong", "An Giang",
-  "Kien Giang", "Ca Mau", "Quang Ninh", "Thai Nguyen", "Lao Cai"
-];
-
-const branches01 = Array.from({ length: 60 }, (_, i) => {
-  const n = i + 1;
-  const province = provinces01[i % provinces01.length];
-  return {
-    _id: ObjectId(),
-    name: n === 1 ? "Trung tam tu thien trung uong" : `Chi nhanh ${String(n).padStart(2, "0")} - ${province}`,
-    code: n === 1 ? "HQ" : `BR${String(n).padStart(2, "0")}`,
-    type: n === 1 ? "HEADQUARTER" : (n % 10 === 0 ? "REGIONAL_CENTER" : "BRANCH"),
-    province,
-    district: `Quan/Huyen ${((i % 12) + 1)}`,
-    ward: `Phuong/Xa ${((i % 20) + 1)}`,
-    address: `${100 + n} Duong Tu Thien, ${province}`,
-    phone: `09${String(10000000 + n).slice(-8)}`,
-    email: n === 1 ? "hq@charity.local" : `branch${String(n).padStart(2, "0")}@charity.local`,
+var branches01 = [
+  {
+    _id: ObjectId("660000000000000000000001"),
+    name: "Tru so dieu phoi Ha Noi",
+    code: "HN-HQ",
+    type: "HEADQUARTER",
+    province: "Ha Noi",
+    district: "Ba Dinh",
+    ward: "Dien Bien",
+    address: "May 1 Controller - FE, BE, QA, mongos",
+    phone: "0241000001",
+    email: "hq.hanoi@charity.local",
     status: "ACTIVE",
-    createdAt: new Date(2024, 0, (i % 28) + 1),
-    updatedAt: new Date(2024, 1, (i % 28) + 1)
-  };
-});
+    createdAt: new Date("2024-01-01T00:00:00Z"),
+    updatedAt: new Date("2024-01-01T00:00:00Z")
+  },
+  {
+    _id: ObjectId("660000000000000000000002"),
+    name: "Chi nhanh Hai Phong",
+    code: "HP-S1",
+    type: "BRANCH",
+    province: "Hai Phong",
+    district: "Hong Bang",
+    ward: "So Dau",
+    address: "May 2 - shard1RS",
+    phone: "0225100002",
+    email: "haiphong@charity.local",
+    status: "ACTIVE",
+    createdAt: new Date("2024-01-02T00:00:00Z"),
+    updatedAt: new Date("2024-01-02T00:00:00Z")
+  },
+  {
+    _id: ObjectId("660000000000000000000003"),
+    name: "Chi nhanh Thanh Hoa",
+    code: "TH-S2",
+    type: "BRANCH",
+    province: "Thanh Hoa",
+    district: "Thanh Hoa",
+    ward: "Lam Son",
+    address: "May 3 - shard2RS",
+    phone: "0237100003",
+    email: "thanhhoa@charity.local",
+    status: "ACTIVE",
+    createdAt: new Date("2024-01-03T00:00:00Z"),
+    updatedAt: new Date("2024-01-03T00:00:00Z")
+  },
+  {
+    _id: ObjectId("660000000000000000000004"),
+    name: "Chi nhanh Da Nang",
+    code: "DN-S3",
+    type: "BRANCH",
+    province: "Da Nang",
+    district: "Hai Chau",
+    ward: "Thach Thang",
+    address: "May 4 - shard3RS",
+    phone: "0236100004",
+    email: "danang@charity.local",
+    status: "ACTIVE",
+    createdAt: new Date("2024-01-04T00:00:00Z"),
+    updatedAt: new Date("2024-01-04T00:00:00Z")
+  },
+  {
+    _id: ObjectId("660000000000000000000005"),
+    name: "Chi nhanh Ho Chi Minh",
+    code: "HCM-S4",
+    type: "BRANCH",
+    province: "Ho Chi Minh",
+    district: "Quan 1",
+    ward: "Ben Nghe",
+    address: "May 5 - shard4RS",
+    phone: "0281000005",
+    email: "hochiminh@charity.local",
+    status: "ACTIVE",
+    createdAt: new Date("2024-01-05T00:00:00Z"),
+    updatedAt: new Date("2024-01-05T00:00:00Z")
+  },
+  {
+    _id: ObjectId("660000000000000000000006"),
+    name: "Chi nhanh Ben Tre",
+    code: "BT-S5",
+    type: "BRANCH",
+    province: "Ben Tre",
+    district: "Ben Tre",
+    ward: "Phu Khuong",
+    address: "May 6 - shard5RS",
+    phone: "0275100006",
+    email: "bentre@charity.local",
+    status: "ACTIVE",
+    createdAt: new Date("2024-01-06T00:00:00Z"),
+    updatedAt: new Date("2024-01-06T00:00:00Z")
+  }
+];
 
 db.branches.insertMany(branches01, { ordered: false });
 print(`OK branches inserted: ${db.branches.countDocuments()}`);

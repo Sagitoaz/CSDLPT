@@ -1,0 +1,109 @@
+// Demo 01: create MONEY contribution + update campaign/contributor stats + audit log.
+// Copy-paste directly into mongosh connected through mongos.
+
+db = db.getSiblingDB("charity_distributed");
+
+var demo01RunId = `TX-DEMO-CONTRIB-${Date.now()}`;
+var demo01Amount = 1234567;
+var demo01Branch = db.branches.findOne({ status: "ACTIVE", type: { $ne: "HEADQUARTER" } });
+if (!demo01Branch) {
+  throw new Error("No local branch found. Run seeds/index.mongodb first.");
+}
+
+var demo01Campaign = db.campaigns.findOne({ branchId: demo01Branch._id, status: { $in: ["ACTIVE", "PAUSED", "DRAFT"] } });
+var demo01Contributor = db.contributors.findOne({ branchId: demo01Branch._id, isActive: true });
+if (!demo01Campaign || !demo01Contributor) {
+  throw new Error("Missing campaign or contributor. Run seeds/index.mongodb first.");
+}
+
+var demo01BeforeCampaign = db.campaigns.findOne({ _id: demo01Campaign._id });
+var demo01BeforeContributor = db.contributors.findOne({ _id: demo01Contributor._id });
+var demo01Session = db.getMongo().startSession();
+var demo01TxDb = demo01Session.getDatabase("charity_distributed");
+
+try {
+  demo01Session.startTransaction({ readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });
+
+  var contributionId = ObjectId();
+  demo01TxDb.contributions.insertOne({
+    _id: contributionId,
+    branchId: demo01Branch._id,
+    campaignId: demo01Campaign._id,
+    contributorId: demo01Contributor._id,
+    type: "MONEY",
+    status: "RECEIVED",
+    receivedAt: new Date(),
+    createdBy: ObjectId(),
+    contributorSnapshot: {
+      fullName: demo01Contributor.fullName || demo01Contributor.name,
+      organizationName: demo01Contributor.organizationName,
+      phone: demo01Contributor.phone,
+      email: demo01Contributor.email,
+      type: demo01Contributor.type
+    },
+    campaignSnapshot: { code: demo01Campaign.code, title: demo01Campaign.title || demo01Campaign.name },
+    branchSnapshot: { code: demo01Branch.code, name: demo01Branch.name },
+    moneyDetail: {
+      amount: demo01Amount,
+      currency: "VND",
+      paymentMethod: "BANK_TRANSFER",
+      paymentStatus: "SUCCESS",
+      transactionCode: demo01RunId,
+      paidAt: new Date()
+    },
+    proofs: [{ type: "BANK_RECEIPT", url: `https://example.com/transaction-demo/${demo01RunId}.pdf`, uploadedAt: new Date() }],
+    demoBatch: demo01RunId,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+
+  demo01TxDb.campaigns.updateOne(
+    { _id: demo01Campaign._id },
+    { $inc: { currentAmount: demo01Amount, "summaryStats.totalMoneyReceived": demo01Amount }, $set: { updatedAt: new Date() } }
+  );
+
+  demo01TxDb.contributors.updateOne(
+    { _id: demo01Contributor._id },
+    { $inc: { "totalContributionStats.moneyCount": 1, "totalContributionStats.totalMoneyAmount": demo01Amount }, $set: { updatedAt: new Date() } }
+  );
+
+  demo01TxDb.activity_logs.insertOne({
+    _id: ObjectId(),
+    branchId: demo01Branch._id,
+    targetBranchId: demo01Branch._id,
+    actorId: ObjectId(),
+    actorRole: "STAFF",
+    actorBranchId: demo01Branch._id,
+    action: "TX_DEMO_CONTRIBUTION_RECEIVED",
+    entityType: "Contribution",
+    entityId: String(contributionId),
+    description: `Transaction demo contribution ${demo01RunId}`,
+    before: {
+      campaignCurrentAmount: demo01BeforeCampaign.currentAmount,
+      contributorMoneyAmount: demo01BeforeContributor.totalContributionStats?.totalMoneyAmount || 0
+    },
+    after: {
+      campaignCurrentAmount: (demo01BeforeCampaign.currentAmount || 0) + demo01Amount,
+      contributorMoneyAmount: (demo01BeforeContributor.totalContributionStats?.totalMoneyAmount || 0) + demo01Amount
+    },
+    demoBatch: demo01RunId,
+    createdAt: new Date()
+  });
+
+  demo01Session.commitTransaction();
+  print(`COMMIT OK: ${demo01RunId}`);
+} catch (err) {
+  demo01Session.abortTransaction();
+  print(`ROLLBACK: ${err.message}`);
+  throw err;
+} finally {
+  demo01Session.endSession();
+}
+
+printjson({
+  demoBatch: demo01RunId,
+  branch: demo01Branch.code,
+  contributionInserted: db.contributions.countDocuments({ demoBatch: demo01RunId }),
+  auditLogsInserted: db.activity_logs.countDocuments({ demoBatch: demo01RunId }),
+  campaignAfter: db.campaigns.findOne({ _id: demo01Campaign._id }, { code: 1, currentAmount: 1, "summaryStats.totalMoneyReceived": 1 })
+});

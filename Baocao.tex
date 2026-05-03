@@ -91,7 +91,7 @@
 \renewcommand{\cftsecpagefont}{\bfseries}
 \renewcommand{\thesection}{\Roman{section}}
 \renewcommand{\thesubsection}{\Roman{subsection}}
-\renewcommand{\thesubsubsection}{\arabic{subsubsection}}
+\renewcommand{\thesubsubsection}{\arabic{subsection}.\arabic{subsubsection}}
 \renewcommand{\cftsecpresnum}{PHẦN\ }
 \renewcommand{\cftsecaftersnum}{.\ }
 \cftsetindents{section}{0pt}{6.2em}             
@@ -99,6 +99,9 @@
 \renewcommand{\cftsubsecfont}{\normalsize}
 \renewcommand{\cftsubsecpagefont}{\bfseries}
 \cftsetindents{subsection}{2em}{3.2em}
+\makeatletter
+\renewcommand{\l@subsection}[2]{}
+\makeatother
 
 \setcounter{tocdepth}{3}  % Hiển thị đến subsubsection trong mục lục
 \setcounter{secnumdepth}{3} % Đánh số đến subsubsection
@@ -108,6 +111,10 @@
 \titleformat{\section}{\Large\bfseries}{PHẦN \thesection.}{0.6em}{\MakeUppercase}
 \titleformat{\subsection}{\large\bfseries}{\thesubsection.}{0.6em}{}
 \titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection.}{0.6em}{}
+
+\newcommand{\tocsubsectionitem}[1]{%
+  \addcontentsline{toc}{subsubsection}{\protect\numberline{\arabic{subsection}.1}#1}%
+}
 
 \begin{document}
 \hypersetup{pageanchor=false}
@@ -231,12 +238,12 @@
 \item \texttt{disbursements} được giữ tương thích cho trường hợp phát tiền, nhưng về thiết kế có thể ánh xạ sang \texttt{aid\_distributions} với \texttt{type = MONEY}.
 \end{itemize}
 \item Việc mở rộng này giúp hệ thống phản ánh đúng nghiệp vụ từ thiện thực tế hơn. Một chiến dịch không chỉ có mục tiêu tiền, mà còn có thể có mục tiêu vật phẩm, thuốc men, số lượng tình nguyện viên hoặc giờ công. Tương tự, việc hỗ trợ người thụ hưởng không chỉ là giải ngân tiền mà còn có thể là trao hàng, cấp thuốc, hỗ trợ dịch vụ hoặc phối hợp nhiều nguồn lực.
-\item Về kiến trúc triển khai, tài liệu mới nhất xác định mô hình gồm \textbf{1 máy phía người dùng cuối kiêm điều phối, kiểm thử và 5 shard ngang hàng}:
+\item Về kiến trúc triển khai, tài liệu mới nhất xác định mô hình gồm \textbf{1 máy phía người dùng cuối kiêm điều phối, kiểm thử tại Hà Nội và 5 shard ngang hàng đặt tại các địa phương khác nhau}:
 \begin{itemize}
-\item \textbf{Máy 1:} máy phía người dùng cuối, chạy Frontend, Backend, QA và \texttt{mongos}.
-\item \textbf{Máy 2-Máy 6:} 5 shard ngang hàng, mỗi máy là một Replica Set shard của hệ thống.
+\item \textbf{Máy 1 tại Hà Nội:} máy phía người dùng cuối, chạy Frontend, Backend, QA và \texttt{mongos}.
+\item \textbf{Máy 2 tại Hải Phòng, Máy 3 tại Thanh Hóa, Máy 4 tại Đà Nẵng, Máy 5 tại Hồ Chí Minh, Máy 6 tại Bến Tre:} 5 shard ngang hàng, mỗi máy là một Replica Set shard của hệ thống.
 \end{itemize}
-\item Máy 1 không phải shard dữ liệu nghiệp vụ chính mà là máy phía người dùng cuối, đồng thời làm điểm điều phối ứng dụng, truy vấn và kiểm thử. Backend gửi truy vấn đến \texttt{mongos}; \texttt{mongos} dựa vào metadata sharding để định tuyến truy vấn đến các shard M2-M6. Năm shard M2-M6 có vai trò như nhau; mỗi shard là một Replica Set gồm 1 Primary và 2 Secondary, vừa phục vụ phân mảnh dữ liệu, vừa phục vụ kiểm thử nhân bản và failover.
+\item Máy 1 tại Hà Nội không phải shard dữ liệu nghiệp vụ chính mà là máy phía người dùng cuối, đồng thời làm điểm điều phối ứng dụng, truy vấn và kiểm thử. Backend gửi truy vấn đến \texttt{mongos}; \texttt{mongos} dựa vào metadata sharding để định tuyến truy vấn đến 5 shard đặt tại Hải Phòng, Thanh Hóa, Đà Nẵng, Hồ Chí Minh và Bến Tre. Năm shard này có vai trò như nhau; mỗi shard là một Replica Set gồm 1 Primary và 2 Secondary, vừa phục vụ phân mảnh dữ liệu, vừa phục vụ kiểm thử nhân bản và failover.
 \item Các collection được ưu tiên shard trong bản demo gồm:
 \begin{itemize}
 \item \texttt{contributions}: nhóm dữ liệu đầu vào, tăng trưởng nhanh.
@@ -246,12 +253,18 @@
 \item Các collection như \texttt{branches}, \texttt{users}, \texttt{contributors} chưa cần shard trong bản demo vì dữ liệu tăng chậm hơn. \texttt{campaigns} chỉ cần shard khi số lượng chiến dịch rất lớn; thông thường collection này đóng vai trò aggregate root chính và được tối ưu bằng index theo \texttt{branchId}, \texttt{status}, \texttt{type}, \texttt{createdAt}.
 \end{itemize}
 \subsection{Vị Trí, Nhiệm Vụ và Dữ Liệu Khi Triển Khai Dự Án}
+\tocsubsectionitem{Vị Trí, Nhiệm Vụ và Dữ Liệu Khi Triển Khai Dự Án}
 \begin{itemize}
 \item Dự án được triển khai theo mô hình nhiều máy để mô phỏng môi trường cơ sở dữ liệu phân tán. Các máy được kết nối qua Tailscale để đảm bảo có thể truy cập lẫn nhau trong mạng riêng. Trong mô hình mới, 6 máy có vai trò logic như sau:
 \begin{itemize}
-\item \textbf{Vị trí 1 - Máy 1:} máy phía người dùng cuối, chạy Frontend, Backend, QA và \texttt{mongos}; là điểm truy cập chính của ứng dụng, điểm điều phối truy vấn MongoDB và nơi thực hiện kiểm thử.
-\item \textbf{Vị trí 2-Vị trí 6 - Máy 2 đến Máy 6:} 5 shard ngang hàng, cùng lưu dữ liệu đã được phân mảnh, cùng nhận truy vấn do \texttt{mongos} định tuyến và cùng tham gia nhân bản, failover.
+\item \textbf{Vị trí 1 - Máy 1 tại Hà Nội:} máy phía người dùng cuối, chạy Frontend, Backend, QA và \texttt{mongos}; là điểm truy cập chính của ứng dụng, điểm điều phối truy vấn MongoDB và nơi thực hiện kiểm thử.
+\item \textbf{Vị trí 2 - Máy 2 tại Hải Phòng:} là một shard của hệ thống, lưu dữ liệu đã được phân mảnh, nhận truy vấn do \texttt{mongos} định tuyến và tham gia cơ chế nhân bản, failover.
+\item \textbf{Vị trí 3 - Máy 3 tại Thanh Hóa:} là một shard của hệ thống, lưu dữ liệu đã được phân mảnh, nhận truy vấn do \texttt{mongos} định tuyến và tham gia cơ chế nhân bản, failover.
+\item \textbf{Vị trí 4 - Máy 4 tại Đà Nẵng:} là một shard của hệ thống, lưu dữ liệu đã được phân mảnh, nhận truy vấn do \texttt{mongos} định tuyến và tham gia cơ chế nhân bản, failover.
+\item \textbf{Vị trí 5 - Máy 5 tại Hồ Chí Minh:} là một shard của hệ thống, lưu dữ liệu đã được phân mảnh, nhận truy vấn do \texttt{mongos} định tuyến và tham gia cơ chế nhân bản, failover.
+\item \textbf{Vị trí 6 - Máy 6 tại Bến Tre:} là một shard của hệ thống, lưu dữ liệu đã được phân mảnh, nhận truy vấn do \texttt{mongos} định tuyến và tham gia cơ chế nhân bản, failover.
 \end{itemize}
+\item Cách bố trí này giúp mô hình phân tán thể hiện rõ việc các máy được đặt tại nhiều địa phương khác nhau nhưng vẫn kết nối thành một hệ thống thống nhất qua Tailscale và MongoDB Sharded Cluster.
 \item Nhiệm vụ của Máy 1:
 \begin{itemize}
 \item Chạy giao diện web cho người dùng và quản trị viên.
@@ -260,7 +273,7 @@
 \item Chạy công cụ QA/demo để kiểm tra luồng nghiệp vụ, thống kê, health, failover và backup/restore từ phía người dùng cuối.
 \item Không lưu dữ liệu nghiệp vụ chính như một shard độc lập.
 \end{itemize}
-\item Nhiệm vụ chung của 5 máy shard M2-M6:
+\item Nhiệm vụ chung của 5 máy shard đặt tại Hải Phòng, Thanh Hóa, Đà Nẵng, Hồ Chí Minh và Bến Tre:
 \begin{itemize}
 \item Lưu dữ liệu đã được phân mảnh theo shard key.
 \item Nhận truy vấn từ \texttt{mongos} khi query khớp với chunk hoặc shard key liên quan.
@@ -388,7 +401,7 @@ Hệ thống được xây dựng để phục vụ nhiều nhóm người dùng
 \subsubsection{Nhóm Vận Hành và Kiểm Thử}
 \begin{itemize}
 \item \textbf{Vai trò:} QA/Operator/nhóm triển khai.
-\item \textbf{Vị trí:} chủ yếu thao tác trên Máy 1 Controller và kiểm tra các shard M2-M6.
+\item \textbf{Vị trí:} chủ yếu thao tác trên Máy 1 tại Hà Nội và kiểm tra các shard đặt tại Hải Phòng, Thanh Hóa, Đà Nẵng, Hồ Chí Minh và Bến Tre.
 \item \textbf{Chức năng:}
 \begin{itemize}
 \item Kiểm tra kết nối Tailscale giữa các máy.
@@ -400,9 +413,10 @@ Hệ thống được xây dựng để phục vụ nhiều nhóm người dùng
 \end{itemize}
 \end{itemize}
 \subsection{Kết Luận Phần Đặt Vấn Đề}
+\tocsubsectionitem{Kết Luận Phần Đặt Vấn Đề}
 \begin{itemize}
 \item Dự án hệ thống quản lý từ thiện phân tán có nhu cầu sử dụng CSDLPT rõ ràng vì dữ liệu phát sinh từ nhiều chi nhánh, nhiều vai trò và nhiều nhóm nghiệp vụ. Các collection như \texttt{contributions}, \texttt{aid\_distributions} và \texttt{activity\_logs} có tốc độ tăng trưởng cao, trong khi hệ thống vẫn phải đảm bảo phân quyền theo \texttt{branchId}, dashboard nhanh, audit đầy đủ và khả năng hoạt động khi có sự cố.
-\item Với mô hình MongoDB Sharded Cluster gồm 1 máy controller và 5 shard ngang hàng, dự án có thể mô phỏng đầy đủ các nội dung quan trọng của CSDLPT: phân mảnh dữ liệu, nhân bản trong từng shard, định tuyến truy vấn qua \texttt{mongos}, kiểm thử failover, backup/restore và kiểm soát truy cập theo vai trò. Vì vậy, đây không chỉ là một ứng dụng web quản lý từ thiện mà còn là một mô hình thực hành phù hợp để trình bày trong báo cáo môn Cơ sở dữ liệu phân tán.
+\item Với mô hình MongoDB Sharded Cluster gồm 1 máy điều phối tại Hà Nội và 5 shard ngang hàng đặt tại Hải Phòng, Thanh Hóa, Đà Nẵng, Hồ Chí Minh và Bến Tre, dự án có thể mô phỏng đầy đủ các nội dung quan trọng của CSDLPT: phân mảnh dữ liệu, nhân bản trong từng shard, định tuyến truy vấn qua \texttt{mongos}, kiểm thử failover, backup/restore và kiểm soát truy cập theo vai trò. Vì vậy, đây không chỉ là một ứng dụng web quản lý từ thiện mà còn là một mô hình thực hành phù hợp để trình bày trong báo cáo môn Cơ sở dữ liệu phân tán.
 \end{itemize}
 \clearpage
 
@@ -411,6 +425,7 @@ Hệ thống được xây dựng để phục vụ nhiều nhóm người dùng
 \section{Phân tích}
 
 \subsection{Các chức năng chính của hệ thống}
+\tocsubsectionitem{Các chức năng chính của hệ thống}
 
 \begin{itemize}
     \item Quản lý chiến dịch thiện nguyện: thêm, sửa, xóa chiến dịch; xem danh sách chiến dịch; phân loại theo trạng thái đang mở, tạm dừng, hoàn thành; thống kê tiến độ và kết quả thực hiện.
@@ -425,7 +440,7 @@ Hệ thống được xây dựng để phục vụ nhiều nhóm người dùng
 \subsection{Phân quyền cho nhóm đối tượng thực hiện dự án}
 
 \subsubsection*{1. Quản trị viên hệ thống}
-\addcontentsline{toc}{subsubsection}{1. Quản trị viên hệ thống}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.1}Quản trị viên hệ thống}
 
 \begin{itemize}
     \item Có quyền cao nhất trên toàn bộ hệ thống.
@@ -440,7 +455,7 @@ Hệ thống được xây dựng để phục vụ nhiều nhóm người dùng
 \end{itemize}
 
 \subsubsection*{2. Người đóng góp / nhà tài trợ}
-\addcontentsline{toc}{subsubsection}{2. Người đóng góp / nhà tài trợ}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.2}Người đóng góp / nhà tài trợ}
 
 \begin{itemize}
     \item Chỉ thao tác trên phạm vi công khai hoặc dữ liệu của chính họ.
@@ -452,7 +467,7 @@ Hệ thống được xây dựng để phục vụ nhiều nhóm người dùng
 \end{itemize}
 
 \subsubsection*{3. Quản lý chi nhánh}
-\addcontentsline{toc}{subsubsection}{3. Quản lý chi nhánh}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.3}Quản lý chi nhánh}
 
 \begin{itemize}
     \item Mọi quyền đều bị giới hạn trong phạm vi chi nhánh của họ theo \texttt{branchId}.
@@ -466,7 +481,7 @@ Hệ thống được xây dựng để phục vụ nhiều nhóm người dùng
 \end{itemize}
 
 \subsubsection*{4. Nhân viên chi nhánh}
-\addcontentsline{toc}{subsubsection}{4. Nhân viên chi nhánh}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.4}Nhân viên chi nhánh}
 
 \begin{itemize}
     \item Mọi quyền đều bị giới hạn trong phạm vi chi nhánh của họ theo \texttt{branchId}.
@@ -479,7 +494,7 @@ Hệ thống được xây dựng để phục vụ nhiều nhóm người dùng
 \end{itemize}
 
 \subsubsection*{5. Tình nguyện viên}
-\addcontentsline{toc}{subsubsection}{5. Tình nguyện viên}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.5}Tình nguyện viên}
 
 \begin{itemize}
     \item Tương tác chủ yếu với vai trò tình nguyện.
@@ -492,7 +507,7 @@ Hệ thống được xây dựng để phục vụ nhiều nhóm người dùng
 \end{itemize}
 
 \subsubsection*{6. Người nhận hỗ trợ}
-\addcontentsline{toc}{subsubsection}{6. Người nhận hỗ trợ}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.6}Người nhận hỗ trợ}
 
 \begin{itemize}
     \item Là đối tượng trực tiếp nhận các nguồn lực hỗ trợ từ hệ thống.
@@ -503,7 +518,7 @@ Hệ thống được xây dựng để phục vụ nhiều nhóm người dùng
 \end{itemize}
 
 \subsubsection*{7. Nhóm vận hành và kiểm thử}
-\addcontentsline{toc}{subsubsection}{7. Nhóm vận hành và kiểm thử}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.7}Nhóm vận hành và kiểm thử}
 
 \begin{itemize}
     \item Là nhóm kỹ thuật phục vụ giám sát, kiểm tra và bảo trì hệ thống.
@@ -809,10 +824,10 @@ contributors & M.R, L.WE & M.R, L.WE \\
 
 \section{Thiết kế}
 
-\subsection*{1. Thiết kế hệ thống tại các trạm và toàn hệ thống}
+\subsection*{I. Thiết kế hệ thống tại các trạm và toàn hệ thống}
 
 \subsubsection*{1.1. Mục tiêu thiết kế}
-\addcontentsline{toc}{subsubsection}{1.1. Mục tiêu thiết kế}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{1.1}Mục tiêu thiết kế}
 
 Hệ thống quản lý từ thiện phân tán được thiết kế nhằm hỗ trợ quản lý dữ liệu tại nhiều chi nhánh và trung tâm khác nhau. Trong thực tế vận hành, các nghiệp vụ như quản lý chiến dịch, tiếp nhận đóng góp, phân phối hỗ trợ, ghi nhật ký thao tác và thống kê dashboard đều phát sinh dữ liệu thường xuyên với tần suất cao. Nếu toàn bộ dữ liệu được lưu tập trung trên một máy chủ duy nhất, hệ thống dễ gặp phải các vấn đề như quá tải truy cập, khó mở rộng khi số lượng người dùng tăng, đồng thời làm giảm tính sẵn sàng khi máy chủ trung tâm xảy ra sự cố.
 
@@ -830,7 +845,7 @@ Mục tiêu chính của thiết kế gồm:
 \end{itemize}
 
 \subsubsection*{1.2. Mô hình triển khai tổng thể}
-\addcontentsline{toc}{subsubsection}{1.2. Mô hình triển khai tổng thể}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{1.2}Mô hình triển khai tổng thể}
 
 Hệ thống được triển khai trên 6 máy. Trong đó, máy 1 giữ vai trò điều phối ứng dụng và định tuyến truy vấn cơ sở dữ liệu. Từ máy 2 đến máy 6 là 5 shard ngang hàng, có nhiệm vụ lưu trữ dữ liệu nghiệp vụ đã được phân mảnh.
 
@@ -864,7 +879,7 @@ Shard key được sử dụng trong hệ thống là:
 Việc chọn \texttt{branchId} làm shard key phù hợp với đặc điểm nghiệp vụ vì phần lớn dữ liệu chính của hệ thống đều gắn với một chi nhánh cụ thể. Sử dụng dạng hashed giúp dữ liệu được phân phối đồng đều hơn trên các shard, hạn chế tình trạng dữ liệu mới bị dồn về một shard duy nhất.
 
 \subsubsection*{1.3. Chức năng của máy 1 -- Controller}
-\addcontentsline{toc}{subsubsection}{1.3. Chức năng của máy 1 -- Controller}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{1.3}Chức năng của máy 1 -- Controller}
 
 Máy 1 là máy điều phối của toàn hệ thống. Máy này chạy các thành phần ứng dụng và \texttt{mongos}, đóng vai trò là điểm truy cập chính giữa backend và cụm MongoDB phân tán.
 
@@ -884,7 +899,7 @@ Các chức năng chính của máy 1 gồm:
 Máy 1 không lưu toàn bộ dữ liệu nghiệp vụ như trong mô hình cơ sở dữ liệu tập trung truyền thống. Toàn bộ dữ liệu nghiệp vụ chính được lưu phân tán trên các shard từ máy 2 đến máy 6.
 
 \subsubsection*{1.4. Chức năng của các máy shard}
-\addcontentsline{toc}{subsubsection}{1.4. Chức năng của các máy shard}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{1.4}Chức năng của các máy shard}
 
 Từ máy 2 đến máy 6 là các shard lưu trữ dữ liệu phân tán của hệ thống. Trong phạm vi demo, mỗi shard được mô phỏng dưới dạng một replica set gồm 1 primary và 2 secondary.
 
@@ -917,7 +932,7 @@ Trong mỗi shard:
 Nhờ cấu trúc này, hệ thống vừa có khả năng phân tán dữ liệu trên nhiều shard, vừa mô phỏng được cơ chế nhân bản và chuyển đổi vai trò trong từng shard. Trong triển khai thực tế, các node của replica set nên được đặt trên các máy khác nhau để tăng khả năng chịu lỗi ở mức máy vật lý.
 
 \subsubsection*{1.5. Dữ liệu xử lý trong hệ thống}
-\addcontentsline{toc}{subsubsection}{1.5. Dữ liệu xử lý trong hệ thống}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{1.5}Dữ liệu xử lý trong hệ thống}
 
 Các nhóm dữ liệu chính của hệ thống gồm:
 
@@ -955,7 +970,7 @@ Trong đó, các collection có tốc độ tăng trưởng nhanh và cần ưu 
 Các collection này đều chứa trường \texttt{branchId}, do đó rất phù hợp để phân mảnh theo shard key \texttt{\{ branchId: "hashed" \}}.
 
 \subsubsection*{1.6. Lược đồ toàn hệ thống}
-\addcontentsline{toc}{subsubsection}{1.6. Lược đồ toàn hệ thống}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{1.6}Lược đồ toàn hệ thống}
 
 Người dùng thao tác với hệ thống thông qua giao diện frontend. Frontend gửi request đến Backend API. Backend xử lý xác thực, phân quyền và nghiệp vụ, sau đó gửi truy vấn đến \texttt{mongos} trên máy 1.
 
@@ -975,7 +990,7 @@ Dữ liệu nghiệp vụ được lưu phân tán trên 5 shard từ máy 2 đ�
 
 
 \subsubsection*{1.7. Luồng xử lý truy vấn trong hệ thống}
-\addcontentsline{toc}{subsubsection}{1.7. Luồng xử lý truy vấn trong hệ thống}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{1.7}Luồng xử lý truy vấn trong hệ thống}
 
 Khi người dùng gửi yêu cầu, backend trước tiên xác thực JWT và kiểm tra quyền truy cập. Với các vai trò thuộc chi nhánh như \texttt{BRANCH\_ADMIN} hoặc \texttt{STAFF}, backend áp dụng điều kiện lọc theo \texttt{branchId} để bảo đảm người dùng chỉ truy cập được dữ liệu thuộc chi nhánh của mình.
 
@@ -989,7 +1004,7 @@ Sau đó, backend gửi truy vấn đến \texttt{mongos}. Nếu truy vấn có 
 \end{figure}
 
 \subsubsection*{1.8. Kết luận}
-\addcontentsline{toc}{subsubsection}{1.8. Kết luận}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{1.8}Kết luận}
 
 Thiết kế hệ thống sử dụng mô hình 6 máy, trong đó máy 1 đóng vai trò controller và máy 2 đến máy 6 là 5 shard ngang hàng. Dữ liệu nghiệp vụ không được lưu tập trung trên một máy duy nhất mà được phân tán thành các chunk trên nhiều shard.
 
@@ -997,10 +1012,10 @@ Việc sử dụng shard key \texttt{\{ branchId: "hashed" \}} giúp hệ thốn
 
 
 
-\subsection*{2. Thiết kế cơ sở dữ liệu logic cho toàn hệ thống}
+\subsection*{II. Thiết kế cơ sở dữ liệu logic cho toàn hệ thống}
 
 \subsubsection*{2.1. Mục tiêu thiết kế cơ sở dữ liệu}
-\addcontentsline{toc}{subsubsection}{2.1. Mục tiêu thiết kế cơ sở dữ liệu}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.1}Mục tiêu thiết kế cơ sở dữ liệu}
 
 Cơ sở dữ liệu của hệ thống quản lý từ thiện phân tán được thiết kế theo mô hình document-oriented của MongoDB. Dữ liệu được tổ chức thành các collection, trong đó mỗi document lưu trữ các nhóm thông tin có quan hệ chặt chẽ và thường được truy vấn cùng nhau.
 
@@ -1015,7 +1030,7 @@ Thiết kế cơ sở dữ liệu hướng tới các mục tiêu sau:
 \end{itemize}
 
 \subsubsection*{2.2. Nguyên tắc thiết kế dữ liệu}
-\addcontentsline{toc}{subsubsection}{2.2. Nguyên tắc thiết kế dữ liệu}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.2}Nguyên tắc thiết kế dữ liệu}
 
 Cơ sở dữ liệu được thiết kế theo ba nguyên tắc chính: embedded document, reference và snapshot.
 
@@ -1038,7 +1053,7 @@ Snapshot & Các dữ liệu giao dịch lịch sử lưu lại thông tin tại 
 Cách thiết kế này giúp hệ thống giảm số lượng truy vấn liên kết, tăng tốc độ đọc dữ liệu và phù hợp với đặc điểm dữ liệu linh hoạt của hệ thống quản lý từ thiện.
 
 \subsubsection*{2.3. Danh sách collection chính}
-\addcontentsline{toc}{subsubsection}{2.3. Danh sách collection chính}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.3}Danh sách collection chính}
 
 Cơ sở dữ liệu logic của hệ thống gồm các collection chính sau:
 
@@ -1068,7 +1083,7 @@ Cơ sở dữ liệu logic của hệ thống gồm các collection chính sau:
 Trong đó, các collection có tốc độ tăng trưởng nhanh và đóng vai trò quan trọng trong thiết kế phân tán gồm \texttt{contributions}, \texttt{aid\_distributions} và \texttt{activity\_logs}.
 
 \subsubsection*{2.4. Lược đồ collection tổng quát}
-\addcontentsline{toc}{subsubsection}{2.4. Lược đồ collection tổng quát}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.4}Lược đồ collection tổng quát}
 
 \texttt{branches} là collection nền tảng của hệ thống, đóng vai trò xác định phạm vi dữ liệu theo chi nhánh. Các collection nghiệp vụ như \texttt{users}, \texttt{campaigns}, \texttt{contributions}, \texttt{beneficiaries}, \texttt{aid\_distributions}, \texttt{volunteers}, \texttt{activity\_logs} và \texttt{stats\_snapshots} đều gắn với \texttt{branchId}.
 
@@ -1088,7 +1103,7 @@ Vì vậy, trong lược đồ tổng quát, \texttt{branchId} được xem là 
 \clearpage
 
 \subsubsection*{2.5. Mô tả cấu trúc các collection}
-\addcontentsline{toc}{subsubsection}{2.5. Mô tả cấu trúc các collection}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.5}Mô tả cấu trúc các collection}
 
 \begin{center}
 \small
@@ -1114,10 +1129,10 @@ Vì vậy, trong lược đồ tổng quát, \texttt{branchId} được xem là 
 \end{center}
 
 \subsubsection*{2.6. Thiết kế các collection trọng tâm}
-\addcontentsline{toc}{subsubsection}{2.6. Thiết kế các collection trọng tâm}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.6}Thiết kế các collection trọng tâm}
 
 \subsubsection*{2.6.1. Collection campaigns}
-\addcontentsline{toc}{subsubsection}{2.6.1. Collection campaigns}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.6.1}Collection campaigns}
 
 Collection \texttt{campaigns} là aggregate root trung tâm của hệ thống. Mỗi document trong collection này biểu diễn một chiến dịch từ thiện do một chi nhánh hoặc trung tâm quản lý.
 
@@ -1148,7 +1163,7 @@ Thông tin định danh & Lưu mã, tên, loại chiến dịch, trạng thái v
 \texttt{campaigns.summaryStats} là dữ liệu denormalized, được cập nhật khi có thay đổi hợp lệ từ \texttt{contributions} hoặc \texttt{aid\_distributions}. Việc lưu sẵn thống kê này giúp dashboard không phải aggregate dữ liệu lớn liên tục.
 
 \subsubsection*{2.6.2. Collection contributions}
-\addcontentsline{toc}{subsubsection}{2.6.2. Collection contributions}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.6.2}Collection contributions}
 
 Collection \texttt{contributions} lưu toàn bộ nguồn lực đầu vào của hệ thống. Đây là collection có tần suất ghi cao vì mỗi lượt đóng góp tạo ra một document mới.
 
@@ -1182,7 +1197,7 @@ Các nhóm dữ liệu chính của \texttt{contributions} gồm:
 Collection này cần lưu snapshot vì dữ liệu đóng góp là dữ liệu lịch sử. Khi thông tin người đóng góp, tên chiến dịch hoặc tên chi nhánh thay đổi, lịch sử đóng góp vẫn phải giữ đúng thông tin tại thời điểm phát sinh.
 
 \subsubsection*{2.6.3. Collection aid\_distributions}
-\addcontentsline{toc}{subsubsection}{2.6.3. Collection aid\_distributions}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.6.3}Collection aid\_distributions}
 
 Collection \texttt{aid\_distributions} lưu nguồn lực đầu ra của hệ thống, tức các lần hỗ trợ được phân phối cho người nhận. Collection này quản lý quá trình từ lập kế hoạch, phê duyệt, bàn giao đến hoàn tất hỗ trợ.
 
@@ -1217,7 +1232,7 @@ Các nhóm dữ liệu chính của \texttt{aid\_distributions} gồm:
 Collection này chỉ cập nhật thống kê chiến dịch khi trạng thái chuyển sang \texttt{COMPLETED} lần đầu. Cách xử lý này giúp tránh cộng lặp dữ liệu thống kê.
 
 \subsubsection*{2.7. Tổng hợp quan hệ giữa các collection}
-\addcontentsline{toc}{subsubsection}{2.7. Tổng hợp quan hệ giữa các collection}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.7}Tổng hợp quan hệ giữa các collection}
 
 \begin{center}
 \small
@@ -1247,7 +1262,7 @@ Collection này chỉ cập nhật thống kê chiến dịch khi trạng thái 
 \end{center}
 
 \subsubsection*{2.8. Kết luận}
-\addcontentsline{toc}{subsubsection}{2.8. Kết luận}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{2.8}Kết luận}
 
 Thiết kế cơ sở dữ liệu logic của hệ thống được xây dựng theo mô hình document của MongoDB. Các collection được tổ chức xoay quanh các nghiệp vụ chính của hệ thống, trong đó \texttt{campaigns}, \texttt{contributions} và \texttt{aid\_distributions} là ba collection trọng tâm.
 
@@ -1257,7 +1272,7 @@ Trường \texttt{branchId} được sử dụng nhất quán trong các collect
 
 
 
-\subsection*{3. Thiết kế cơ sở dữ liệu phân tán}
+\subsection*{III. Thiết kế cơ sở dữ liệu phân tán}
 
 Hệ thống quản lý từ thiện có dữ liệu phát sinh liên tục từ nhiều chi nhánh, đặc biệt ở các nghiệp vụ tiếp nhận đóng góp, phân phối hỗ trợ và ghi nhật ký thao tác. Vì vậy, hệ thống sử dụng MongoDB Sharded Cluster để phân phối dữ liệu trên nhiều shard ngang hàng. Cụm cơ sở dữ liệu phân tán gồm \texttt{mongos}, config server, các shard replica set và balancer.
 
@@ -1282,7 +1297,7 @@ Balancer & Tự động cân bằng chunk dữ liệu giữa các shard. \\ \hli
 Ứng dụng backend không kết nối trực tiếp đến từng shard mà đi qua \texttt{mongos}. Tầng định tuyến này sử dụng metadata sharding để xác định shard cần truy cập, từ đó giúp ứng dụng nhìn thấy hệ thống như một cơ sở dữ liệu logic thống nhất.
 
 \subsubsection*{3.1. Lược đồ phục vụ phân mảnh ngang theo \texttt{branchId}}
-\addcontentsline{toc}{subsubsection}{3.1. Lược đồ phục vụ phân mảnh ngang theo \texttt{branchId}}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{3.1}Lược đồ phục vụ phân mảnh ngang theo \texttt{branchId}}
 
 
 \clearpage
@@ -1299,7 +1314,7 @@ Hình trên cho thấy \texttt{branchId} là trục tổ chức dữ liệu chí
 Việc lấy \texttt{branchId} làm nền tảng cho phân mảnh ngang phù hợp với đặc điểm vận hành của hệ thống, vì phần lớn truy vấn nghiệp vụ đều phát sinh trong phạm vi một chi nhánh. Trong khi đó, \texttt{campaignId} chủ yếu giữ vai trò reference nghiệp vụ để liên kết dữ liệu theo chiến dịch, chưa phải trục phân mảnh chính trong bản thiết kế demo.
 
 \subsubsection*{3.2. Thiết kế phân mảnh ngang bằng MongoDB Sharding}
-\addcontentsline{toc}{subsubsection}{3.2. Thiết kế phân mảnh ngang bằng MongoDB Sharding}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{3.2}Thiết kế phân mảnh ngang bằng MongoDB Sharding}
 
 Hệ thống sử dụng phân mảnh ngang thông qua cơ chế sharding của MongoDB. Các document trong cùng một collection được chia thành nhiều phần nhỏ gọi là chunk, sau đó được phân phối lên các shard khác nhau để tăng khả năng mở rộng và cân bằng tải ghi đọc.
 
@@ -1446,7 +1461,7 @@ Cập nhật chiến dịch & Kiểm tra quyền theo \texttt{branchId}, cập n
 Hệ thống không xóa cứng các dữ liệu quan trọng như đóng góp hoặc phân phối hỗ trợ. Thay vào đó, hệ thống cập nhật trạng thái như \texttt{CANCELLED}, \texttt{REJECTED} hoặc \texttt{REFUNDED} để giữ lại lịch sử phục vụ kiểm tra và báo cáo.
 
 \subsubsection*{3.3. Thiết kế định vị và sơ đồ định vị dữ liệu}
-\addcontentsline{toc}{subsubsection}{3.3. Thiết kế định vị và sơ đồ định vị dữ liệu}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{3.3}Thiết kế định vị và sơ đồ định vị dữ liệu}
 
 Trong MongoDB Sharded Cluster, dữ liệu không được định vị cố định theo kiểu mỗi chi nhánh nằm trên một máy cụ thể. Thay vào đó, backend gửi truy vấn đến \texttt{mongos}; \texttt{mongos} đọc metadata từ config server, xác định chunk cần truy cập và định tuyến truy vấn đến shard phù hợp.
 
@@ -1480,7 +1495,7 @@ Thống kê & \texttt{stats\_snapshots} & Collection logic & Chưa shard trong b
 \end{center}
 
 \subsubsection*{3.4. Lược đồ ánh xạ logic -- vật lý}
-\addcontentsline{toc}{subsubsection}{3.4. Lược đồ ánh xạ logic -- vật lý}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{3.4}Lược đồ ánh xạ logic -- vật lý}
 
 Trong hệ thống, các collection được backend nhìn thấy như những collection logic thống nhất. Tuy nhiên, ở tầng vật lý, các collection được shard sẽ được MongoDB chia thành nhiều chunk và phân phối trên các shard khác nhau.
 
@@ -1520,12 +1535,12 @@ Các collection chưa được phân mảnh trong bản demo sẽ được lưu 
 
 \textbf{Kết luận.} Thiết kế cơ sở dữ liệu phân tán của hệ thống sử dụng MongoDB Sharded Cluster với shard key chính là \texttt{\{ branchId: "hashed" \}}. Các collection tăng trưởng nhanh như \texttt{contributions}, \texttt{aid\_distributions} và \texttt{activity\_logs} được phân mảnh để phân phối dữ liệu trên 5 shard ngang hàng, trong khi ứng dụng vẫn truy cập dữ liệu như một cơ sở dữ liệu logic thống nhất thông qua \texttt{mongos}.
 
-\subsection*{4. Thiết kế nhân bản và đồng bộ hóa dữ liệu}
+\subsection*{IV. Thiết kế nhân bản và đồng bộ hóa dữ liệu}
 
 Để hệ thống không chỉ mở rộng theo chiều ngang mà còn đảm bảo tính sẵn sàng, mỗi shard từ M2 đến M6 được triển khai dưới dạng một replica set độc lập gồm 1 primary và 2 secondary. Cơ chế replica set giúp dữ liệu trong từng shard được sao chép tự động, hỗ trợ đồng bộ liên tục và cho phép failover khi node chính gặp sự cố.
 
 \subsubsection*{4.1. Sơ đồ nhân bản trong từng shard}
-\addcontentsline{toc}{subsubsection}{4.1. Sơ đồ nhân bản trong từng shard}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{4.1}Sơ đồ nhân bản trong từng shard}
 
 \begin{figure}[H]
 \centering
@@ -1537,7 +1552,7 @@ Các collection chưa được phân mảnh trong bản demo sẽ được lưu 
 Sơ đồ trên mô tả cơ chế nhân bản dữ liệu trong từng shard. Mỗi shard là một replica set độc lập. Primary trong từng replica set tiếp nhận thao tác ghi và đồng bộ dữ liệu sang các secondary thông qua oplog. Nhờ đó, mỗi shard không chỉ lưu một phần dữ liệu phân mảnh mà còn có các bản sao dự phòng để tăng khả năng chịu lỗi.
 
 \subsubsection*{4.2. Cơ chế đồng bộ dữ liệu bằng oplog}
-\addcontentsline{toc}{subsubsection}{4.2. Cơ chế đồng bộ dữ liệu bằng oplog}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{4.2}Cơ chế đồng bộ dữ liệu bằng oplog}
 
 MongoDB sử dụng oplog để đồng bộ dữ liệu trong replica set. Oplog là nhật ký ghi lại các thao tác làm thay đổi dữ liệu trên primary. Các secondary sẽ đọc oplog từ primary và thực hiện lại các thao tác theo đúng thứ tự để duy trì dữ liệu đồng bộ.
 
@@ -1576,7 +1591,7 @@ Quy trình đồng bộ dữ liệu được thực hiện như sau:
 Cơ chế này giúp dữ liệu trong từng shard được tự động đồng bộ mà không cần thực hiện đồng bộ thủ công giữa các máy.
 
 \subsubsection*{4.3. Cơ chế failover khi primary gặp sự cố}
-\addcontentsline{toc}{subsubsection}{4.3. Cơ chế failover khi primary gặp sự cố}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{4.3}Cơ chế failover khi primary gặp sự cố}
 
 Trong quá trình vận hành, primary của một replica set có thể gặp sự cố do lỗi máy, lỗi mạng hoặc tiến trình MongoDB bị dừng. Khi primary không còn khả dụng, các secondary trong cùng replica set sẽ tiến hành bầu chọn để chọn ra primary mới.
 
@@ -1600,7 +1615,7 @@ Quá trình failover được thực hiện như sau:
 Cơ chế failover giúp hệ thống tăng tính sẵn sàng. Khi một primary gặp sự cố, dữ liệu trong shard vẫn còn tồn tại trên các secondary và hệ thống có thể tiếp tục phục vụ sau khi bầu chọn primary mới.
 
 \subsubsection*{4.4. Đồng bộ metadata sharding}
-\addcontentsline{toc}{subsubsection}{4.4. Đồng bộ metadata sharding}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{4.4}Đồng bộ metadata sharding}
 
 Ngoài dữ liệu nghiệp vụ được lưu trên các shard, hệ thống còn có config server replica set để lưu metadata của sharded cluster. Metadata này bao gồm thông tin về danh sách shard, collection được phân mảnh, shard key, chunk và vị trí các chunk trên từng shard.
 
@@ -1626,7 +1641,7 @@ Replica set trong shard & Bản sao dữ liệu shard & Đảm bảo đồng b�
 Nhờ có config server, \texttt{mongos} biết được chunk dữ liệu đang nằm ở shard nào và gửi truy vấn đến đúng vị trí. Khi balancer di chuyển chunk giữa các shard để cân bằng tải, metadata trong config server cũng được cập nhật tương ứng.
 
 \subsubsection*{4.5. Phân biệt sharding và replication trong hệ thống}
-\addcontentsline{toc}{subsubsection}{4.5. Phân biệt sharding và replication trong hệ thống}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{4.5}Phân biệt sharding và replication trong hệ thống}
 
 Trong hệ thống, sharding và replication là hai cơ chế khác nhau nhưng phối hợp với nhau để tạo thành cơ sở dữ liệu phân tán hoàn chỉnh.
 
@@ -1651,7 +1666,7 @@ Vai trò chính & Chia tải và tăng khả năng mở rộng. & Chịu lỗi v
 Sharding giúp hệ thống phân tán dữ liệu trên nhiều shard, giảm tải cho một máy chủ duy nhất. Replication giúp từng shard có khả năng chịu lỗi nhờ có nhiều bản sao dữ liệu. Vì vậy, hệ thống vừa có khả năng mở rộng, vừa có khả năng duy trì hoạt động khi một node trong shard gặp sự cố.
 
 \subsubsection*{4.6. Kết luận}
-\addcontentsline{toc}{subsubsection}{4.6. Kết luận}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{4.6}Kết luận}
 
 Thiết kế nhân bản và đồng bộ hóa của hệ thống được xây dựng dựa trên cơ chế replica set của MongoDB. Mỗi shard từ M2 đến M6 là một replica set gồm 1 primary và 2 secondary. Primary tiếp nhận thao tác ghi, sau đó các secondary đồng bộ dữ liệu thông qua oplog.
 
@@ -1659,10 +1674,10 @@ Cơ chế này giúp hệ thống tăng tính sẵn sàng, giảm rủi ro mất
 
 
 
-\subsection*{5. Thiết kế vật lý các trạm}
+\subsection*{V. Thiết kế vật lý các trạm}
 
 \subsubsection*{5.1. Mục tiêu thiết kế vật lý}
-\addcontentsline{toc}{subsubsection}{5.1. Mục tiêu thiết kế vật lý}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{5.1}Mục tiêu thiết kế vật lý}
 
 Thiết kế vật lý các trạm nhằm xác định rõ vai trò, thành phần triển khai và dữ liệu xử lý trên từng máy trong hệ thống. Khác với thiết kế logic chỉ mô tả collection và quan hệ nghiệp vụ, thiết kế vật lý tập trung vào việc phân bổ các thành phần hệ thống trên các máy cụ thể.
 
@@ -1680,7 +1695,7 @@ Mục tiêu của thiết kế vật lý gồm:
 \end{itemize}
 
 \subsubsection*{5.2. Phân bổ tổng thể các máy}
-\addcontentsline{toc}{subsubsection}{5.2. Phân bổ tổng thể các máy}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{5.2}Phân bổ tổng thể các máy}
 
 \begin{center}
 \small
@@ -1704,7 +1719,7 @@ Máy 6 & Shard 5 & \texttt{shard5RS} & Lưu một phần dữ liệu đã phân 
 Các shard từ máy 2 đến máy 6 có vai trò ngang hàng. Không có shard nào được xem là shard trung tâm. Dữ liệu được MongoDB chia thành các chunk dựa trên $hash(branchId)$ và phân phối trên các shard thông qua balancer. Trong phạm vi bản demo, config server replica set được triển khai như một thành phần hỗ trợ của cụm MongoDB để lưu metadata sharding. Backend không truy cập trực tiếp config server mà thông qua \texttt{mongos}.
 
 \subsubsection*{5.3. Thiết kế vật lý máy 1 -- Controller}
-\addcontentsline{toc}{subsubsection}{5.3. Thiết kế vật lý máy 1 -- Controller}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{5.3}Thiết kế vật lý máy 1 -- Controller}
 
 Máy 1 giữ vai trò điều phối toàn hệ thống. Đây là máy tiếp nhận request từ người dùng thông qua frontend, xử lý nghiệp vụ tại backend và gửi truy vấn đến cụm MongoDB thông qua \texttt{mongos}.
 
@@ -1730,7 +1745,7 @@ QA/Test tool & Hỗ trợ kiểm thử API và kiểm tra luồng nghiệp vụ.
 Máy 1 không lưu toàn bộ dữ liệu nghiệp vụ. Dữ liệu nghiệp vụ chính nằm trên các shard từ máy 2 đến máy 6. Backend chỉ kết nối đến \texttt{mongos}, không kết nối trực tiếp đến từng shard. Cách tổ chức này giúp tầng ứng dụng nhìn cơ sở dữ liệu như một hệ thống logic thống nhất, còn việc xác định dữ liệu nằm trên shard nào do MongoDB xử lý thông qua metadata sharding.
 
 \subsubsection*{5.4. Thiết kế vật lý các máy shard}
-\addcontentsline{toc}{subsubsection}{5.4. Thiết kế vật lý các máy shard}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{5.4}Thiết kế vật lý các máy shard}
 
 Từ máy 2 đến máy 6 là các shard lưu dữ liệu phân tán. Trong phạm vi demo, mỗi shard được mô phỏng dưới dạng một replica set riêng, gồm 1 primary và 2 secondary. Primary tiếp nhận thao tác ghi, còn secondary sao chép dữ liệu từ primary thông qua oplog.
 
@@ -1773,7 +1788,7 @@ Secondary 2 & Sao chép dữ liệu từ primary và tham gia failover khi cần
 Thiết kế này giúp mô phỏng rõ cơ chế ghi, đồng bộ và failover trong từng shard. Trong triển khai thực tế, các node của replica set nên được đặt trên các máy khác nhau để tăng khả năng chịu lỗi ở mức máy vật lý; khi đó một secondary có thể được bầu làm primary mới để tiếp tục phục vụ hệ thống.
 
 \subsubsection*{5.5. Phân bổ dữ liệu vật lý trên các shard}
-\addcontentsline{toc}{subsubsection}{5.5. Phân bổ dữ liệu vật lý trên các shard}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{5.5}Phân bổ dữ liệu vật lý trên các shard}
 
 Dữ liệu nghiệp vụ được chia thành hai nhóm: nhóm collection được phân mảnh và nhóm collection chưa phân mảnh trong bản demo.
 
@@ -1822,7 +1837,7 @@ Các collection này có tốc độ tăng trưởng nhanh, tần suất ghi cao
 Các collection chưa shard được lưu trên primary shard của database trong bản demo. Khi hệ thống mở rộng, một số collection có thể tiếp tục được shard theo \texttt{branchId}.
 
 \subsubsection*{5.6. Sơ đồ thiết kế vật lý các trạm}
-\addcontentsline{toc}{subsubsection}{5.6. Sơ đồ thiết kế vật lý các trạm}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{5.6}Sơ đồ thiết kế vật lý các trạm}
 
 
 \clearpage
@@ -1837,7 +1852,7 @@ Các collection chưa shard được lưu trên primary shard của database tro
 Sơ đồ trên mô tả cách các thành phần được triển khai trên các máy vật lý. Máy 1 đảm nhận vai trò điều phối ứng dụng và định tuyến truy vấn. Các máy từ 2 đến 6 đảm nhận vai trò shard lưu dữ liệu. Backend không truy cập trực tiếp đến từng shard mà thông qua \texttt{mongos}. Metadata về vị trí chunk được lưu tại config server để hỗ trợ định tuyến truy vấn.
 
 \subsubsection*{5.7. Luồng truy cập dữ liệu vật lý}
-\addcontentsline{toc}{subsubsection}{5.7. Luồng truy cập dữ liệu vật lý}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{5.7}Luồng truy cập dữ liệu vật lý}
 
 Khi người dùng thao tác trên hệ thống, request được gửi đến frontend và backend trên máy 1. Backend thực hiện xác thực, phân quyền và kiểm tra \texttt{branchId}. Sau đó backend gửi truy vấn đến \texttt{mongos}.
 
@@ -1857,7 +1872,7 @@ Quy trình truy cập dữ liệu vật lý gồm:
 \end{itemize}
 
 \subsubsection*{5.8. Yêu cầu kết nối giữa các trạm}
-\addcontentsline{toc}{subsubsection}{5.8. Yêu cầu kết nối giữa các trạm}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{5.8}Yêu cầu kết nối giữa các trạm}
 
 Để hệ thống hoạt động ổn định, các máy trong cụm cần đảm bảo kết nối mạng với nhau. Máy 1 phải truy cập được đến config server và các shard. Các node trong cùng replica set phải kết nối được với nhau để đồng bộ oplog và thực hiện bầu chọn primary khi cần.
 
@@ -1885,7 +1900,7 @@ Balancer $\rightarrow$ Shard & Di chuyển chunk khi cần cân bằng tải. \\
 Các cổng của shard cần được mở để các thành phần trong cụm có thể giao tiếp. Trong bản thiết kế demo, các port của shard được phân bổ lần lượt từ 27110 đến 27152 tương ứng với 5 replica set.
 
 \subsubsection*{5.9. Kết luận}
-\addcontentsline{toc}{subsubsection}{5.9. Kết luận}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{5.9}Kết luận}
 
 Thiết kế vật lý của hệ thống được xây dựng theo mô hình 6 máy. Máy 1 đóng vai trò controller, chạy frontend, backend, công cụ kiểm thử và \texttt{mongos}. Từ máy 2 đến máy 6 là 5 shard ngang hàng, mỗi shard được triển khai dưới dạng replica set gồm 1 primary và 2 secondary.
 

@@ -31,10 +31,13 @@ async function main(): Promise<void> {
       ]);
     }
 
-    const [hq, hcmBranch, dnBranch] = await BranchModel.create([
-      { name: "Trung tam trung uong", code: "HQ", type: "HEADQUARTER", province: "Ha Noi", status: "ACTIVE" },
-      { name: "Chi nhanh TP.HCM", code: "HCM", type: "BRANCH", province: "TP.HCM", status: "ACTIVE" },
-      { name: "Chi nhanh Da Nang", code: "DNG", type: "BRANCH", province: "Da Nang", status: "ACTIVE" }
+    const [hq, hpBranch, thBranch, dnBranch, hcmBranch, btBranch] = await BranchModel.create([
+      { name: "Tru so dieu phoi Ha Noi", code: "HN-HQ", type: "HEADQUARTER", province: "Ha Noi", status: "ACTIVE" },
+      { name: "Chi nhanh Hai Phong", code: "HP-S1", type: "BRANCH", province: "Hai Phong", status: "ACTIVE" },
+      { name: "Chi nhanh Thanh Hoa", code: "TH-S2", type: "BRANCH", province: "Thanh Hoa", status: "ACTIVE" },
+      { name: "Chi nhanh Da Nang", code: "DN-S3", type: "BRANCH", province: "Da Nang", status: "ACTIVE" },
+      { name: "Chi nhanh Ho Chi Minh", code: "HCM-S4", type: "BRANCH", province: "Ho Chi Minh", status: "ACTIVE" },
+      { name: "Chi nhanh Ben Tre", code: "BT-S5", type: "BRANCH", province: "Ben Tre", status: "ACTIVE" }
     ]);
 
     const passwordHash = await bcrypt.hash("Demo@123", 12);
@@ -50,7 +53,7 @@ async function main(): Promise<void> {
       {
         email: "hcm.admin@charity.local",
         password: passwordHash,
-        fullName: "HCM Branch Admin",
+        fullName: "Ho Chi Minh Branch Admin",
         role: UserRole.BRANCH_ADMIN,
         isActive: true,
         branchId: hcmBranch._id
@@ -66,7 +69,7 @@ async function main(): Promise<void> {
       {
         email: "hcm.staff@charity.local",
         password: passwordHash,
-        fullName: "HCM Staff",
+        fullName: "Ho Chi Minh Staff",
         role: UserRole.STAFF,
         isActive: true,
         branchId: hcmBranch._id
@@ -83,19 +86,19 @@ async function main(): Promise<void> {
     const [hcmCampaign, dnCampaign] = await CampaignModel.create([
       {
         branchId: hcmBranch._id,
-        code: "HCM-FLOOD-2026",
-        title: "Cuu tro lu lut HCM",
+        code: "HCM-S4-FLOOD-2026",
+        title: "Cuu tro lu lut Ho Chi Minh",
         type: "FLOOD_RELIEF",
         status: "ACTIVE",
         targetAmount: 100000000,
         currentAmount: 0,
         disbursedAmount: 0,
-        location: { province: "TP.HCM", district: "Thu Duc" },
+        location: { province: "Ho Chi Minh", district: "Thu Duc" },
         createdBy: hcmAdmin._id
       },
       {
         branchId: dnBranch._id,
-        code: "DN-SCHOLAR-2026",
+        code: "DN-S3-SCHOLAR-2026",
         title: "Hoc bong Da Nang",
         type: "SCHOLARSHIP",
         status: "ACTIVE",
@@ -161,7 +164,7 @@ async function main(): Promise<void> {
       name: "Ho gia dinh Tran",
       type: "FAMILY",
       phone: "0901231234",
-      location: { province: "TP.HCM", district: "Thu Duc", address: "P. Linh Trung" },
+      location: { province: "Ho Chi Minh", district: "Thu Duc", address: "P. Linh Trung" },
       situationDescription: "Bi anh huong boi ngap lut",
       verificationStatus: "VERIFIED",
       verifiedBy: hcmStaff._id,

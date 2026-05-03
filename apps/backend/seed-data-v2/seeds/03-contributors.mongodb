@@ -1,48 +1,53 @@
-// Seed contributors for mongosh copy-paste.
+// Seed contributors. Contributors are not sharded in the demo.
 
 db = db.getSiblingDB("charity_distributed");
 db.contributors.drop();
 
-const branches03 = db.branches.find({ status: "ACTIVE" }).sort({ code: 1 }).toArray();
+var branches03 = db.branches.find({ status: "ACTIVE" }).sort({ code: 1 }).toArray();
 if (branches03.length === 0) {
   throw new Error("Run 01-branches.mongodb first.");
 }
 
-const contributorTypes03 = ["INDIVIDUAL", "ORGANIZATION", "SERVICE_PROVIDER"];
-const contributors03 = Array.from({ length: 120 }, (_, i) => {
-  const n = i + 1;
-  const branch = branches03[(i * 7) % branches03.length];
-  const type = contributorTypes03[i % contributorTypes03.length];
-  const fullName = type === "INDIVIDUAL" ? `Nguoi dong gop ${String(n).padStart(3, "0")}` : `To chuc thien nguyen ${String(n).padStart(3, "0")}`;
-  return {
-    _id: ObjectId(),
-    branchId: branch._id,
-    type,
-    name: fullName,
-    fullName,
-    organizationName: type === "INDIVIDUAL" ? undefined : fullName,
-    email: `contributor${String(n).padStart(3, "0")}@example.com`,
-    phone: `08${String(20000000 + n).slice(-8)}`,
-    address: {
-      street: `${200 + n} Duong Dong Gop`,
-      district: branch.district,
-      province: branch.province,
-      country: "Viet Nam"
-    },
-    totalContributionStats: {
-      moneyCount: i % 9,
-      totalMoneyAmount: (i + 1) * 750000,
-      itemCount: i % 7,
-      totalEstimatedItemValue: (i + 1) * 250000,
-      serviceCount: type === "SERVICE_PROVIDER" ? (i % 5) + 1 : 0,
-      totalServiceValue: type === "SERVICE_PROVIDER" ? (i + 1) * 500000 : 0,
-      volunteerCount: i % 6,
-      totalVolunteerHours: (i % 6) * 4
-    },
-    isActive: i % 17 !== 0,
-    createdAt: new Date(2024, i % 12, (i % 28) + 1),
-    updatedAt: new Date(2024, (i % 12), (i % 28) + 1)
-  };
+var contributorTypes03 = ["INDIVIDUAL", "ORGANIZATION", "SERVICE_PROVIDER"];
+var contributors03 = [];
+branches03.forEach((branch, branchIndex) => {
+  for (var j = 0; j < 10; j += 1) {
+    var n = (branchIndex * 10) + j + 1;
+    var type = contributorTypes03[j % contributorTypes03.length];
+    var fullName = type === "INDIVIDUAL"
+      ? `Nguoi dong gop ${String(n).padStart(3, "0")} ${branch.province}`
+      : `To chuc ho tro ${String(n).padStart(3, "0")} ${branch.province}`;
+
+    contributors03.push({
+      _id: ObjectId(),
+      branchId: branch._id,
+      type,
+      name: fullName,
+      fullName,
+      organizationName: type === "INDIVIDUAL" ? undefined : fullName,
+      email: `contributor${String(n).padStart(3, "0")}@example.com`,
+      phone: `08${String(20000000 + n).slice(-8)}`,
+      address: {
+        street: `${200 + n} Duong Dong Gop`,
+        district: branch.district,
+        province: branch.province,
+        country: "Viet Nam"
+      },
+      totalContributionStats: {
+        moneyCount: j % 6,
+        totalMoneyAmount: (j + 1) * 1000000,
+        itemCount: j % 5,
+        totalEstimatedItemValue: (j + 1) * 400000,
+        serviceCount: type === "SERVICE_PROVIDER" ? (j % 4) + 1 : 0,
+        totalServiceValue: type === "SERVICE_PROVIDER" ? (j + 1) * 700000 : 0,
+        volunteerCount: j % 4,
+        totalVolunteerHours: (j % 4) * 6
+      },
+      isActive: j !== 9,
+      createdAt: new Date(2024, branchIndex, j + 1),
+      updatedAt: new Date(2024, branchIndex, j + 1)
+    });
+  }
 });
 
 db.contributors.insertMany(contributors03, { ordered: false });

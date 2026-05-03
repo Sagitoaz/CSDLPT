@@ -1,77 +1,84 @@
-// Seed campaigns for mongosh copy-paste.
+// Seed campaigns aligned with the current distributed charity project.
+// Campaigns are not sharded in the demo; they remain aggregate roots with branchId.
 
 db = db.getSiblingDB("charity_distributed");
 db.campaigns.drop();
 
-const branches02 = db.branches.find({ status: "ACTIVE" }).sort({ code: 1 }).toArray();
+var branches02 = db.branches.find({ status: "ACTIVE" }).sort({ code: 1 }).toArray();
 if (branches02.length === 0) {
   throw new Error("Run 01-branches.mongodb first.");
 }
 
-const campaignTypes02 = ["FLOOD_RELIEF", "SCHOLARSHIP", "MEDICAL_SUPPORT", "FOOD_SUPPORT", "CHILD_SUPPORT", "DISASTER_RELIEF", "OTHER"];
-const campaignStatuses02 = ["ACTIVE", "ACTIVE", "COMPLETED", "PAUSED", "DRAFT"];
-const resourceNames02 = ["Tien mat", "Gao", "Thuoc", "Sach vo", "Quan ao", "Gio cong tinh nguyen"];
+var campaignTypes02 = ["FLOOD_RELIEF", "SCHOLARSHIP", "MEDICAL_SUPPORT", "FOOD_SUPPORT", "CHILD_SUPPORT", "DISASTER_RELIEF"];
+var campaignStatuses02 = ["ACTIVE", "ACTIVE", "COMPLETED", "PAUSED", "DRAFT"];
+var resourceNames02 = ["Tien mat", "Gao", "Thuoc", "Sach vo", "Quan ao", "Gio cong tinh nguyen"];
 
-const campaigns02 = Array.from({ length: 90 }, (_, i) => {
-  const n = i + 1;
-  const branch = branches02[i % branches02.length];
-  const type = campaignTypes02[i % campaignTypes02.length];
-  const targetAmount = 30000000 + (n * 2500000);
-  const currentAmount = Math.floor(targetAmount * (0.35 + ((i % 8) * 0.06)));
-  const disbursedAmount = Math.floor(currentAmount * (0.25 + ((i % 5) * 0.08)));
-  const startDate = new Date(2024, i % 12, (i % 20) + 1);
-  const endDate = new Date(2024, (i % 12) + 1, (i % 20) + 8);
-  return {
-    _id: ObjectId(),
-    branchId: branch._id,
-    code: `CMP${String(n).padStart(4, "0")}`,
-    name: `Chien dich ${String(n).padStart(3, "0")} - ${branch.province}`,
-    title: `Chien dich ${String(n).padStart(3, "0")} - ${branch.province}`,
-    description: `Seed campaign ${n} for distributed MongoDB shard testing.`,
-    type,
-    status: campaignStatuses02[i % campaignStatuses02.length],
-    visibility: i % 6 === 0 ? "INTERNAL" : "PUBLIC",
-    targetAmount,
-    currentAmount,
-    disbursedAmount,
-    startDate,
-    endDate,
-    timeRange: { startDate, endDate },
-    location: {
-      province: branch.province,
-      district: branch.district,
-      ward: branch.ward,
-      address: branch.address
-    },
-    goals: {
-      targetMoneyAmount: targetAmount,
-      targetItemSummary: resourceNames02.slice(0, (i % resourceNames02.length) + 1).join(", "),
-      targetVolunteerCount: 10 + (i % 70)
-    },
-    requiredResources: [{
-      resourceType: i % 3 === 0 ? "MONEY" : "ITEM",
-      name: resourceNames02[i % resourceNames02.length],
-      quantity: 10 + (i % 40),
-      unit: i % 3 === 0 ? "trieu VND" : "phan",
-      estimatedValue: 1000000 + (i * 150000)
-    }],
-    summaryStats: {
-      totalMoneyReceived: currentAmount,
-      totalEstimatedItemValue: 500000 + (i * 120000),
-      totalVolunteerHours: 20 + (i % 90),
-      totalMoneyDistributed: disbursedAmount,
-      totalEstimatedAidValue: 300000 + (i * 90000),
-      beneficiaryCount: 3 + (i % 35)
-    },
-    createdBy: ObjectId(),
-    organizerId: ObjectId(),
-    images: [],
-    proofImages: [],
-    documents: [],
-    metadata: { seedBatch: "seed-data-v2", branchCode: branch.code },
-    createdAt: startDate,
-    updatedAt: new Date(2024, (i % 12) + 1, (i % 20) + 10)
-  };
+var campaigns02 = [];
+branches02.forEach((branch, branchIndex) => {
+  for (var j = 0; j < 8; j += 1) {
+    var n = (branchIndex * 8) + j + 1;
+    var startDate = new Date(2024, j % 12, (j * 2) + 1);
+    var endDate = new Date(2024, (j % 12) + 1, (j * 2) + 8);
+    var targetAmount = 50000000 + (n * 3000000);
+    var currentAmount = Math.floor(targetAmount * (0.35 + ((j % 5) * 0.09)));
+    var disbursedAmount = Math.floor(currentAmount * (0.25 + ((j % 4) * 0.1)));
+
+    campaigns02.push({
+      _id: ObjectId(),
+      branchId: branch._id,
+      code: `${branch.code}-CMP-${String(j + 1).padStart(2, "0")}`,
+      name: `Chien dich ${resourceNames02[j % resourceNames02.length]} - ${branch.province}`,
+      title: `Chien dich ${resourceNames02[j % resourceNames02.length]} - ${branch.province}`,
+      description: `Chien dich mau cua ${branch.name}, dung cho demo dashboard va shard theo branchId.`,
+      type: campaignTypes02[j % campaignTypes02.length],
+      status: campaignStatuses02[j % campaignStatuses02.length],
+      visibility: j % 5 === 0 ? "INTERNAL" : "PUBLIC",
+      targetAmount,
+      currentAmount,
+      disbursedAmount,
+      startDate,
+      endDate,
+      timeRange: { startDate, endDate },
+      location: {
+        province: branch.province,
+        district: branch.district,
+        ward: branch.ward,
+        address: branch.address
+      },
+      goals: {
+        targetMoneyAmount: targetAmount,
+        targetItemSummary: resourceNames02.slice(0, (j % resourceNames02.length) + 1).join(", "),
+        targetVolunteerCount: 20 + (j * 5)
+      },
+      requiredResources: [{
+        resourceType: j % 3 === 0 ? "MONEY" : "ITEM",
+        name: resourceNames02[j % resourceNames02.length],
+        quantity: 10 + (j * 3),
+        unit: j % 3 === 0 ? "trieu VND" : "phan",
+        estimatedValue: 1000000 + (j * 500000)
+      }],
+      summaryStats: {
+        totalMoneyReceived: currentAmount,
+        totalEstimatedItemValue: 2000000 + (j * 750000),
+        totalVolunteerHours: 30 + (j * 8),
+        totalMoneyDistributed: disbursedAmount,
+        totalEstimatedAidValue: 1000000 + (j * 550000),
+        beneficiaryCount: 5 + (j * 2)
+      },
+      createdBy: ObjectId(),
+      organizerId: ObjectId(),
+      images: [],
+      proofImages: [],
+      documents: [],
+      metadata: {
+        seedBatch: "seed-data-v2",
+        branchCode: branch.code,
+        physicalRole: branch.address
+      },
+      createdAt: startDate,
+      updatedAt: new Date(2024, (j % 12) + 1, (j * 2) + 10)
+    });
+  }
 });
 
 db.campaigns.insertMany(campaigns02, { ordered: false });
