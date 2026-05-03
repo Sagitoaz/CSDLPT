@@ -31,8 +31,7 @@ async function main(): Promise<void> {
       ]);
     }
 
-    const [hq, hpBranch, thBranch, dnBranch, hcmBranch, btBranch] = await BranchModel.create([
-      { name: "Tru so dieu phoi Ha Noi", code: "HN-HQ", type: "HEADQUARTER", province: "Ha Noi", status: "ACTIVE" },
+    const [_hpBranch, _thBranch, dnBranch, hcmBranch, _btBranch] = await BranchModel.create([
       { name: "Chi nhanh Hai Phong", code: "HP-S1", type: "BRANCH", province: "Hai Phong", status: "ACTIVE" },
       { name: "Chi nhanh Thanh Hoa", code: "TH-S2", type: "BRANCH", province: "Thanh Hoa", status: "ACTIVE" },
       { name: "Chi nhanh Da Nang", code: "DN-S3", type: "BRANCH", province: "Da Nang", status: "ACTIVE" },
@@ -47,8 +46,7 @@ async function main(): Promise<void> {
         password: passwordHash,
         fullName: "Super Admin",
         role: UserRole.SUPER_ADMIN,
-        isActive: true,
-        branchId: hq._id
+        isActive: true
       },
       {
         email: "hcm.admin@charity.local",

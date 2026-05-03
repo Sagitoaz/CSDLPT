@@ -1,25 +1,11 @@
 // Seed branches aligned with Baocao.tex and 08-tich-hop-be-fe-6-may.md.
+// Ha Noi is the controller/mongos machine, not a data branch.
 // Copy-paste directly into mongosh.
 
 db = db.getSiblingDB("charity_distributed");
 db.branches.drop();
 
 var branches01 = [
-  {
-    _id: ObjectId("660000000000000000000001"),
-    name: "Tru so dieu phoi Ha Noi",
-    code: "HN-HQ",
-    type: "HEADQUARTER",
-    province: "Ha Noi",
-    district: "Ba Dinh",
-    ward: "Dien Bien",
-    address: "May 1 Controller - FE, BE, QA, mongos",
-    phone: "0241000001",
-    email: "hq.hanoi@charity.local",
-    status: "ACTIVE",
-    createdAt: new Date("2024-01-01T00:00:00Z"),
-    updatedAt: new Date("2024-01-01T00:00:00Z")
-  },
   {
     _id: ObjectId("660000000000000000000002"),
     name: "Chi nhanh Hai Phong",
@@ -99,3 +85,4 @@ var branches01 = [
 
 db.branches.insertMany(branches01, { ordered: false });
 print(`OK branches inserted: ${db.branches.countDocuments()}`);
+print("Shard/branch plan: HP-S1->shard1RS, TH-S2->shard2RS, DN-S3->shard3RS, HCM-S4->shard4RS, BT-S5->shard5RS");

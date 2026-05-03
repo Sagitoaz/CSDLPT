@@ -5,7 +5,7 @@ db = db.getSiblingDB("charity_distributed");
 
 var demo03RunId = `TX-DEMO-ROLLBACK-${Date.now()}`;
 var demo03Amount = 9999999;
-var demo03Campaign = db.campaigns.findOne({ branchId: { $ne: ObjectId("660000000000000000000001") } });
+var demo03Campaign = db.campaigns.findOne({}, { sort: { branchId: 1, code: 1 } });
 if (!demo03Campaign) {
   throw new Error("No local campaign found. Run seeds/index.mongodb first.");
 }

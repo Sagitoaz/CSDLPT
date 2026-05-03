@@ -1,12 +1,16 @@
 // ============= SEED DATA INDEX - COPY/PASTE DIRECTLY INTO MONGOSH =============
 // Aligned with Baocao.tex, mermail.html, 16-thiet-ke-csdl-mongodb.md and 08 guide.
 // Model: May 1 controller in Ha Noi; May 2-6 are 5 shard replica sets.
+// Ha Noi is controller/mongos only, so seed data has 5 branch records.
 // Sharded demo collections: contributions, aid_distributions, activity_logs.
 
 db = db.getSiblingDB("charity_distributed");
 print("Seed data v2 starting...");
 
 var seedCollections = [
+  "stats_snapshots",
+  "volunteers",
+  "users",
   "activity_logs",
   "aid_distributions",
   "beneficiaries",
@@ -49,7 +53,6 @@ function moveBranchChunks(collectionName, branches, shardNames) {
 ["contributions", "aid_distributions", "activity_logs"].forEach(setupHashedShard);
 
 var branches = [
-  { _id: ObjectId("660000000000000000000001"), name: "Tru so dieu phoi Ha Noi", code: "HN-HQ", type: "HEADQUARTER", province: "Ha Noi", district: "Ba Dinh", ward: "Dien Bien", address: "May 1 Controller - FE, BE, QA, mongos", phone: "0241000001", email: "hq.hanoi@charity.local", status: "ACTIVE", createdAt: new Date("2024-01-01T00:00:00Z"), updatedAt: new Date("2024-01-01T00:00:00Z") },
   { _id: ObjectId("660000000000000000000002"), name: "Chi nhanh Hai Phong", code: "HP-S1", type: "BRANCH", province: "Hai Phong", district: "Hong Bang", ward: "So Dau", address: "May 2 - shard1RS", phone: "0225100002", email: "haiphong@charity.local", status: "ACTIVE", createdAt: new Date("2024-01-02T00:00:00Z"), updatedAt: new Date("2024-01-02T00:00:00Z") },
   { _id: ObjectId("660000000000000000000003"), name: "Chi nhanh Thanh Hoa", code: "TH-S2", type: "BRANCH", province: "Thanh Hoa", district: "Thanh Hoa", ward: "Lam Son", address: "May 3 - shard2RS", phone: "0237100003", email: "thanhhoa@charity.local", status: "ACTIVE", createdAt: new Date("2024-01-03T00:00:00Z"), updatedAt: new Date("2024-01-03T00:00:00Z") },
   { _id: ObjectId("660000000000000000000004"), name: "Chi nhanh Da Nang", code: "DN-S3", type: "BRANCH", province: "Da Nang", district: "Hai Chau", ward: "Thach Thang", address: "May 4 - shard3RS", phone: "0236100004", email: "danang@charity.local", status: "ACTIVE", createdAt: new Date("2024-01-04T00:00:00Z"), updatedAt: new Date("2024-01-04T00:00:00Z") },
@@ -128,7 +131,36 @@ branches.forEach((branch, branchIndex) => {
 });
 db.contributors.insertMany(contributors, { ordered: false });
 
-var shardBranches = branches.filter((b) => b.type !== "HEADQUARTER");
+var demoPasswordHash = "$2a$12$L1e3ChXAJN9VnJqdLqThFu7tH2U/bVB0JSTh9NKrKs6hPIqDEcbgW";
+var users = [{
+  _id: ObjectId(),
+  email: "superadmin@charity.local",
+  password: demoPasswordHash,
+  fullName: "Super Admin",
+  role: "SUPER_ADMIN",
+  permissions: ["system:read", "system:write", "branches:manage"],
+  isActive: true,
+  createdAt: new Date("2024-01-01T00:00:00Z"),
+  updatedAt: new Date("2024-01-01T00:00:00Z")
+}];
+branches.forEach((branch, i) => {
+  users.push({ _id: ObjectId(), email: `${branch.code.toLowerCase()}.admin@charity.local`, phone: `086${String(1000000 + i).slice(-7)}`, password: demoPasswordHash, fullName: `Quan tri ${branch.province}`, role: "BRANCH_ADMIN", branchId: branch._id, permissions: ["campaigns:write", "contributions:write", "aid:write", "reports:read"], isActive: true, createdAt: new Date(2024, i, 1), updatedAt: new Date(2024, i, 1) });
+  users.push({ _id: ObjectId(), email: `${branch.code.toLowerCase()}.staff@charity.local`, phone: `087${String(1000000 + i).slice(-7)}`, password: demoPasswordHash, fullName: `Nhan vien ${branch.province}`, role: "STAFF", branchId: branch._id, permissions: ["campaigns:read", "contributions:write", "aid:write"], isActive: true, createdAt: new Date(2024, i, 2), updatedAt: new Date(2024, i, 2) });
+});
+db.users.insertMany(users, { ordered: false });
+
+var skills = ["logistics", "medical-support", "education", "warehouse", "transport", "field-survey"];
+var volunteers = [];
+branches.forEach((branch, branchIndex) => {
+  var campaignPool = campaigns.filter((campaign) => String(campaign.branchId) === String(branch._id));
+  for (var j = 0; j < 8; j += 1) {
+    var n = (branchIndex * 8) + j + 1;
+    volunteers.push({ _id: ObjectId(), branchId: branch._id, fullName: `Tinh nguyen vien ${String(n).padStart(3, "0")} - ${branch.province}`, phone: `089${String(2000000 + n).slice(-7)}`, email: `volunteer${String(n).padStart(3, "0")}@example.com`, skills: [skills[j % skills.length], skills[(j + 2) % skills.length]], joinedCampaignIds: campaignPool.slice(0, 2).map((campaign) => campaign._id), status: j === 7 ? "INACTIVE" : "ACTIVE", createdAt: new Date(2024, branchIndex, j + 1), updatedAt: new Date(2024, branchIndex, j + 1) });
+  }
+});
+db.volunteers.insertMany(volunteers, { ordered: false });
+
+var shardBranches = branches;
 var contributionTypes = ["MONEY", "ITEM", "MEDICINE", "CLOTHES", "BOOK", "SERVICE", "VOLUNTEER_WORK"];
 var contributionStatuses = ["PENDING", "CONFIRMED", "RECEIVED", "RECEIVED", "REJECTED"];
 var itemNames = ["Gao", "Sua", "Thuoc cam", "Ao khoac", "Sach giao khoa", "Nuoc sach", "Chan am"];
@@ -316,15 +348,55 @@ moveBranchChunks("contributions", shardBranches, ["shard1RS", "shard2RS", "shard
 moveBranchChunks("aid_distributions", shardBranches, ["shard1RS", "shard2RS", "shard3RS", "shard4RS", "shard5RS"]);
 moveBranchChunks("activity_logs", shardBranches, ["shard1RS", "shard2RS", "shard3RS", "shard4RS", "shard5RS"]);
 
+var statsSnapshots = [];
+branches.forEach((branch) => {
+  var contributionMoney = db.contributions.aggregate([
+    { $match: { branchId: branch._id, type: "MONEY", status: { $in: ["CONFIRMED", "RECEIVED"] } } },
+    { $group: { _id: "$branchId", total: { $sum: "$moneyDetail.amount" }, count: { $sum: 1 } } }
+  ]).toArray()[0] || { total: 0, count: 0 };
+  var aidMoney = db.aid_distributions.aggregate([
+    { $match: { branchId: branch._id, status: "COMPLETED" } },
+    { $group: { _id: "$branchId", total: { $sum: "$moneySupport.amount" }, count: { $sum: 1 } } }
+  ]).toArray()[0] || { total: 0, count: 0 };
+  statsSnapshots.push({
+    _id: ObjectId(),
+    scopeType: "BRANCH",
+    scopeKey: branch.code,
+    branchId: branch._id,
+    period: "2024-YTD",
+    metrics: {
+      campaignCount: db.campaigns.countDocuments({ branchId: branch._id }),
+      activeCampaignCount: db.campaigns.countDocuments({ branchId: branch._id, status: "ACTIVE" }),
+      contributionCount: db.contributions.countDocuments({ branchId: branch._id }),
+      receivedMoney: contributionMoney.total,
+      beneficiaryCount: db.beneficiaries.countDocuments({ branchId: branch._id }),
+      aidDistributionCount: db.aid_distributions.countDocuments({ branchId: branch._id }),
+      completedAidCount: aidMoney.count,
+      distributedMoney: aidMoney.total,
+      activityLogCount: db.activity_logs.countDocuments({ branchId: branch._id })
+    },
+    generatedAt: new Date("2024-12-31T23:59:59Z"),
+    createdAt: new Date("2024-12-31T23:59:59Z"),
+    updatedAt: new Date("2024-12-31T23:59:59Z")
+  });
+});
+db.stats_snapshots.insertMany(statsSnapshots, { ordered: false });
+
 print("");
 print("Seed data v2 completed.");
 print(`branches: ${db.branches.countDocuments()}`);
+print(`users: ${db.users.countDocuments()}`);
 print(`campaigns: ${db.campaigns.countDocuments()}`);
 print(`contributors: ${db.contributors.countDocuments()}`);
 print(`contributions: ${db.contributions.countDocuments()}`);
 print(`beneficiaries: ${db.beneficiaries.countDocuments()}`);
 print(`aid_distributions: ${db.aid_distributions.countDocuments()}`);
+print(`volunteers: ${db.volunteers.countDocuments()}`);
 print(`activity_logs: ${db.activity_logs.countDocuments()}`);
+print(`stats_snapshots: ${db.stats_snapshots.countDocuments()}`);
+print("");
+print("Expected branch placement after moveChunk:");
+print("HP-S1 -> shard1RS, TH-S2 -> shard2RS, DN-S3 -> shard3RS, HCM-S4 -> shard4RS, BT-S5 -> shard5RS");
 print("");
 print("Check distribution:");
 print("db.contributions.getShardDistribution()");

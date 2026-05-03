@@ -1,0 +1,47 @@
+// Seed stats_snapshots for dashboard/report demo. This collection is not sharded in the demo.
+
+db = db.getSiblingDB("charity_distributed");
+db.stats_snapshots.drop();
+
+var branches10 = db.branches.find({ status: "ACTIVE" }).sort({ _id: 1 }).toArray();
+if (branches10.length === 0) {
+  throw new Error("Run previous seed files first.");
+}
+
+var snapshots10 = [];
+branches10.forEach((branch) => {
+  var contributionMoney = db.contributions.aggregate([
+    { $match: { branchId: branch._id, type: "MONEY", status: { $in: ["CONFIRMED", "RECEIVED"] } } },
+    { $group: { _id: "$branchId", total: { $sum: "$moneyDetail.amount" }, count: { $sum: 1 } } }
+  ]).toArray()[0] || { total: 0, count: 0 };
+
+  var aidMoney = db.aid_distributions.aggregate([
+    { $match: { branchId: branch._id, status: "COMPLETED" } },
+    { $group: { _id: "$branchId", total: { $sum: "$moneySupport.amount" }, count: { $sum: 1 } } }
+  ]).toArray()[0] || { total: 0, count: 0 };
+
+  snapshots10.push({
+    _id: ObjectId(),
+    scopeType: "BRANCH",
+    scopeKey: branch.code,
+    branchId: branch._id,
+    period: "2024-YTD",
+    metrics: {
+      campaignCount: db.campaigns.countDocuments({ branchId: branch._id }),
+      activeCampaignCount: db.campaigns.countDocuments({ branchId: branch._id, status: "ACTIVE" }),
+      contributionCount: db.contributions.countDocuments({ branchId: branch._id }),
+      receivedMoney: contributionMoney.total,
+      beneficiaryCount: db.beneficiaries.countDocuments({ branchId: branch._id }),
+      aidDistributionCount: db.aid_distributions.countDocuments({ branchId: branch._id }),
+      completedAidCount: aidMoney.count,
+      distributedMoney: aidMoney.total,
+      activityLogCount: db.activity_logs.countDocuments({ branchId: branch._id })
+    },
+    generatedAt: new Date("2024-12-31T23:59:59Z"),
+    createdAt: new Date("2024-12-31T23:59:59Z"),
+    updatedAt: new Date("2024-12-31T23:59:59Z")
+  });
+});
+
+db.stats_snapshots.insertMany(snapshots10, { ordered: false });
+print(`OK stats_snapshots inserted: ${db.stats_snapshots.countDocuments()}`);

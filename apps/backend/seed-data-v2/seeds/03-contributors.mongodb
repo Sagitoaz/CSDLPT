@@ -3,7 +3,7 @@
 db = db.getSiblingDB("charity_distributed");
 db.contributors.drop();
 
-var branches03 = db.branches.find({ status: "ACTIVE" }).sort({ code: 1 }).toArray();
+var branches03 = db.branches.find({ status: "ACTIVE" }).sort({ _id: 1 }).toArray();
 if (branches03.length === 0) {
   throw new Error("Run 01-branches.mongodb first.");
 }

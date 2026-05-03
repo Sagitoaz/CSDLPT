@@ -3,8 +3,8 @@
 db = db.getSiblingDB("charity_distributed");
 db.beneficiaries.drop();
 
-var branches05 = db.branches.find({ status: "ACTIVE" }).sort({ code: 1 }).toArray();
-var campaigns05 = db.campaigns.find({}).sort({ code: 1 }).toArray();
+var branches05 = db.branches.find({ status: "ACTIVE" }).sort({ _id: 1 }).toArray();
+var campaigns05 = db.campaigns.find({}).sort({ branchId: 1, code: 1 }).toArray();
 if (branches05.length === 0 || campaigns05.length === 0) {
   throw new Error("Run 01 and 02 seed files first.");
 }
@@ -14,7 +14,7 @@ var verificationStatuses05 = ["PENDING", "VERIFIED", "VERIFIED", "REJECTED"];
 var reasons05 = ["POVERTY", "DISABILITY", "ELDERLY_ALONE", "SOCIAL_WELFARE", "DISASTER_AFFECTED"];
 var beneficiaries05 = [];
 
-branches05.filter((b) => b.type !== "HEADQUARTER").forEach((branch, branchIndex) => {
+branches05.forEach((branch, branchIndex) => {
   var campaignPool = campaigns05.filter((c) => String(c.branchId) === String(branch._id));
 
   for (var j = 0; j < 24; j += 1) {

@@ -34,8 +34,8 @@ function moveBranchChunks07(collectionName, branches, shardNames) {
 
 setupHashedShard07("activity_logs");
 
-var branches07 = db.branches.find({ status: "ACTIVE" }).sort({ code: 1 }).toArray();
-var campaigns07 = db.campaigns.find({}).sort({ code: 1 }).toArray();
+var branches07 = db.branches.find({ status: "ACTIVE" }).sort({ _id: 1 }).toArray();
+var campaigns07 = db.campaigns.find({}).sort({ branchId: 1, code: 1 }).toArray();
 var contributions07 = db.contributions.find({}).sort({ createdAt: 1 }).toArray();
 var aids07 = db.aid_distributions.find({}).sort({ createdAt: 1 }).toArray();
 if (branches07.length === 0 || campaigns07.length === 0) {
@@ -51,7 +51,7 @@ var actions07 = [
   "BENEFICIARY_VERIFIED",
   "REPORT_VIEWED"
 ];
-var shardBranches07 = branches07.filter((b) => b.type !== "HEADQUARTER");
+var shardBranches07 = branches07;
 var logs07 = [];
 
 shardBranches07.forEach((branch, branchIndex) => {
@@ -107,3 +107,5 @@ shardBranches07.forEach((branch, branchIndex) => {
 db.activity_logs.insertMany(logs07, { ordered: false });
 moveBranchChunks07("activity_logs", shardBranches07, ["shard1RS", "shard2RS", "shard3RS", "shard4RS", "shard5RS"]);
 print(`OK activity_logs inserted: ${db.activity_logs.countDocuments()}`);
+print("Expected branch placement: HP-S1->shard1RS, TH-S2->shard2RS, DN-S3->shard3RS, HCM-S4->shard4RS, BT-S5->shard5RS");
+print("Run: db.activity_logs.getShardDistribution()");

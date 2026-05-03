@@ -5,7 +5,7 @@ db = db.getSiblingDB("charity_distributed");
 
 var demo01RunId = `TX-DEMO-CONTRIB-${Date.now()}`;
 var demo01Amount = 1234567;
-var demo01Branch = db.branches.findOne({ status: "ACTIVE", type: { $ne: "HEADQUARTER" } });
+var demo01Branch = db.branches.findOne({ status: "ACTIVE" }, { sort: { _id: 1 } });
 if (!demo01Branch) {
   throw new Error("No local branch found. Run seeds/index.mongodb first.");
 }

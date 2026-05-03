@@ -1,0 +1,55 @@
+// Seed users for RBAC demo. Users are not sharded in the demo.
+
+db = db.getSiblingDB("charity_distributed");
+db.users.drop();
+
+var branches08 = db.branches.find({ status: "ACTIVE" }).sort({ _id: 1 }).toArray();
+if (branches08.length === 0) {
+  throw new Error("Run 01-branches.mongodb first.");
+}
+
+// bcrypt hash for Demo@123, used only for local/demo seed data.
+var demoPasswordHash08 = "$2a$12$L1e3ChXAJN9VnJqdLqThFu7tH2U/bVB0JSTh9NKrKs6hPIqDEcbgW";
+var users08 = [{
+  _id: ObjectId(),
+  email: "superadmin@charity.local",
+  password: demoPasswordHash08,
+  fullName: "Super Admin",
+  role: "SUPER_ADMIN",
+  permissions: ["system:read", "system:write", "branches:manage"],
+  isActive: true,
+  createdAt: new Date("2024-01-01T00:00:00Z"),
+  updatedAt: new Date("2024-01-01T00:00:00Z")
+}];
+
+branches08.forEach((branch, i) => {
+  users08.push({
+    _id: ObjectId(),
+    email: `${branch.code.toLowerCase()}.admin@charity.local`,
+    phone: `086${String(1000000 + i).slice(-7)}`,
+    password: demoPasswordHash08,
+    fullName: `Quan tri ${branch.province}`,
+    role: "BRANCH_ADMIN",
+    branchId: branch._id,
+    permissions: ["campaigns:write", "contributions:write", "aid:write", "reports:read"],
+    isActive: true,
+    createdAt: new Date(2024, i, 1),
+    updatedAt: new Date(2024, i, 1)
+  });
+  users08.push({
+    _id: ObjectId(),
+    email: `${branch.code.toLowerCase()}.staff@charity.local`,
+    phone: `087${String(1000000 + i).slice(-7)}`,
+    password: demoPasswordHash08,
+    fullName: `Nhan vien ${branch.province}`,
+    role: "STAFF",
+    branchId: branch._id,
+    permissions: ["campaigns:read", "contributions:write", "aid:write"],
+    isActive: true,
+    createdAt: new Date(2024, i, 2),
+    updatedAt: new Date(2024, i, 2)
+  });
+});
+
+db.users.insertMany(users08, { ordered: false });
+print(`OK users inserted: ${db.users.countDocuments()}`);

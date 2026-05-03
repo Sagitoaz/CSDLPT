@@ -35,5 +35,5 @@ Thu muc nay chua cac kich ban transaction de demo khi giang vien hoi ve ACID, ro
 
 - Transaction can thiet vi mot nghiep vu ghi nhieu collection: document chinh, summaryStats, contributor stats va activity log.
 - Neu mot buoc loi, `abortTransaction()` giup rollback tat ca thay vi de du lieu lech.
-- Cac demo dung branch dia phuong, khong dung branch tru so Ha Noi, de thao tac nam tren collection sharded theo `branchId`.
+- Cac demo dung 5 branch du lieu: HP-S1, TH-S2, DN-S3, HCM-S4, BT-S5. Ha Noi chi la may controller/mongos, khong co record branch trong seed.
 - `transactionCode` unique sparse dung de tranh ghi trung giao dich tien.
