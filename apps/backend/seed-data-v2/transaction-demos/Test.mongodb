@@ -1,0 +1,91 @@
+var demo01Session = db.getMongo().startSession();
+var demo01TxDb = demo01Session.getDatabase("charity_distributed");
+
+try {
+    demo01Session.startTransaction();
+
+    demo01TxDb.contributions.insertOne({
+        branchId: ObjectId('660000000000000000000004'),
+        campaignId: ObjectId('69f8abd423a1fb7452628cac'),
+        contributorId: ObjectId('69f8abdb23a1fb7452628cc4'),
+        type: 'MONEY',
+        status: 'PENDING',
+        receivedAt: null,
+        createdBy: ObjectId('69f8abdf23a1fb7452628cf6'),
+        contributorSnapshot: {
+            fullName: 'Nguoi dong gop 007 Da Nang',
+            organizationName: null,
+            phone: '0820000007',
+            email: 'contributor007@example.com',
+            type: 'INDIVIDUAL'
+        },
+        campaignSnapshot: {
+            code: 'DN-S3-CMP-01',
+            title: 'Chien dich Tien mat - Da Nang'
+        },
+        branchSnapshot: {
+            code: 'DN-S3',
+            name: 'Chi nhanh Da Nang'
+        },
+        proofs: [
+            {
+                type: 'RECEIPT',
+                url: 'https://example.com/proofs/contribution-0021.pdf',
+                description: 'Seed proof for contribution 21',
+                uploadedAt: ISODate('2024-02-29T17:00:00.000Z')
+            }
+        ],
+        createdAt: ISODate('2024-02-29T17:00:00.000Z'),
+        updatedAt: ISODate('2024-02-29T17:00:00.000Z'),
+        moneyDetail: {
+            amount: NumberInt('625000'),
+            currency: 'VND',
+            paymentMethod: 'CASH',
+            paymentStatus: 'SUCCESS',
+            transactionCode: 'TXN-DN-S3-0001',
+            paidAt: ISODate('2024-02-29T17:00:00.000Z')
+        }
+    });
+
+    demo01TxDb.campaigns.updateOne({
+        _id: ObjectId('69f8abd423a1fb7452628cac')
+    }, {
+        $inc: { currentAmount: 50000 }
+    });
+
+    demo01TxDb.activity_logs.insertOne({
+        branchId: ObjectId('660000000000000000000004'),
+        targetBranchId: ObjectId('660000000000000000000004'),
+        actorId: ObjectId('69f8ac0823a1fb7452628dd4'),
+        actorRole: 'BRANCH_ADMIN',
+        actorBranchId: ObjectId('660000000000000000000004'),
+        userId: ObjectId('69f8ac0823a1fb7452628dd5'),
+        action: 'CAMPAIGN_CREATED',
+        entityType: 'Campaign',
+        entityId: '69f8abd423a1fb7452628cac',
+        targetType: 'Campaign',
+        targetId: '69f8abd423a1fb7452628cac',
+        description: 'Seed activity 21: CAMPAIGN_CREATED at DN-S3',
+        before: {
+            status: 'PENDING'
+        },
+        after: {
+            status: 'COMPLETED'
+        },
+        changes: {
+            seedNo: NumberInt('21'),
+            branchCode: 'DN-S3'
+        },
+        ipAddress: '100.105.12.10',
+        userAgent: 'mongosh-seed-data-v2',
+        createdAt: ISODate('2024-02-29T17:00:00.000Z')
+    });
+
+    demo01Session.commitTransaction();
+    print('Transaction committed successfully.');
+} catch (err) {
+    demo01Session.abortTransaction();
+    print('Transaction aborted due to error: ' + err);
+} finally {
+    demo01Session.endSession();
+}
