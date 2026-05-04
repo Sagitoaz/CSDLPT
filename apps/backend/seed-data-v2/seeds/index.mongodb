@@ -2,7 +2,8 @@
 // Aligned with Baocao.tex, mermail.html, 16-thiet-ke-csdl-mongodb.md and 08 guide.
 // Model: May 1 controller in Ha Noi; May 2-6 are 5 shard replica sets.
 // Ha Noi is controller/mongos only, so seed data has 5 branch records.
-// Sharded demo collections: contributions, aid_distributions, activity_logs by { branchId: "hashed" }.
+// Sharded demo collections: contributions, aid_distributions, activity_logs by range { branchId: 1 }.
+// Configure sharding first in huong-dan/08-tich-hop-be-fe-6-may.md, then run this seed.
 
 db = db.getSiblingDB("charity_distributed");
 print("Seed data v2 starting...");
@@ -11,46 +12,16 @@ var seedCollections = [
   "stats_snapshots",
   "volunteers",
   "users",
-  "activity_logs",
-  "aid_distributions",
   "beneficiaries",
-  "contributions",
   "contributors",
   "campaigns",
   "branches"
 ];
 seedCollections.forEach((name) => db.getCollection(name).drop());
 
-function setupHashedShard(collectionName) {
-  try {
-    if (typeof sh !== "undefined") {
-      sh.enableSharding("charity_distributed");
-      try {
-        sh.shardCollection(`charity_distributed.${collectionName}`, { branchId: "hashed" }, false, { numInitialChunks: 50 });
-      } catch (errWithOptions) {
-        sh.shardCollection(`charity_distributed.${collectionName}`, { branchId: "hashed" });
-      }
-      print(`Sharded ${collectionName} by { branchId: "hashed" }`);
-    }
-  } catch (err) {
-    print(`Shard setup for ${collectionName} skipped: ${err.message}`);
-  }
-}
-
-function moveBranchChunks(collectionName, branches, shardNames) {
-  if (typeof sh === "undefined") {
-    return;
-  }
-  branches.forEach((branch, i) => {
-    try {
-      sh.moveChunk(`charity_distributed.${collectionName}`, { branchId: branch._id }, shardNames[i % shardNames.length]);
-    } catch (err) {
-      print(`moveChunk ${collectionName}/${branch.code} skipped: ${err.message}`);
-    }
-  });
-}
-
-["contributions", "aid_distributions", "activity_logs"].forEach(setupHashedShard);
+db.contributions.deleteMany({});
+db.aid_distributions.deleteMany({});
+db.activity_logs.deleteMany({});
 
 var branches = [
   { _id: ObjectId("660000000000000000000002"), name: "Chi nhanh Hai Phong", code: "HP-S1", type: "BRANCH", province: "Hai Phong", district: "Hong Bang", ward: "So Dau", address: "May 2 - shard1RS", phone: "0225100002", email: "haiphong@charity.local", status: "ACTIVE", createdAt: new Date("2024-01-02T00:00:00Z"), updatedAt: new Date("2024-01-02T00:00:00Z") },
@@ -344,10 +315,6 @@ shardBranches.forEach((branch, branchIndex) => {
 });
 db.activity_logs.insertMany(logs, { ordered: false });
 
-moveBranchChunks("contributions", shardBranches, ["shard1RS", "shard2RS", "shard3RS", "shard4RS", "shard5RS"]);
-moveBranchChunks("aid_distributions", shardBranches, ["shard1RS", "shard2RS", "shard3RS", "shard4RS", "shard5RS"]);
-moveBranchChunks("activity_logs", shardBranches, ["shard1RS", "shard2RS", "shard3RS", "shard4RS", "shard5RS"]);
-
 var statsSnapshots = [];
 branches.forEach((branch) => {
   var contributionMoney = db.contributions.aggregate([
@@ -403,8 +370,8 @@ db.contributions.aggregate([{ $group: { _id: "$branchSnapshot.code", count: { $s
 db.aid_distributions.aggregate([{ $group: { _id: "$branchSnapshot.code", count: { $sum: 1 } } }, { $sort: { _id: 1 } }]).forEach((row) => print(`aid_distributions ${row._id}: ${row.count}`));
 db.activity_logs.aggregate([{ $group: { _id: "$changes.branchCode", count: { $sum: 1 } } }, { $sort: { _id: 1 } }]).forEach((row) => print(`activity_logs ${row._id}: ${row.count}`));
 print("");
-print("Shard key for hot collections: { branchId: \"hashed\" }");
-print("Physical shard counts may differ with compact demo data. Use branch-level counts above as the logical correctness check.");
+print("Shard key for hot collections: { branchId: 1 } with zone ranges");
+print("Expected placement: HP-S1->shard1RS, TH-S2->shard2RS, DN-S3->shard3RS, HCM-S4->shard4RS, BT-S5->shard5RS.");
 print("");
 print("Check distribution:");
 print("db.contributions.getShardDistribution()");

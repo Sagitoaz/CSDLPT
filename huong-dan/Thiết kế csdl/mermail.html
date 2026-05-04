@@ -1162,7 +1162,7 @@
   <div class="card-header">
     <div>
       <h2>13. Sharding strategy cho 5 shard ngang hàng</h2>
-      <p>So do shard key de xuat, collection nen shard trong ban demo va cach hashed shard key phan bo du lieu deu tren 5 shard ngang hang.</p>
+      <p>So do shard key de xuat, collection nen shard trong ban demo va cach zone shard key gan branchId vao shard vung.</p>
     </div>
     <div class="filename">mermail/13-sharding-strategy-4-shard.mmd</div>
   </div>
@@ -1170,27 +1170,27 @@
     <pre class="mermaid">flowchart TB
     db["Logical DB: charity_distributed"] --> choose["Choose shard key by main query"]
 
-    choose --> bkey["branchId hashed<br/>tot cho branch admin, phan quyen, dashboard chi nhanh"]
-    choose --> ckey["campaignId hashed<br/>tot khi man hinh chinh xoay quanh chien dich"]
+    choose --> bkey["branchId range<br/>tot cho branch admin, phan quyen, dashboard chi nhanh"]
+    choose --> ckey["campaignId range<br/>tot khi man hinh chinh xoay quanh chien dich"]
     choose --> timekey["{ branchId, createdAt }<br/>tot cho audit range theo thoi gian trong tung branch"]
 
-    bkey --> sharded1["contributions<br/>db.contributions.createIndex({ branchId: hashed })"]
-    bkey --> sharded2["aid_distributions<br/>db.aid_distributions.createIndex({ branchId: hashed })"]
-    bkey --> sharded3["activity_logs<br/>db.activity_logs.createIndex({ branchId: hashed })"]
+    bkey --> sharded1["contributions<br/>db.contributions.createIndex({ branchId: 1 })"]
+    bkey --> sharded2["aid_distributions<br/>db.aid_distributions.createIndex({ branchId: 1 })"]
+    bkey --> sharded3["activity_logs<br/>db.activity_logs.createIndex({ branchId: 1 })"]
 
-    ckey -. tuy chon .-> alt1["contributions<br/>{ campaignId: hashed } neu campaign la truc truy van chinh"]
+    ckey -. tuy chon .-> alt1["contributions<br/>{ campaignId: 1 } neu campaign la truc truy van chinh"]
     timekey -. tuy chon .-> alt2["activity_logs<br/>{ branchId: 1, createdAt: 1 } neu can range time target tot"]
 
-    sharded1 --> hash["hash(shardKey) -> hash space -> chunks"]
-    sharded2 --> hash
-    sharded3 --> hash
+    sharded1 --> range["branchId ranges -> regional chunks"]
+    sharded2 --> range
+    sharded3 --> range
 
-    hash --> balancer["Balancer distributes chunks"]
-    balancer --> m2["M2 shard1RS"]
-    balancer --> m3["M3 shard2RS"]
-    balancer --> m4["M4 shard3RS"]
-    balancer --> m5["M5 shard4RS"]
-    balancer --> m6["M6 shard5RS"]
+    range --> zones["splitAt + updateZoneKeyRange map branch ranges"]
+    zones --> m2["M2 shard1RS: HP-S1"]
+    zones --> m3["M3 shard2RS: TH-S2"]
+    zones --> m4["M4 shard3RS: DN-S3"]
+    zones --> m5["M5 shard4RS: HCM-S4"]
+    zones --> m6["M6 shard5RS: BT-S5"]
 
     no_shard["Khong can shard o demo:<br/>branches, users, contributors<br/>campaigns chi shard khi rat lon"]
     db --> no_shard
@@ -1202,7 +1202,7 @@
     classDef key fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
     classDef warn fill:#fff5f5,stroke:#c53030,stroke-width:1px;
     class bkey,ckey,timekey,key,choose key;
-    class sharded1,sharded2,sharded3,hash,balancer,m2,m3,m4,m5,m6 shard;
+    class sharded1,sharded2,sharded3,range,zones,m2,m3,m4,m5,m6 shard;
     class warning warn;</pre>
   </div>
   <details>
@@ -1210,27 +1210,27 @@
     <pre class="source"><code>flowchart TB
     db["Logical DB: charity_distributed"] --> choose["Choose shard key by main query"]
 
-    choose --> bkey["branchId hashed<br/>tot cho branch admin, phan quyen, dashboard chi nhanh"]
-    choose --> ckey["campaignId hashed<br/>tot khi man hinh chinh xoay quanh chien dich"]
+    choose --> bkey["branchId range<br/>tot cho branch admin, phan quyen, dashboard chi nhanh"]
+    choose --> ckey["campaignId range<br/>tot khi man hinh chinh xoay quanh chien dich"]
     choose --> timekey["{ branchId, createdAt }<br/>tot cho audit range theo thoi gian trong tung branch"]
 
-    bkey --> sharded1["contributions<br/>db.contributions.createIndex({ branchId: hashed })"]
-    bkey --> sharded2["aid_distributions<br/>db.aid_distributions.createIndex({ branchId: hashed })"]
-    bkey --> sharded3["activity_logs<br/>db.activity_logs.createIndex({ branchId: hashed })"]
+    bkey --> sharded1["contributions<br/>db.contributions.createIndex({ branchId: 1 })"]
+    bkey --> sharded2["aid_distributions<br/>db.aid_distributions.createIndex({ branchId: 1 })"]
+    bkey --> sharded3["activity_logs<br/>db.activity_logs.createIndex({ branchId: 1 })"]
 
-    ckey -. tuy chon .-> alt1["contributions<br/>{ campaignId: hashed } neu campaign la truc truy van chinh"]
+    ckey -. tuy chon .-> alt1["contributions<br/>{ campaignId: 1 } neu campaign la truc truy van chinh"]
     timekey -. tuy chon .-> alt2["activity_logs<br/>{ branchId: 1, createdAt: 1 } neu can range time target tot"]
 
-    sharded1 --> hash["hash(shardKey) -> hash space -> chunks"]
-    sharded2 --> hash
-    sharded3 --> hash
+    sharded1 --> range["branchId ranges -> regional chunks"]
+    sharded2 --> range
+    sharded3 --> range
 
-    hash --> balancer["Balancer distributes chunks"]
-    balancer --> m2["M2 shard1RS"]
-    balancer --> m3["M3 shard2RS"]
-    balancer --> m4["M4 shard3RS"]
-    balancer --> m5["M5 shard4RS"]
-    balancer --> m6["M6 shard5RS"]
+    range --> zones["splitAt + updateZoneKeyRange map branch ranges"]
+    zones --> m2["M2 shard1RS: HP-S1"]
+    zones --> m3["M3 shard2RS: TH-S2"]
+    zones --> m4["M4 shard3RS: DN-S3"]
+    zones --> m5["M5 shard4RS: HCM-S4"]
+    zones --> m6["M6 shard5RS: BT-S5"]
 
     no_shard["Khong can shard o demo:<br/>branches, users, contributors<br/>campaigns chi shard khi rat lon"]
     db --> no_shard
@@ -1242,7 +1242,7 @@
     classDef key fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
     classDef warn fill:#fff5f5,stroke:#c53030,stroke-width:1px;
     class bkey,ckey,timekey,key,choose key;
-    class sharded1,sharded2,sharded3,hash,balancer,m2,m3,m4,m5,m6 shard;
+    class sharded1,sharded2,sharded3,range,zones,m2,m3,m4,m5,m6 shard;
     class warning warn;</code></pre>
   </details>
 </section>

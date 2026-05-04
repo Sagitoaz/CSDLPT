@@ -1,36 +1,9 @@
-// Seed activity_logs. This hot collection is sharded by { branchId: "hashed" }.
+// Seed activity_logs. This hot collection must be range-sharded by { branchId: 1 }
+// in the mongos setup step before running this file.
 // Copy-paste directly into mongosh connected through mongos.
 
 db = db.getSiblingDB("charity_distributed");
-db.activity_logs.drop();
-
-function setupHashedShard07(collectionName) {
-  try {
-    if (typeof sh !== "undefined") {
-      sh.enableSharding("charity_distributed");
-      try {
-        sh.shardCollection(`charity_distributed.${collectionName}`, { branchId: "hashed" }, false, { numInitialChunks: 50 });
-      } catch (errWithOptions) {
-        sh.shardCollection(`charity_distributed.${collectionName}`, { branchId: "hashed" });
-      }
-    }
-  } catch (err) {
-    print(`Shard setup for ${collectionName} skipped: ${err.message}`);
-  }
-}
-
-function moveBranchChunks07(collectionName, branches, shardNames) {
-  if (typeof sh === "undefined") {
-    return;
-  }
-  branches.forEach((branch, i) => {
-    try {
-      sh.moveChunk(`charity_distributed.${collectionName}`, { branchId: branch._id }, shardNames[i % shardNames.length]);
-    } catch (err) {
-      print(`moveChunk ${collectionName}/${branch.code} skipped: ${err.message}`);
-    }
-  });
-}
+db.activity_logs.deleteMany({});
 
 var branches07 = db.branches.find({ status: "ACTIVE" }).sort({ _id: 1 }).toArray();
 var campaigns07 = db.campaigns.find({}).sort({ branchId: 1, code: 1 }).toArray();
@@ -51,8 +24,6 @@ var actions07 = [
 ];
 var shardBranches07 = branches07;
 var logs07 = [];
-
-setupHashedShard07("activity_logs");
 
 shardBranches07.forEach((branch, branchIndex) => {
   var campaignPool = campaigns07.filter((c) => String(c.branchId) === String(branch._id));
@@ -105,9 +76,8 @@ shardBranches07.forEach((branch, branchIndex) => {
 });
 
 db.activity_logs.insertMany(logs07, { ordered: false });
-moveBranchChunks07("activity_logs", shardBranches07, ["shard1RS", "shard2RS", "shard3RS", "shard4RS", "shard5RS"]);
 print(`OK activity_logs inserted: ${db.activity_logs.countDocuments()}`);
 print("Expected total: 50 = 10 records x 5 branches");
 db.activity_logs.aggregate([{ $group: { _id: "$changes.branchCode", count: { $sum: 1 } } }, { $sort: { _id: 1 } }]).forEach(printjson);
-print("Shard key: { branchId: \"hashed\" }. Physical shard counts can differ with small demo data; verify logical branch counts above through mongos.");
+print("Shard key: { branchId: 1 } with zone ranges. Expected placement: HP-S1->shard1RS, TH-S2->shard2RS, DN-S3->shard3RS, HCM-S4->shard4RS, BT-S5->shard5RS.");
 print("Run: db.activity_logs.getShardDistribution()");

@@ -58,7 +58,7 @@ Nguyên tắc chính:
 - Snapshot thông tin lịch sử trong giao dịch đầu vào/đầu ra để giảm `$lookup` và giữ đúng dữ liệu tại thời điểm phát sinh.
 - Mọi dữ liệu nghiệp vụ thuộc chi nhánh phải có `branchId`.
 - Không dùng `$lookup` như join mặc định; chỉ dùng cho báo cáo tổng hợp hoặc màn hình admin ít tần suất.
-- Chuẩn bị cho sharding theo `branchId`, `campaignId` hoặc hashed shard key tùy collection.
+- Chuẩn bị cho sharding theo `branchId`, `campaignId` hoặc range/zone shard key tùy collection.
 
 Quy ước tần suất truy cập:
 
@@ -92,7 +92,7 @@ Ví dụ: `H.R` là đọc tần suất cao; `H.WER` là tạo, sửa, đọc t�
 | 10 | 10. Luồng cập nhật nguồn lực đầu ra | `mermail/10-luong-aid-distribution-dau-ra.mmd` | Luồng lập kế hoạch, approve, deliver và complete hỗ trợ, có kiểm soát nguồn lực và chống cộng thống kê lặp. |
 | 11 | 11. State transition của contributions và delta thống kê | `mermail/11-state-contribution-summary-delta.mmd` | Trạng thái nguồn lực đầu vào và thời điểm cộng/trừ summaryStats để chống ghi nhận trùng. |
 | 12 | 12. State transition của aid_distributions | `mermail/12-state-aid-distribution.mmd` | Trạng thái nguồn lực đầu ra từ kế hoạch đến hoàn tất, kèm audit log và cập nhật summaryStats khi COMPLETED. |
-| 13 | 13. Sharding strategy cho 5 shard ngang hàng | `mermail/13-sharding-strategy-4-shard.mmd` | Sơ đồ shard key đề xuất, collection nên shard trong bản demo và cách hashed shard key phân bổ dữ liệu. |
+| 13 | 13. Sharding strategy cho 5 shard ngang hàng | `mermail/13-sharding-strategy-4-shard.mmd` | Sơ đồ shard key đề xuất, collection nên shard trong bản demo và cách range/zone shard key phân bổ dữ liệu. |
 | 14 | 14. Index theo use case chính | `mermail/14-index-theo-use-case.mmd` | Các index quan trọng bám theo truy vấn public, branch admin, dashboard, lịch sử contributor, audit log và idempotency thanh toán. |
 | 15 | 15. Toàn vẹn dữ liệu, transaction và audit | `mermail/15-toan-ven-du-lieu-audit-transaction.mmd` | Các chốt bảo vệ dữ liệu khi MongoDB không có foreign key như RDBMS: validate reference, branch scope, transaction/idempotency và audit log. |
 | 16 | 16. API/module map sang collection MongoDB | `mermail/16-api-to-collection-map.mmd` | Ánh xạ các endpoint/module chính sang collection, bao gồm cách giữ API cũ donations/disbursements để tương thích. |
@@ -264,13 +264,13 @@ flowchart LR
 | `branches` | Trụ sở, chi nhánh, trung tâm | Có | Thấp | Không cần shard |
 | `users` | Tài khoản, vai trò, permission | Có | Trung bình | Chưa cần shard |
 | `campaigns` | Chiến dịch từ thiện | Có | Trung bình | `branchId` hoặc `{ branchId, status }` |
-| `contributors` | Người/tổ chức đóng góp | Có | Trung bình | Chưa cần shard, có thể shard theo hashed `_id` khi rất lớn |
-| `contributions` | Nguồn lực đầu vào | Có | Rất cao | `branchId` hashed hoặc `campaignId` hashed |
+| `contributors` | Contributor profiles | Yes | Medium | Not sharded in demo; can use range/zone shard when very large |
+| `contributions` | Inbound resources | Yes | Very high | `{ branchId: 1 }` range-based, branch data placed on regional shard |
 | `beneficiaries` | Người/đơn vị nhận hỗ trợ | Có | Cao | `branchId` hoặc `campaignId` |
-| `aid_distributions` | Nguồn lực đầu ra | Có | Cao | `branchId` hashed hoặc `campaignId` hashed |
+| `aid_distributions` | Outbound resources | Yes | High | `{ branchId: 1 }` range-based, branch data placed on regional shard |
 | `volunteers` | Hồ sơ tình nguyện viên | Có | Trung bình | `branchId` khi lớn |
-| `activity_logs` | Nhật ký kiểm soát | Có | Rất cao | `{ branchId, createdAt }` hoặc `branchId` hashed |
-| `stats_snapshots` | Snapshot thống kê dashboard | Có | Trung bình | `branchId` hoặc `scopeKey` hashed |
+| `activity_logs` | Audit logs | Yes | Very high | `{ branchId: 1 }` or `{ branchId: 1, createdAt: 1 }` |
+| `stats_snapshots` | Dashboard snapshots | Yes | Medium | Not sharded in demo; can shard by `branchId` later |
 
 ### Quan hệ document tổng quát
 
@@ -856,8 +856,8 @@ db.contributions.createIndex({ "moneyDetail.transactionCode": 1 }, { unique: tru
 
 Shard đề xuất:
 
-- Nếu truy vấn chính là admin chi nhánh: `{ branchId: "hashed" }`.
-- Nếu truy vấn chính là theo chiến dịch: `{ campaignId: "hashed" }`.
+- Nếu truy vấn chính là admin chi nhánh: `{ branchId: 1 }`.
+- Nếu truy vấn chính là theo chiến dịch: `{ campaignId: 1 }`.
 - Nếu một chiến dịch quá lớn, cân nhắc bucket theo thời gian: `{ campaignId: 1, createdMonth: 1 }`.
 
 ---
@@ -1218,7 +1218,7 @@ Nguyên tắc: chỉ khi chuyển sang `COMPLETED` lần đầu mới cập nh�
 
 ## 13. Sharding strategy cho 5 shard ngang hàng
 
-**Mô tả chuẩn trong `mermail.html`:** Sơ đồ shard key đề xuất, collection nên shard trong bản demo và cách hashed shard key phân bổ dữ liệu.
+**Mô tả chuẩn trong `mermail.html`:** Sơ đồ shard key đề xuất, collection nên shard trong bản demo và cách range/zone shard key phân bổ dữ liệu.
 
 **File Mermaid chuẩn:** `mermail/13-sharding-strategy-4-shard.mmd`
 
@@ -1226,27 +1226,27 @@ Nguyên tắc: chỉ khi chuyển sang `COMPLETED` lần đầu mới cập nh�
 flowchart TB
     db["Logical DB: charity_distributed"] --> choose["Choose shard key by main query"]
 
-    choose --> bkey["branchId hashed<br/>tốt cho branch admin, phân quyền, dashboard chi nhánh"]
-    choose --> ckey["campaignId hashed<br/>tốt khi màn hình chính xoay quanh chiến dịch"]
+    choose --> bkey["branchId range<br/>tốt cho branch admin, phân quyền, dashboard chi nhánh"]
+    choose --> ckey["campaignId range<br/>tốt khi màn hình chính xoay quanh chiến dịch"]
     choose --> timekey["{ branchId, createdAt }<br/>tốt cho audit range theo thời gian trong từng branch"]
 
-    bkey --> sharded1["contributions<br/>db.contributions.createIndex({ branchId: hashed })"]
-    bkey --> sharded2["aid_distributions<br/>db.aid_distributions.createIndex({ branchId: hashed })"]
-    bkey --> sharded3["activity_logs<br/>db.activity_logs.createIndex({ branchId: hashed })"]
+    bkey --> sharded1["contributions<br/>db.contributions.createIndex({ branchId: 1 })"]
+    bkey --> sharded2["aid_distributions<br/>db.aid_distributions.createIndex({ branchId: 1 })"]
+    bkey --> sharded3["activity_logs<br/>db.activity_logs.createIndex({ branchId: 1 })"]
 
-    ckey -. tùy chọn .-> alt1["contributions<br/>{ campaignId: hashed } nếu campaign là trục truy vấn chính"]
+    ckey -. tùy chọn .-> alt1["contributions<br/>{ campaignId: 1 } nếu campaign là trục truy vấn chính"]
     timekey -. tùy chọn .-> alt2["activity_logs<br/>{ branchId: 1, createdAt: 1 } nếu cần range time target tốt"]
 
-    sharded1 --> hash["hash(shardKey) -> hash space -> chunks"]
-    sharded2 --> hash
-    sharded3 --> hash
+    sharded1 --> range["branchId ranges -> regional chunks"]
+    sharded2 --> range
+    sharded3 --> range
 
-    hash --> balancer["Balancer distributes chunks"]
-    balancer --> m2["M2 shard1RS"]
-    balancer --> m3["M3 shard2RS"]
-    balancer --> m4["M4 shard3RS"]
-    balancer --> m5["M5 shard4RS"]
-    balancer --> m6["M6 shard5RS"]
+    range --> zones["splitAt + updateZoneKeyRange map branch ranges"]
+    zones --> m2["M2 shard1RS: HP-S1"]
+    zones --> m3["M3 shard2RS: TH-S2"]
+    zones --> m4["M4 shard3RS: DN-S3"]
+    zones --> m5["M5 shard4RS: HCM-S4"]
+    zones --> m6["M6 shard5RS: BT-S5"]
 
     no_shard["Không cần shard ở demo:<br/>branches, users, contributors<br/>campaigns chỉ shard khi rất lớn"]
     db --> no_shard
@@ -1258,7 +1258,7 @@ flowchart TB
     classDef key fill:#eef6ff,stroke:#2b6cb0,stroke-width:1px;
     classDef warn fill:#fff5f5,stroke:#c53030,stroke-width:1px;
     class bkey,ckey,timekey,key,choose key;
-    class sharded1,sharded2,sharded3,hash,balancer,m2,m3,m4,m5,m6 shard;
+    class sharded1,sharded2,sharded3,range,zones,m2,m3,m4,m5,m6 shard;
     class warning warn;
 ```
 
@@ -1267,18 +1267,18 @@ flowchart TB
 
 | Collection | Shard key đề xuất | Khi dùng | Ưu điểm | Rủi ro |
 |---|---|---|---|---|
-| `campaigns` | `{ branchId: "hashed" }` | Số campaign rất lớn, quản trị theo branch là chính | Chia đều theo chi nhánh | Query theo status toàn hệ thống cần qua nhiều shard |
-| `contributions` | `{ branchId: "hashed" }` | Branch admin là query chính | Phân quyền và route theo branch tốt | Một branch quá lớn vẫn có thể nặng |
-| `contributions` | `{ campaignId: "hashed" }` | Campaign là query chính | Chia đều contribution theo campaign | Một campaign cực lớn có thể tạo điểm nóng logic |
-| `aid_distributions` | `{ branchId: "hashed" }` | Quản lý đầu ra theo chi nhánh | Phù hợp branch scope | Báo cáo toàn hệ thống phải aggregate nhiều shard |
-| `activity_logs` | `{ branchId: "hashed" }` | Audit theo chi nhánh | Phân phối đều hơn `createdAt` | Query theo khoảng thời gian toàn hệ thống scatter |
+| `campaigns` | `{ branchId: 1 }` | Số campaign rất lớn, quản trị theo branch là chính | Chia đều theo chi nhánh | Query theo status toàn hệ thống cần qua nhiều shard |
+| `contributions` | `{ branchId: 1 }` | Branch admin là query chính | Phân quyền và route theo branch tốt | Một branch quá lớn vẫn có thể nặng |
+| `contributions` | `{ campaignId: 1 }` | Campaign là query chính | Chia đều contribution theo campaign | Một campaign cực lớn có thể tạo điểm nóng logic |
+| `aid_distributions` | `{ branchId: 1 }` | Quản lý đầu ra theo chi nhánh | Phù hợp branch scope | Báo cáo toàn hệ thống phải aggregate nhiều shard |
+| `activity_logs` | `{ branchId: 1 }` | Audit theo chi nhánh | Phân phối đều hơn `createdAt` | Query theo khoảng thời gian toàn hệ thống scatter |
 | `activity_logs` | `{ branchId: 1, createdAt: 1 }` | Cần range thời gian trong branch | Target tốt theo branch + time | Branch lớn có thể tạo chunk lớn |
 
 Khuyến nghị cho bài báo cáo:
 
 - Shard chính: `contributions`, `aid_distributions`, `activity_logs`.
-- Shard key demo dễ giải thích: `{ branchId: "hashed" }`.
-- Nếu nhóm muốn nhấn mạnh chiến dịch là trục nghiệp vụ: dùng `{ campaignId: "hashed" }` cho `contributions`.
+- Shard key demo dễ giải thích: `{ branchId: 1 }`.
+- Nếu nhóm muốn nhấn mạnh chiến dịch là trục nghiệp vụ: dùng `{ campaignId: 1 }` cho `contributions`.
 - Không shard `branches`; chưa cần shard `users` và `contributors` ở bản demo.
 
 Lệnh minh họa:
@@ -1286,14 +1286,14 @@ Lệnh minh họa:
 ```javascript
 sh.enableSharding("charity_distributed")
 
-db.contributions.createIndex({ branchId: "hashed" })
-sh.shardCollection("charity_distributed.contributions", { branchId: "hashed" })
+db.contributions.createIndex({ branchId: 1 })
+sh.shardCollection("charity_distributed.contributions", { branchId: 1 })
 
-db.aid_distributions.createIndex({ branchId: "hashed" })
-sh.shardCollection("charity_distributed.aid_distributions", { branchId: "hashed" })
+db.aid_distributions.createIndex({ branchId: 1 })
+sh.shardCollection("charity_distributed.aid_distributions", { branchId: 1 })
 
-db.activity_logs.createIndex({ branchId: "hashed" })
-sh.shardCollection("charity_distributed.activity_logs", { branchId: "hashed" })
+db.activity_logs.createIndex({ branchId: 1 })
+sh.shardCollection("charity_distributed.activity_logs", { branchId: 1 })
 ```
 
 ---
@@ -1904,7 +1904,7 @@ db.activity_logs.createIndex({ "actor.actorId": 1, createdAt: -1 })
 
 Shard đề xuất:
 
-- `{ branchId: "hashed" }` nếu truy vấn chủ yếu theo chi nhánh.
+- `{ branchId: 1 }` nếu truy vấn chủ yếu theo chi nhánh.
 - `{ branchId: 1, createdAt: 1 }` nếu muốn truy vấn range theo thời gian trong từng chi nhánh.
 - Tránh chỉ dùng `{ createdAt: 1 }`.
 
@@ -2365,7 +2365,7 @@ graph LR
 | `users` | Identity / Branch scope | `branchId -> branches._id` | `profile`, `permissions` | `SUPER_ADMIN` có thể `branchId = null`; branch role bắt buộc có `branchId` |
 | `campaigns` | Campaign domain | `branchId -> branches._id`, `createdBy -> users._id` | `location`, `timeRange`, `goals`, `requiredResources`, `summaryStats`, `images`, `documents` | Aggregate root trung tâm, dashboard ưu tiên đọc `summaryStats` |
 | `contributors` | Inbound resources | `userId -> users._id` tùy chọn | `address`, `identityInfo`, `totalContributionStats` | Mở rộng từ donor để bao quát tiền, hiện vật, dịch vụ, giờ công |
-| `contributions` | Inbound resources | `branchId`, `campaignId`, `contributorId`, `createdBy` | `contributorSnapshot`, `campaignSnapshot`, `branchSnapshot`, `moneyDetail`, `itemDetails`, `serviceDetail`, `volunteerWorkDetail`, `proofs` | Collection tăng trưởng nhanh; nên shard theo `branchId` hashed hoặc `campaignId` hashed |
+| `contributions` | Inbound resources | `branchId`, `campaignId`, `contributorId`, `createdBy` | `contributorSnapshot`, `campaignSnapshot`, `branchSnapshot`, `moneyDetail`, `itemDetails`, `serviceDetail`, `volunteerWorkDetail`, `proofs` | Fast-growing collection; demo shards by `{ branchId: 1 }` so branch data goes to regional shard |
 | `beneficiaries` | Campaign domain | `branchId`, `campaignId` | `address`, `needs`, `verification`, `documents` | Người/hộ/tổ chức/cộng đồng nhận hỗ trợ theo campaign |
 | `aid_distributions` | Outbound aid | `branchId`, `campaignId`, `beneficiaryId`, `createdBy`, `approvedBy` | `beneficiarySnapshot`, `campaignSnapshot`, `branchSnapshot`, `moneySupport`, `itemSupports`, `serviceSupport`, `proofs` | Collection đầu ra; chỉ cộng `summaryStats` khi `COMPLETED` lần đầu |
 | `volunteers` | Campaign domain | `branchId`, `userId` tùy chọn, `assignedCampaignIds[]` | `skills`, `availability`, `stats` | Quản lý kỹ năng, lịch rảnh và gán chiến dịch |

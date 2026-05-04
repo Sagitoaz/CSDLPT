@@ -236,9 +236,76 @@ sh.status()
 ### 3.3 Bật Sharding (vẫn trong mongosh)
 ```javascript
 sh.enableSharding("charity_distributed")
-sh.shardCollection("charity_distributed.contributions", { branchId: "hashed" })
-sh.shardCollection("charity_distributed.aid_distributions", { branchId: "hashed" })
-sh.shardCollection("charity_distributed.activity_logs", { branchId: "hashed" })
+
+// Mapping dữ liệu vùng theo zone sharding:
+sh.addShardToZone("shard1RS", "ZONE_HP")
+sh.addShardToZone("shard2RS", "ZONE_TH")
+sh.addShardToZone("shard3RS", "ZONE_DN")
+sh.addShardToZone("shard4RS", "ZONE_HCM")
+sh.addShardToZone("shard5RS", "ZONE_BT")
+
+const branchZoneRanges = [
+  {
+    branchCode: "HP-S1",
+    shard: "shard1RS",
+    zone: "ZONE_HP",
+    min: ObjectId("660000000000000000000002"),
+    max: ObjectId("660000000000000000000003")
+  },
+  {
+    branchCode: "TH-S2",
+    shard: "shard2RS",
+    zone: "ZONE_TH",
+    min: ObjectId("660000000000000000000003"),
+    max: ObjectId("660000000000000000000004")
+  },
+  {
+    branchCode: "DN-S3",
+    shard: "shard3RS",
+    zone: "ZONE_DN",
+    min: ObjectId("660000000000000000000004"),
+    max: ObjectId("660000000000000000000005")
+  },
+  {
+    branchCode: "HCM-S4",
+    shard: "shard4RS",
+    zone: "ZONE_HCM",
+    min: ObjectId("660000000000000000000005"),
+    max: ObjectId("660000000000000000000006")
+  },
+  {
+    branchCode: "BT-S5",
+    shard: "shard5RS",
+    zone: "ZONE_BT",
+    min: ObjectId("660000000000000000000006"),
+    max: MaxKey
+  }
+]
+
+function configureRegionalCollection(collectionName) {
+  const ns = `charity_distributed.${collectionName}`
+  sh.shardCollection(ns, { branchId: 1 })
+
+  branchZoneRanges.forEach((range) => {
+    sh.splitAt(ns, { branchId: range.min })
+  })
+
+  branchZoneRanges.forEach((range) => {
+    sh.updateZoneKeyRange(
+      ns,
+      { branchId: range.min },
+      { branchId: range.max },
+      range.zone
+    )
+  })
+}
+
+configureRegionalCollection("contributions")
+configureRegionalCollection("aid_distributions")
+configureRegionalCollection("activity_logs")
+
+// Sau bước này mới chạy các file seed.
+// Các file seed chỉ insert/delete data, không drop collection phân mảnh và không gọi moveChunk.
 ```
 
 ### 3.4 Khởi động Backend (Terminal 3)
