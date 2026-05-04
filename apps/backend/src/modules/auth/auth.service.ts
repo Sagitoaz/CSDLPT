@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { User, UserRole, IUser } from './auth.model';
 import { generateTokenPair, JWTPayload } from './jwt.utils';
+import { BranchModel } from '../branches/branch.model';
 
 /**
  * Authentication Service
@@ -59,6 +60,22 @@ export async function registerUser(data: RegisterRequest): Promise<AuthResponse>
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     throw new Error('User with this email already exists');
+  }
+
+  // Business trigger: branch-scoped accounts must be attached to an active
+  // branch; donor accounts may stay global and do not need branchId.
+  if (role !== UserRole.SUPER_ADMIN && role !== UserRole.DONOR) {
+    if (!branchId) {
+      throw new Error('Branch-scoped users require branchId');
+    }
+
+    const branch = await BranchModel.findById(branchId).lean();
+    if (!branch) {
+      throw new Error('Branch not found');
+    }
+    if (branch.status !== 'ACTIVE') {
+      throw new Error('Cannot register user for inactive branch');
+    }
   }
 
   // Hash password with bcrypt (salt rounds = 12)

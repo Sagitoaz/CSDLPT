@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 import { BadRequestError, NotFoundError } from "../../common/errors/app-error";
+import { requireActiveBranch, requireBeneficiaryInBranch, requireCampaignInBranch } from "../../common/validators/business-rules";
 import { AuthContext, branchScopedFilter, ensureBranchScope } from "../../common/validators/auth-scope";
 import { writeActivityLog } from "../activity-logs/activity-log.service";
-import { BeneficiaryModel } from "../beneficiaries/beneficiary.model";
 import { CampaignModel } from "../campaigns/campaign.model";
 import { DonationModel } from "../donations/donation.model";
 import { DisbursementModel } from "./disbursement.model";
@@ -23,6 +23,29 @@ async function computeAvailableAmount(campaignId: mongoose.Types.ObjectId, sessi
   return donated - disbursed;
 }
 
+function validateDisbursementTransition(currentStatus: string, nextStatus: string, proofs?: unknown[]): void {
+  if (currentStatus === nextStatus) {
+    return;
+  }
+
+  const allowedTransitions: Record<string, string[]> = {
+    PENDING: ["APPROVED", "REJECTED"],
+    APPROVED: ["COMPLETED", "REJECTED"],
+    COMPLETED: [],
+    REJECTED: []
+  };
+
+  // Business trigger: disbursement status is a workflow, not just an enum.
+  // Mongoose can validate allowed strings, but only service logic knows which
+  // transitions are legal and when proof documents are mandatory.
+  if (!allowedTransitions[currentStatus]?.includes(nextStatus)) {
+    throw new BadRequestError(`Cannot transition disbursement from ${currentStatus} to ${nextStatus}`);
+  }
+  if (nextStatus === "COMPLETED" && (!Array.isArray(proofs) || proofs.length === 0)) {
+    throw new BadRequestError("Completion requires at least one proof document");
+  }
+}
+
 export function createDisbursementService(model: any = DisbursementModel) {
   return {
     async list(auth: AuthContext, campaignId?: string) {
@@ -33,17 +56,30 @@ export function createDisbursementService(model: any = DisbursementModel) {
 
     async create(payload: Record<string, unknown>, auth: AuthContext) {
       ensureBranchScope(auth, String(payload.branchId));
+      await requireActiveBranch(payload.branchId);
+      const campaign = await requireCampaignInBranch(payload.campaignId, payload.branchId);
+      const beneficiary = await requireBeneficiaryInBranch(payload.beneficiaryId, payload.branchId, {
+        requireVerified: true
+      });
+      if (String(beneficiary.campaignId) !== String(campaign._id)) {
+        throw new BadRequestError("Beneficiary does not belong to the selected campaign");
+      }
 
-      const beneficiary = await BeneficiaryModel.findById(payload.beneficiaryId).lean();
-      if (!beneficiary) throw new NotFoundError("Beneficiary not found");
-
-      const campaignId = new mongoose.Types.ObjectId(String(payload.campaignId));
+      const campaignId = campaign._id;
       const available = await computeAvailableAmount(campaignId);
       if (Number(payload.amount) > available) {
         throw new BadRequestError("Disbursement exceeds available amount");
       }
 
-      const created = await model.create(payload);
+      // Business trigger: branchId is derived from the campaign after all
+      // cross-reference checks pass, so shard routing cannot be spoofed.
+      const created = await model.create({
+        ...payload,
+        branchId: campaign.branchId,
+        campaignId: campaign._id,
+        beneficiaryId: beneficiary._id,
+        status: "PENDING"
+      });
       await writeActivityLog(
         {
           branchId: String(created.branchId),
@@ -61,6 +97,7 @@ export function createDisbursementService(model: any = DisbursementModel) {
       const existing = await model.findById(id).lean();
       if (!existing) return null;
       ensureBranchScope(auth, existing.branchId);
+      validateDisbursementTransition(existing.status, status, proofs);
 
       const session = await mongoose.startSession();
       try {

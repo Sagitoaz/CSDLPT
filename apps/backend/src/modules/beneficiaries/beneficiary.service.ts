@@ -1,4 +1,6 @@
 import mongoose from "mongoose";
+import { BadRequestError } from "../../common/errors/app-error";
+import { requireActiveBranch, requireCampaignInBranch } from "../../common/validators/business-rules";
 import { ensureBranchScope, branchScopedFilter, AuthContext } from "../../common/validators/auth-scope";
 import { BeneficiaryModel } from "./beneficiary.model";
 import { writeActivityLog } from "../activity-logs/activity-log.service";
@@ -13,7 +15,17 @@ export function createBeneficiaryService(model: any = BeneficiaryModel) {
 
     async create(payload: Record<string, unknown>, auth: AuthContext) {
       ensureBranchScope(auth, String(payload.branchId));
-      const created = await model.create(payload);
+      await requireActiveBranch(payload.branchId);
+      const campaign = await requireCampaignInBranch(payload.campaignId, payload.branchId);
+
+      // Business trigger: beneficiaries are registered under the campaign's
+      // branch, never under a client-provided branch that could disagree.
+      const created = await model.create({
+        ...payload,
+        branchId: campaign.branchId,
+        campaignId: campaign._id,
+        verificationStatus: "PENDING"
+      });
       await writeActivityLog(
         {
           branchId: String(created.branchId),
@@ -31,6 +43,12 @@ export function createBeneficiaryService(model: any = BeneficiaryModel) {
       const existing = await model.findById(id).lean();
       if (!existing) return null;
       ensureBranchScope(auth, existing.branchId);
+      if (existing.verificationStatus === status) {
+        return existing;
+      }
+      if (existing.verificationStatus === "REJECTED" && status === "VERIFIED") {
+        throw new BadRequestError("Rejected beneficiary must be reviewed before verification");
+      }
       const updated = await model
         .findByIdAndUpdate(
           id,

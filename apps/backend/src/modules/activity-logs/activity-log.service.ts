@@ -1,4 +1,5 @@
 import mongoose, { ClientSession } from "mongoose";
+import { BadRequestError } from "../../common/errors/app-error";
 import { ActivityLogModel } from "./activity-log.model";
 
 export interface ActivityContext {
@@ -25,10 +26,18 @@ export async function writeActivityLog(
   context: ActivityContext,
   session?: ClientSession
 ): Promise<void> {
+  const branchId = payload.branchId ?? context.actorBranchId;
+  if (!branchId) {
+    throw new BadRequestError("Activity log requires branchId or actorBranchId");
+  }
+
+  // Business trigger: audit logs are sharded by branchId, so every log must
+  // have a branch key. Falling back to actorBranchId keeps branch-local actions
+  // routed correctly even when the caller omits payload.branchId.
   await ActivityLogModel.create(
     [
       {
-        branchId: payload.branchId ? new mongoose.Types.ObjectId(payload.branchId) : undefined,
+        branchId: new mongoose.Types.ObjectId(branchId),
         targetBranchId: payload.targetBranchId
           ? new mongoose.Types.ObjectId(payload.targetBranchId)
           : undefined,

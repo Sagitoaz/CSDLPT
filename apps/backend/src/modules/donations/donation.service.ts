@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
-import { BadRequestError, NotFoundError } from "../../common/errors/app-error";
+import { BadRequestError, ConflictError, NotFoundError } from "../../common/errors/app-error";
+import { requireCampaignInBranch } from "../../common/validators/business-rules";
 import { AuthContext, branchScopedFilter, ensureBranchScope, isSuperAdmin } from "../../common/validators/auth-scope";
 import { writeActivityLog } from "../activity-logs/activity-log.service";
 import { CampaignModel } from "../campaigns/campaign.model";
@@ -86,6 +87,25 @@ function nextCampaignDelta(previous: DonationStatus, next: DonationStatus, amoun
   return 0;
 }
 
+function validateDonationStatusTransition(previous: DonationStatus, next: DonationStatus): void {
+  if (previous === next) {
+    return;
+  }
+
+  const allowedTransitions: Record<DonationStatus, DonationStatus[]> = {
+    PENDING: ["SUCCESS", "FAILED"],
+    SUCCESS: ["REFUNDED"],
+    FAILED: [],
+    REFUNDED: []
+  };
+
+  // Business trigger: payment state changes follow a payment lifecycle.
+  // Enum validation catches bad strings; this catches invalid transitions.
+  if (!allowedTransitions[previous].includes(next)) {
+    throw new BadRequestError(`Cannot transition donation from ${previous} to ${next}`);
+  }
+}
+
 export function createDonationService(model: any = DonationModel): DonationService {
   return {
     async list(query, auth) {
@@ -136,10 +156,20 @@ export function createDonationService(model: any = DonationModel): DonationServi
         throw new NotFoundError("Campaign not found");
       }
       ensureBranchScope(auth, campaign.branchId);
+      await requireCampaignInBranch(input.campaignId, campaign.branchId);
 
       const donor = await DonorModel.findById(input.donorId).lean();
       if (!donor) {
         throw new NotFoundError("Donor not found");
+      }
+      if (!donor.email && !donor.phone) {
+        throw new BadRequestError("Donor must have email or phone before creating donation");
+      }
+      if (input.paymentStatus === "REFUNDED") {
+        throw new BadRequestError("New donation cannot start as REFUNDED");
+      }
+      if (await model.exists({ transactionCode: input.transactionCode })) {
+        throw new ConflictError("Transaction code already exists");
       }
 
       const session = await mongoose.startSession();
@@ -244,6 +274,7 @@ export function createDonationService(model: any = DonationModel): DonationServi
       if (existing.paymentStatus === status) {
         return existing;
       }
+      validateDonationStatusTransition(existing.paymentStatus, status);
 
       const delta = nextCampaignDelta(existing.paymentStatus, status, existing.amount);
 

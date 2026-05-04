@@ -1,7 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 
 export interface ActivityLog {
-  branchId?: mongoose.Types.ObjectId;
+  branchId: mongoose.Types.ObjectId;
   targetBranchId?: mongoose.Types.ObjectId;
   actorId?: mongoose.Types.ObjectId;
   actorRole?: string;
@@ -19,7 +19,7 @@ export interface ActivityLog {
 
 const activityLogSchema = new Schema<ActivityLog>(
   {
-    branchId: { type: Schema.Types.ObjectId, ref: "Branch", index: true },
+    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
     targetBranchId: { type: Schema.Types.ObjectId, ref: "Branch", index: true },
     actorId: { type: Schema.Types.ObjectId, ref: "User", index: true },
     actorRole: { type: String, trim: true, maxlength: 50 },
