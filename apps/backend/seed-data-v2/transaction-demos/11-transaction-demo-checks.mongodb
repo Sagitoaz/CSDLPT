@@ -1,0 +1,63 @@
+// Demo 11: common checks after running transaction demos.
+//
+// File nay khong tao transaction moi. No tap hop cac lenh hay dung khi demo:
+// - Dem so ban ghi demo.
+// - Xem audit log moi nhat.
+// - Kiem tra logical branch counts qua mongos.
+// - In lenh xem shard distribution.
+
+db = db.getSiblingDB("charity_distributed");
+
+print("1) Transaction demo record counts:");
+printjson({
+  campaignDemoCount: db.campaigns.countDocuments({ demoBatch: /^TX-DEMO-CAMPAIGN-/ }),
+  contributionCreateDemoCount: db.contributions.countDocuments({ demoBatch: /^TX-DEMO-CONTRIB-/ }),
+  contributionRefundDemoCount: db.contributions.countDocuments({ demoRefundBatch: /^TX-DEMO-CONTRIB-REFUND-/ }),
+  beneficiaryDemoCount: db.beneficiaries.countDocuments({ demoBatch: /^TX-DEMO-BENEFICIARY-/ }),
+  volunteerJoinDemoCount: db.volunteers.countDocuments({ demoJoinBatch: /^TX-DEMO-VOLUNTEER-JOIN-/ }),
+  aidDemoCount: db.aid_distributions.countDocuments({ demoBatch: /^TX-DEMO-AID-/ }),
+  aidApproveDemoCount: db.aid_distributions.countDocuments({ demoApproveBatch: /^TX-DEMO-AID-APPROVE-/ }),
+  rollbackLeakCount: db.activity_logs.countDocuments({ demoBatch: /^TX-DEMO-ROLLBACK-/ }),
+  crossBranchInvalidContributionCount: db.contributions.countDocuments({ demoBatch: /^TX-DEMO-CROSS-BRANCH-ROLLBACK-/ })
+});
+
+print("");
+print("2) Latest transaction demo audit logs:");
+db.activity_logs
+  .find({ action: /^TX_DEMO_/ }, { action: 1, entityType: 1, entityId: 1, description: 1, demoBatch: 1, createdAt: 1 })
+  .sort({ createdAt: -1 })
+  .limit(20)
+  .forEach(printjson);
+
+print("");
+print("3) Logical counts by branch through mongos:");
+print("Contributions:");
+db.contributions.aggregate([
+  { $group: { _id: "$branchSnapshot.code", count: { $sum: 1 } } },
+  { $sort: { _id: 1 } }
+]).forEach(printjson);
+
+print("Aid distributions:");
+db.aid_distributions.aggregate([
+  { $group: { _id: "$branchSnapshot.code", count: { $sum: 1 } } },
+  { $sort: { _id: 1 } }
+]).forEach(printjson);
+
+print("Activity logs:");
+db.activity_logs.aggregate([
+  { $group: { _id: "$branchId", count: { $sum: 1 } } },
+  { $sort: { _id: 1 } }
+]).forEach(printjson);
+
+print("");
+print("4) Shard distribution commands to run live:");
+print("db.contributions.getShardDistribution()");
+print("db.aid_distributions.getShardDistribution()");
+print("db.activity_logs.getShardDistribution()");
+
+print("");
+print("5) Config metadata commands to run from mongos:");
+print("use config");
+print("db.tags.find({ ns: /^charity_distributed\\./ }).pretty()");
+print("db.chunks.find({ ns: 'charity_distributed.contributions' }).sort({ min: 1 }).pretty()");
+print("use charity_distributed");

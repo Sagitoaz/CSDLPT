@@ -1,0 +1,76 @@
+// Demo 10: cross-branch validation failure + rollback.
+//
+// Muc dich:
+// - Giai thich vi sao BE phai validate branchId/campaignId/beneficiaryId cung chi nhanh.
+// - MongoDB khong tu biet "campaign nay thuoc branch nao" neu minh insert sai payload.
+// - BE service phai check nghiep vu truoc khi ghi.
+// - Demo nay co tinh phat hien sai branch va abort transaction.
+//
+// Ket qua mong doi:
+// - Khong co contribution nao duoc insert.
+// - Khong co activity log nao bi leak.
+
+db = db.getSiblingDB("charity_distributed");
+
+var demo10RunId = `TX-DEMO-CROSS-BRANCH-ROLLBACK-${Date.now()}`;
+var demo10BranchA = db.branches.findOne({ code: "HP-S1" });
+var demo10BranchB = db.branches.findOne({ code: "TH-S2" });
+if (!demo10BranchA || !demo10BranchB) {
+  throw new Error("Need HP-S1 and TH-S2 branches. Run seed data first.");
+}
+
+var demo10CampaignOfA = db.campaigns.findOne({ branchId: demo10BranchA._id });
+var demo10ContributorOfB = db.contributors.findOne({ branchId: demo10BranchB._id });
+if (!demo10CampaignOfA || !demo10ContributorOfB) {
+  throw new Error("Missing campaign/contributor for cross-branch demo.");
+}
+
+var demo10Session = db.getMongo().startSession();
+var demo10TxDb = demo10Session.getDatabase("charity_distributed");
+
+try {
+  demo10Session.startTransaction({ readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });
+
+  // BE trigger logic should detect this before insert:
+  // branchId = TH-S2, but campaign belongs to HP-S1.
+  if (String(demo10CampaignOfA.branchId) !== String(demo10BranchB._id)) {
+    throw new Error("Business validation failed: campaign does not belong to target branch.");
+  }
+
+  demo10TxDb.contributions.insertOne({
+    _id: ObjectId(),
+    branchId: demo10BranchB._id,
+    campaignId: demo10CampaignOfA._id,
+    contributorId: demo10ContributorOfB._id,
+    type: "MONEY",
+    status: "RECEIVED",
+    moneyDetail: {
+      amount: 500000,
+      currency: "VND",
+      paymentMethod: "CASH",
+      paymentStatus: "SUCCESS",
+      transactionCode: demo10RunId,
+      paidAt: new Date()
+    },
+    demoBatch: demo10RunId,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+
+  demo10Session.commitTransaction();
+  print("UNEXPECTED COMMIT - validation should have failed.");
+} catch (err) {
+  demo10Session.abortTransaction();
+  print(`EXPECTED ROLLBACK: ${err.message}`);
+} finally {
+  demo10Session.endSession();
+}
+
+printjson({
+  demoBatch: demo10RunId,
+  invalidContributionCount: db.contributions.countDocuments({ demoBatch: demo10RunId }),
+  leakedAuditLogCount: db.activity_logs.countDocuments({ demoBatch: demo10RunId }),
+  rollbackOk:
+    db.contributions.countDocuments({ demoBatch: demo10RunId }) === 0 &&
+    db.activity_logs.countDocuments({ demoBatch: demo10RunId }) === 0
+});

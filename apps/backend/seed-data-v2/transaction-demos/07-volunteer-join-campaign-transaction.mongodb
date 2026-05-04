@@ -1,0 +1,84 @@
+// Demo 07: volunteer joins a campaign + campaign volunteer stats + audit log.
+//
+// Diem can giai thich:
+// - joinedCampaignIds nam trong volunteers.
+// - summaryStats.totalVolunteerHours nam trong campaigns.
+// - activity_logs ghi lai hanh dong.
+// - 3 thay doi nay nen commit cung nhau de man hinh dashboard khong bi lech.
+
+db = db.getSiblingDB("charity_distributed");
+
+var demo07RunId = `TX-DEMO-VOLUNTEER-JOIN-${Date.now()}`;
+var demo07Branch = db.branches.findOne({ code: "BT-S5", status: "ACTIVE" }) ||
+  db.branches.findOne({ status: "ACTIVE" }, { sort: { _id: -1 } });
+if (!demo07Branch) {
+  throw new Error("No ACTIVE branch found. Run seed data first.");
+}
+
+var demo07Campaign = db.campaigns.findOne({ branchId: demo07Branch._id, status: { $ne: "CANCELLED" } });
+var demo07Volunteer = db.volunteers.findOne({ branchId: demo07Branch._id, status: "ACTIVE" });
+if (!demo07Campaign || !demo07Volunteer) {
+  throw new Error("Missing campaign or volunteer. Run seed data first.");
+}
+
+var demo07Hours = 6;
+var demo07BeforeCampaign = db.campaigns.findOne({ _id: demo07Campaign._id });
+var demo07Session = db.getMongo().startSession();
+var demo07TxDb = demo07Session.getDatabase("charity_distributed");
+
+try {
+  demo07Session.startTransaction({ readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });
+
+  demo07TxDb.volunteers.updateOne(
+    { _id: demo07Volunteer._id },
+    {
+      $addToSet: { joinedCampaignIds: demo07Campaign._id },
+      $set: { updatedAt: new Date(), demoJoinBatch: demo07RunId }
+    }
+  );
+
+  demo07TxDb.campaigns.updateOne(
+    { _id: demo07Campaign._id },
+    {
+      $inc: { "summaryStats.totalVolunteerHours": demo07Hours },
+      $set: { updatedAt: new Date() }
+    }
+  );
+
+  demo07TxDb.activity_logs.insertOne({
+    _id: ObjectId(),
+    branchId: demo07Branch._id,
+    targetBranchId: demo07Branch._id,
+    actorId: ObjectId(),
+    actorRole: "STAFF",
+    actorBranchId: demo07Branch._id,
+    action: "TX_DEMO_VOLUNTEER_JOINED",
+    entityType: "Volunteer",
+    entityId: String(demo07Volunteer._id),
+    description: `Volunteer joined campaign in transaction ${demo07RunId}`,
+    after: {
+      volunteerId: String(demo07Volunteer._id),
+      campaignId: String(demo07Campaign._id),
+      addedHours: demo07Hours
+    },
+    demoBatch: demo07RunId,
+    createdAt: new Date()
+  });
+
+  demo07Session.commitTransaction();
+  print(`COMMIT OK: ${demo07RunId}`);
+} catch (err) {
+  demo07Session.abortTransaction();
+  print(`ROLLBACK: ${err.message}`);
+  throw err;
+} finally {
+  demo07Session.endSession();
+}
+
+printjson({
+  demoBatch: demo07RunId,
+  volunteerAfter: db.volunteers.findOne({ _id: demo07Volunteer._id }, { fullName: 1, joinedCampaignIds: 1 }),
+  campaignBeforeHours: demo07BeforeCampaign.summaryStats?.totalVolunteerHours,
+  campaignAfter: db.campaigns.findOne({ _id: demo07Campaign._id }, { code: 1, "summaryStats.totalVolunteerHours": 1 }),
+  auditLogsInserted: db.activity_logs.countDocuments({ demoBatch: demo07RunId })
+});

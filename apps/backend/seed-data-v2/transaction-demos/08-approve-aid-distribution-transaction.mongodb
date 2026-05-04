@@ -1,0 +1,105 @@
+// Demo 08: create/approve a pending aid distribution + audit log.
+//
+// Kich ban:
+// - Tim mot aid_distributions dang PENDING.
+// - Neu khong co, tao mot ban ghi PENDING nho trong transaction.
+// - Chuyen trang thai sang APPROVED va ghi log.
+//
+// Diem hay bi hoi:
+// - APPROVED chi la update status hay con can approvedBy/approvedAt?
+// - Neu status doi nhung approvedBy khong co thi audit va nghiep vu thieu.
+
+db = db.getSiblingDB("charity_distributed");
+
+var demo08RunId = `TX-DEMO-AID-APPROVE-${Date.now()}`;
+var demo08Branch = db.branches.findOne({ code: "TH-S2", status: "ACTIVE" }) ||
+  db.branches.findOne({ status: "ACTIVE" }, { sort: { _id: 1 } });
+if (!demo08Branch) {
+  throw new Error("No ACTIVE branch found. Run seed data first.");
+}
+
+var demo08Campaign = db.campaigns.findOne({ branchId: demo08Branch._id });
+var demo08Beneficiary = db.beneficiaries.findOne({ branchId: demo08Branch._id });
+if (!demo08Campaign || !demo08Beneficiary) {
+  throw new Error("Missing campaign or beneficiary. Run seed data first.");
+}
+
+var demo08Aid = db.aid_distributions.findOne({ branchId: demo08Branch._id, status: "PENDING" });
+var demo08Session = db.getMongo().startSession();
+var demo08TxDb = demo08Session.getDatabase("charity_distributed");
+
+try {
+  demo08Session.startTransaction({ readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });
+
+  var aidId = demo08Aid ? demo08Aid._id : ObjectId();
+
+  if (!demo08Aid) {
+    demo08TxDb.aid_distributions.insertOne({
+      _id: aidId,
+      branchId: demo08Branch._id,
+      campaignId: demo08Campaign._id,
+      beneficiaryId: demo08Beneficiary._id,
+      type: "ITEM",
+      status: "PENDING",
+      beneficiarySnapshot: {
+        name: demo08Beneficiary.name,
+        type: demo08Beneficiary.type || "INDIVIDUAL",
+        phone: demo08Beneficiary.phone,
+        addressSummary: `${demo08Branch.district}, ${demo08Branch.province}`
+      },
+      campaignSnapshot: { code: demo08Campaign.code, title: demo08Campaign.title || demo08Campaign.name },
+      branchSnapshot: { code: demo08Branch.code, name: demo08Branch.name },
+      itemSupports: [{ name: "Gao", category: "ESSENTIAL", quantity: 3, unit: "phan", estimatedValue: 300000 }],
+      proofs: [],
+      note: "Created pending aid for approval demo",
+      demoBatch: demo08RunId,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+  }
+
+  demo08TxDb.aid_distributions.updateOne(
+    { _id: aidId, status: "PENDING" },
+    {
+      $set: {
+        status: "APPROVED",
+        approvedBy: ObjectId(),
+        approvedAt: new Date(),
+        updatedAt: new Date(),
+        demoApproveBatch: demo08RunId
+      }
+    }
+  );
+
+  demo08TxDb.activity_logs.insertOne({
+    _id: ObjectId(),
+    branchId: demo08Branch._id,
+    targetBranchId: demo08Branch._id,
+    actorId: ObjectId(),
+    actorRole: "BRANCH_ADMIN",
+    actorBranchId: demo08Branch._id,
+    action: "TX_DEMO_AID_APPROVED",
+    entityType: "AidDistribution",
+    entityId: String(aidId),
+    description: `Approved aid distribution in transaction ${demo08RunId}`,
+    before: { status: demo08Aid?.status || "CREATED_IN_TX" },
+    after: { status: "APPROVED" },
+    demoBatch: demo08RunId,
+    createdAt: new Date()
+  });
+
+  demo08Session.commitTransaction();
+  print(`COMMIT OK: ${demo08RunId}`);
+} catch (err) {
+  demo08Session.abortTransaction();
+  print(`ROLLBACK: ${err.message}`);
+  throw err;
+} finally {
+  demo08Session.endSession();
+}
+
+printjson({
+  demoBatch: demo08RunId,
+  aidAfter: db.aid_distributions.findOne({ demoApproveBatch: demo08RunId }, { status: 1, approvedBy: 1, approvedAt: 1, branchSnapshot: 1 }),
+  auditLogsInserted: db.activity_logs.countDocuments({ demoBatch: demo08RunId })
+});

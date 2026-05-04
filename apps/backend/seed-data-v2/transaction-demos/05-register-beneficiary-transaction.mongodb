@@ -1,0 +1,90 @@
+// Demo 05: register beneficiary + update campaign beneficiaryCount + audit log.
+//
+// Cau hoi giang vien hay hoi:
+// - Khi them nguoi thu huong, co can cap nhat thong ke campaign khong?
+// - Neu cap nhat beneficiary thanh cong nhung summaryStats loi thi sao?
+//
+// Tra loi demo:
+// - Dung transaction de insert beneficiaries, tang summaryStats.beneficiaryCount,
+//   va ghi activity_logs trong cung mot don vi ACID.
+
+db = db.getSiblingDB("charity_distributed");
+
+var demo05RunId = `TX-DEMO-BENEFICIARY-${Date.now()}`;
+var demo05Branch = db.branches.findOne({ code: "HCM-S4", status: "ACTIVE" }) ||
+  db.branches.findOne({ status: "ACTIVE" }, { sort: { _id: 1 } });
+if (!demo05Branch) {
+  throw new Error("No ACTIVE branch found. Run seed data first.");
+}
+
+var demo05Campaign = db.campaigns.findOne({ branchId: demo05Branch._id, status: { $ne: "CANCELLED" } });
+if (!demo05Campaign) {
+  throw new Error("No campaign found for selected branch.");
+}
+
+var demo05BeforeCampaign = db.campaigns.findOne({ _id: demo05Campaign._id });
+var demo05Session = db.getMongo().startSession();
+var demo05TxDb = demo05Session.getDatabase("charity_distributed");
+
+try {
+  demo05Session.startTransaction({ readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });
+
+  var beneficiaryId = ObjectId();
+  demo05TxDb.beneficiaries.insertOne({
+    _id: beneficiaryId,
+    branchId: demo05Branch._id,
+    campaignId: demo05Campaign._id,
+    name: `Ho gia dinh demo ${demo05RunId}`,
+    type: "FAMILY",
+    phone: `090${String(Date.now()).slice(-7)}`,
+    location: {
+      province: demo05Branch.province,
+      district: demo05Branch.district,
+      ward: demo05Branch.ward,
+      address: "Dia chi demo transaction"
+    },
+    situationDescription: "Nguoi thu huong duoc tao de demo transaction.",
+    verificationStatus: "PENDING",
+    demoBatch: demo05RunId,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+
+  demo05TxDb.campaigns.updateOne(
+    { _id: demo05Campaign._id },
+    { $inc: { "summaryStats.beneficiaryCount": 1 }, $set: { updatedAt: new Date() } }
+  );
+
+  demo05TxDb.activity_logs.insertOne({
+    _id: ObjectId(),
+    branchId: demo05Branch._id,
+    targetBranchId: demo05Branch._id,
+    actorId: ObjectId(),
+    actorRole: "STAFF",
+    actorBranchId: demo05Branch._id,
+    action: "TX_DEMO_BENEFICIARY_REGISTERED",
+    entityType: "Beneficiary",
+    entityId: String(beneficiaryId),
+    description: `Registered beneficiary in transaction ${demo05RunId}`,
+    before: { beneficiaryCount: demo05BeforeCampaign.summaryStats?.beneficiaryCount || 0 },
+    after: { beneficiaryCount: (demo05BeforeCampaign.summaryStats?.beneficiaryCount || 0) + 1 },
+    demoBatch: demo05RunId,
+    createdAt: new Date()
+  });
+
+  demo05Session.commitTransaction();
+  print(`COMMIT OK: ${demo05RunId}`);
+} catch (err) {
+  demo05Session.abortTransaction();
+  print(`ROLLBACK: ${err.message}`);
+  throw err;
+} finally {
+  demo05Session.endSession();
+}
+
+printjson({
+  demoBatch: demo05RunId,
+  beneficiaryInserted: db.beneficiaries.countDocuments({ demoBatch: demo05RunId }),
+  auditLogsInserted: db.activity_logs.countDocuments({ demoBatch: demo05RunId }),
+  campaignAfter: db.campaigns.findOne({ _id: demo05Campaign._id }, { code: 1, "summaryStats.beneficiaryCount": 1 })
+});

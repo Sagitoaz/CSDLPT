@@ -1,0 +1,104 @@
+// Demo 09: refund/reject a received money contribution + decrement stats + audit log.
+//
+// Kich ban:
+// - Tim mot contribution MONEY da RECEIVED.
+// - Doi status sang REJECTED de demo hoan/huy giao dich.
+// - Tru tien khoi campaign.currentAmount va contributor.totalContributionStats.
+// - Ghi activity log.
+//
+// Luu y:
+// - Demo nay thay doi data mau that. Chay lai seed neu muon reset.
+// - Dieu kien update co status: "RECEIVED" de tranh refund lap lai.
+
+db = db.getSiblingDB("charity_distributed");
+
+var demo09RunId = `TX-DEMO-CONTRIB-REFUND-${Date.now()}`;
+var demo09Contribution = db.contributions.findOne(
+  { type: "MONEY", status: "RECEIVED", "moneyDetail.amount": { $gt: 0 } },
+  { sort: { branchId: 1, createdAt: 1 } }
+);
+if (!demo09Contribution) {
+  throw new Error("No RECEIVED MONEY contribution found. Run seed data first.");
+}
+
+var demo09Amount = Number(demo09Contribution.moneyDetail.amount || 0);
+var demo09Campaign = db.campaigns.findOne({ _id: demo09Contribution.campaignId });
+var demo09Contributor = db.contributors.findOne({ _id: demo09Contribution.contributorId });
+if (!demo09Campaign || !demo09Contributor) {
+  throw new Error("Missing campaign or contributor for selected contribution.");
+}
+
+var demo09Session = db.getMongo().startSession();
+var demo09TxDb = demo09Session.getDatabase("charity_distributed");
+
+try {
+  demo09Session.startTransaction({ readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });
+
+  demo09TxDb.contributions.updateOne(
+    { _id: demo09Contribution._id, status: "RECEIVED" },
+    {
+      $set: {
+        status: "REJECTED",
+        "moneyDetail.paymentStatus": "REFUNDED",
+        updatedAt: new Date(),
+        demoRefundBatch: demo09RunId
+      }
+    }
+  );
+
+  demo09TxDb.campaigns.updateOne(
+    { _id: demo09Campaign._id },
+    {
+      $inc: {
+        currentAmount: -demo09Amount,
+        "summaryStats.totalMoneyReceived": -demo09Amount
+      },
+      $set: { updatedAt: new Date() }
+    }
+  );
+
+  demo09TxDb.contributors.updateOne(
+    { _id: demo09Contributor._id },
+    {
+      $inc: {
+        "totalContributionStats.moneyCount": -1,
+        "totalContributionStats.totalMoneyAmount": -demo09Amount
+      },
+      $set: { updatedAt: new Date() }
+    }
+  );
+
+  demo09TxDb.activity_logs.insertOne({
+    _id: ObjectId(),
+    branchId: demo09Contribution.branchId,
+    targetBranchId: demo09Contribution.branchId,
+    actorId: ObjectId(),
+    actorRole: "BRANCH_ADMIN",
+    actorBranchId: demo09Contribution.branchId,
+    action: "TX_DEMO_CONTRIBUTION_REFUNDED",
+    entityType: "Contribution",
+    entityId: String(demo09Contribution._id),
+    description: `Refunded contribution in transaction ${demo09RunId}`,
+    before: { status: "RECEIVED", amount: demo09Amount },
+    after: { status: "REJECTED", paymentStatus: "REFUNDED" },
+    demoBatch: demo09RunId,
+    createdAt: new Date()
+  });
+
+  demo09Session.commitTransaction();
+  print(`COMMIT OK: ${demo09RunId}`);
+} catch (err) {
+  demo09Session.abortTransaction();
+  print(`ROLLBACK: ${err.message}`);
+  throw err;
+} finally {
+  demo09Session.endSession();
+}
+
+printjson({
+  demoBatch: demo09RunId,
+  contributionAfter: db.contributions.findOne({ demoRefundBatch: demo09RunId }, { status: 1, moneyDetail: 1 }),
+  campaignAfter: db.campaigns.findOne({ _id: demo09Campaign._id }, { code: 1, currentAmount: 1, "summaryStats.totalMoneyReceived": 1 }),
+  contributorAfter: db.contributors.findOne({ _id: demo09Contributor._id }, { email: 1, totalContributionStats: 1 }),
+  auditLogsInserted: db.activity_logs.countDocuments({ demoBatch: demo09RunId })
+});

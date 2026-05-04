@@ -1,0 +1,69 @@
+// Demo 06: verify beneficiary + audit log.
+//
+// Y nghia:
+// - Xac minh nguoi thu huong la mot chuyen trang thai nghiep vu.
+// - Neu update verificationStatus thanh cong nhung khong co log, sau nay kho
+//   tra loi "ai da xac minh".
+// - Transaction dam bao ca update va log cung commit.
+
+db = db.getSiblingDB("charity_distributed");
+
+var demo06RunId = `TX-DEMO-BENEFICIARY-VERIFY-${Date.now()}`;
+var demo06Beneficiary = db.beneficiaries.findOne({ verificationStatus: "PENDING" }, { sort: { branchId: 1, createdAt: 1 } });
+if (!demo06Beneficiary) {
+  throw new Error("No PENDING beneficiary found. Run seed data or demo 05 first.");
+}
+
+var demo06Branch = db.branches.findOne({ _id: demo06Beneficiary.branchId });
+var demo06Session = db.getMongo().startSession();
+var demo06TxDb = demo06Session.getDatabase("charity_distributed");
+
+try {
+  demo06Session.startTransaction({ readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });
+
+  demo06TxDb.beneficiaries.updateOne(
+    { _id: demo06Beneficiary._id, verificationStatus: "PENDING" },
+    {
+      $set: {
+        verificationStatus: "VERIFIED",
+        verifiedBy: ObjectId(),
+        verifiedAt: new Date(),
+        updatedAt: new Date(),
+        demoVerifyBatch: demo06RunId
+      }
+    }
+  );
+
+  demo06TxDb.activity_logs.insertOne({
+    _id: ObjectId(),
+    branchId: demo06Beneficiary.branchId,
+    targetBranchId: demo06Beneficiary.branchId,
+    actorId: ObjectId(),
+    actorRole: "BRANCH_ADMIN",
+    actorBranchId: demo06Beneficiary.branchId,
+    action: "TX_DEMO_BENEFICIARY_VERIFIED",
+    entityType: "Beneficiary",
+    entityId: String(demo06Beneficiary._id),
+    description: `Verified beneficiary in transaction ${demo06RunId}`,
+    before: { verificationStatus: demo06Beneficiary.verificationStatus },
+    after: { verificationStatus: "VERIFIED" },
+    demoBatch: demo06RunId,
+    createdAt: new Date()
+  });
+
+  demo06Session.commitTransaction();
+  print(`COMMIT OK: ${demo06RunId}`);
+} catch (err) {
+  demo06Session.abortTransaction();
+  print(`ROLLBACK: ${err.message}`);
+  throw err;
+} finally {
+  demo06Session.endSession();
+}
+
+printjson({
+  demoBatch: demo06RunId,
+  branch: demo06Branch?.code,
+  beneficiaryAfter: db.beneficiaries.findOne({ _id: demo06Beneficiary._id }, { name: 1, verificationStatus: 1, verifiedAt: 1 }),
+  auditLogsInserted: db.activity_logs.countDocuments({ demoBatch: demo06RunId })
+});

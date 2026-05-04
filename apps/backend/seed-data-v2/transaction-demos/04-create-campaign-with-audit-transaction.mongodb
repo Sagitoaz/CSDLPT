@@ -1,0 +1,112 @@
+// Demo 04: create campaign + write audit log in one transaction.
+//
+// Muc dich demo:
+// - Mot campaign moi khong chi la insert vao campaigns.
+// - He thong con can ghi activity_logs de truy vet ai tao, tao luc nao.
+// - Neu insert campaign thanh cong nhung ghi log loi thi du lieu se lech.
+// - Transaction giup campaign va log cung commit, hoac cung rollback.
+//
+// Cach chay:
+// - Ket noi qua mongos.
+// - Da chay seed 01-branches.mongodb.
+// - Copy-paste ca file vao mongosh.
+
+db = db.getSiblingDB("charity_distributed");
+
+var demo04RunId = `TX-DEMO-CAMPAIGN-${Date.now()}`;
+var demo04Branch = db.branches.findOne({ code: "DN-S3", status: "ACTIVE" }) ||
+  db.branches.findOne({ status: "ACTIVE" }, { sort: { _id: 1 } });
+
+if (!demo04Branch) {
+  throw new Error("No ACTIVE branch found. Run seed data first.");
+}
+
+var demo04Session = db.getMongo().startSession();
+var demo04TxDb = demo04Session.getDatabase("charity_distributed");
+
+try {
+  demo04Session.startTransaction({ readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });
+
+  var campaignId = ObjectId();
+  var startDate = new Date();
+  var endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  demo04TxDb.campaigns.insertOne({
+    _id: campaignId,
+    branchId: demo04Branch._id,
+    code: `${demo04Branch.code}-TX-CMP-${Date.now()}`,
+    title: `Demo transaction campaign - ${demo04Branch.province}`,
+    name: `Demo transaction campaign - ${demo04Branch.province}`,
+    description: "Campaign duoc tao trong transaction demo kem audit log.",
+    type: "OTHER",
+    status: "DRAFT",
+    visibility: "INTERNAL",
+    targetAmount: 25000000,
+    currentAmount: 0,
+    disbursedAmount: 0,
+    startDate,
+    endDate,
+    timeRange: { startDate, endDate },
+    location: {
+      province: demo04Branch.province,
+      district: demo04Branch.district,
+      ward: demo04Branch.ward,
+      address: demo04Branch.address
+    },
+    goals: {
+      targetMoneyAmount: 25000000,
+      targetItemSummary: "Tien mat, hang thiet yeu",
+      targetVolunteerCount: 10
+    },
+    requiredResources: [],
+    summaryStats: {
+      totalMoneyReceived: 0,
+      totalEstimatedItemValue: 0,
+      totalVolunteerHours: 0,
+      totalMoneyDistributed: 0,
+      totalEstimatedAidValue: 0,
+      beneficiaryCount: 0
+    },
+    images: [],
+    proofImages: [],
+    documents: [],
+    metadata: { demoBatch: demo04RunId, branchCode: demo04Branch.code },
+    createdBy: ObjectId(),
+    demoBatch: demo04RunId,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+
+  demo04TxDb.activity_logs.insertOne({
+    _id: ObjectId(),
+    branchId: demo04Branch._id,
+    targetBranchId: demo04Branch._id,
+    actorId: ObjectId(),
+    actorRole: "BRANCH_ADMIN",
+    actorBranchId: demo04Branch._id,
+    action: "TX_DEMO_CAMPAIGN_CREATED",
+    entityType: "Campaign",
+    entityId: String(campaignId),
+    description: `Created campaign in transaction ${demo04RunId}`,
+    after: { campaignId: String(campaignId), branchCode: demo04Branch.code, status: "DRAFT" },
+    demoBatch: demo04RunId,
+    createdAt: new Date()
+  });
+
+  demo04Session.commitTransaction();
+  print(`COMMIT OK: ${demo04RunId}`);
+} catch (err) {
+  demo04Session.abortTransaction();
+  print(`ROLLBACK: ${err.message}`);
+  throw err;
+} finally {
+  demo04Session.endSession();
+}
+
+// Lenh kiem tra hay dung sau transaction:
+printjson({
+  demoBatch: demo04RunId,
+  campaignInserted: db.campaigns.countDocuments({ demoBatch: demo04RunId }),
+  auditLogsInserted: db.activity_logs.countDocuments({ demoBatch: demo04RunId }),
+  latestCampaign: db.campaigns.findOne({ demoBatch: demo04RunId }, { code: 1, branchId: 1, status: 1, targetAmount: 1 })
+});
