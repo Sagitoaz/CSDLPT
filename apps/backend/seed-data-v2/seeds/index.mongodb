@@ -102,7 +102,7 @@ branches.forEach((branch, branchIndex) => {
 });
 db.contributors.insertMany(contributors, { ordered: false });
 
-var demoPasswordHash = "$2a$12$L1e3ChXAJN9VnJqdLqThFu7tH2U/bVB0JSTh9NKrKs6hPIqDEcbgW";
+var demoPasswordHash = "$2a$12$QYQrB90EXt0HqEy5xQ.tmOnhLjNmPrflIbUuez0EZDGC0IXFFvq4.";
 var users = [{
   _id: ObjectId(),
   email: "superadmin@charity.local",

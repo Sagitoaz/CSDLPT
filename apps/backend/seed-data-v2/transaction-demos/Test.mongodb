@@ -1,19 +1,27 @@
 var demo01Session = db.getMongo().startSession();
 var demo01TxDb = demo01Session.getDatabase("charity_distributed");
 
+function findBranch(id) {
+    return db.branches.findOne({ _id: ObjectId(id) });
+}
+
+var branch = findBranch('660000000000000000000002');
+
+print(branch._id)
+
 try {
     demo01Session.startTransaction();
 
-    demo01TxDb.contributions.insertOne({
-        branchId: ObjectId('660000000000000000000004'),
-        campaignId: ObjectId('69f8abd423a1fb7452628cac'),
-        contributorId: ObjectId('69f8abdb23a1fb7452628cc4'),
+    var contributionDemo = demo01TxDb.contributions.insertOne({
+        branchId: branch._id,
+        campaignId: ObjectId('69f8c4186cb6efce2b628cac'),
+        contributorId: ObjectId('69f8c4216cb6efce2b628cc4'),
         type: 'MONEY',
         status: 'PENDING',
         receivedAt: null,
-        createdBy: ObjectId('69f8abdf23a1fb7452628cf6'),
+        createdBy: ObjectId('69f8c4266cb6efce2b628cf6'),
         contributorSnapshot: {
-            fullName: 'Nguoi dong gop 007 Da Nang',
+            fullName: 'Hieu Ngu',
             organizationName: null,
             phone: '0820000007',
             email: 'contributor007@example.com',
@@ -47,39 +55,9 @@ try {
         }
     });
 
-    demo01TxDb.campaigns.updateOne({
-        _id: ObjectId('69f8abd423a1fb7452628cac')
-    }, {
-        $inc: { currentAmount: 50000 }
-    });
-
-    demo01TxDb.activity_logs.insertOne({
-        branchId: ObjectId('660000000000000000000004'),
-        targetBranchId: ObjectId('660000000000000000000004'),
-        actorId: ObjectId('69f8ac0823a1fb7452628dd4'),
-        actorRole: 'BRANCH_ADMIN',
-        actorBranchId: ObjectId('660000000000000000000004'),
-        userId: ObjectId('69f8ac0823a1fb7452628dd5'),
-        action: 'CAMPAIGN_CREATED',
-        entityType: 'Campaign',
-        entityId: '69f8abd423a1fb7452628cac',
-        targetType: 'Campaign',
-        targetId: '69f8abd423a1fb7452628cac',
-        description: 'Seed activity 21: CAMPAIGN_CREATED at DN-S3',
-        before: {
-            status: 'PENDING'
-        },
-        after: {
-            status: 'COMPLETED'
-        },
-        changes: {
-            seedNo: NumberInt('21'),
-            branchCode: 'DN-S3'
-        },
-        ipAddress: '100.105.12.10',
-        userAgent: 'mongosh-seed-data-v2',
-        createdAt: ISODate('2024-02-29T17:00:00.000Z')
-    });
+    if (contributionDemo.type != 'MONEY') {
+        throw new Error('Contribution type is not MONEY');
+    }
 
     demo01Session.commitTransaction();
     print('Transaction committed successfully.');

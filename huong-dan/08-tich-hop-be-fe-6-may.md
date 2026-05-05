@@ -317,9 +317,9 @@ npm run dev  # Backend: http://100.105.34.84:8080
 
 ### 3.5 Khởi động Frontend (Terminal 4)
 ```powershell
-cd ".\apps\frontend"
+cd ".\fe"
 npm install
-npm run dev  # Frontend: http://100.105.34.84:5174
+npm run dev  # Frontend moi: http://100.105.34.84:5174
 ```
 
 ---

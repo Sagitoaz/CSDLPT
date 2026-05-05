@@ -4,6 +4,7 @@
  */
 
 import { SignOptions, VerifyOptions } from 'jsonwebtoken';
+import type * as JsonWebToken from 'jsonwebtoken';
 
 // Types for JWT payloads
 export interface JWTPayload {
@@ -67,6 +68,11 @@ export const tokenVerifyOptions: VerifyOptions = {
   algorithms: ['HS256'],
 };
 
+async function loadJwt(): Promise<typeof JsonWebToken> {
+  const module = await import('jsonwebtoken');
+  return (module.default ?? module) as typeof JsonWebToken;
+}
+
 /**
  * Generate a JWT token with payload
  * @param payload - Claims to include in token
@@ -79,7 +85,7 @@ export async function generateToken(
   options: SignOptions = accessTokenOptions
 ): Promise<string> {
   // Lazy import to avoid loading jwt if not needed
-  const jwt = await import('jsonwebtoken');
+  const jwt = await loadJwt();
   return new Promise((resolve, reject) => {
     jwt.sign(payload, JWT_CONFIG.secret, options, (err, token) => {
       if (err) reject(err);
@@ -96,7 +102,7 @@ export async function generateToken(
  * SECURITY-08: Returns decoded token for authorization decisions
  */
 export async function verifyToken(token: string): Promise<JWTPayload> {
-  const jwt = await import('jsonwebtoken');
+  const jwt = await loadJwt();
   return new Promise((resolve, reject) => {
     jwt.verify(token, JWT_CONFIG.secret, tokenVerifyOptions, (err, decoded) => {
       if (err) reject(err);
@@ -112,7 +118,7 @@ export async function verifyToken(token: string): Promise<JWTPayload> {
  * @returns Decoded payload
  */
 export async function decodeToken(token: string): Promise<JWTPayload | null> {
-  const jwt = await import('jsonwebtoken');
+  const jwt = await loadJwt();
   return jwt.decode(token) as JWTPayload | null;
 }
 

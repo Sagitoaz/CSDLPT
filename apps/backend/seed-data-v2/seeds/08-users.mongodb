@@ -9,7 +9,7 @@ if (branches08.length === 0) {
 }
 
 // bcrypt hash for Demo@123, used only for local/demo seed data.
-var demoPasswordHash08 = "$2a$12$L1e3ChXAJN9VnJqdLqThFu7tH2U/bVB0JSTh9NKrKs6hPIqDEcbgW";
+var demoPasswordHash08 = "$2a$12$QYQrB90EXt0HqEy5xQ.tmOnhLjNmPrflIbUuez0EZDGC0IXFFvq4.";
 var users08 = [{
   _id: ObjectId(),
   email: "superadmin@charity.local",

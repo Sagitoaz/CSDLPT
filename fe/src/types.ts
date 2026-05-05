@@ -18,7 +18,9 @@ export interface Campaign {
   name: string;
   description?: string;
   targetAmount: number;
+  currentAmount?: number;
   isActive: boolean;
+  status?: string;
   startDate?: string;
   endDate?: string;
   createdAt: string;

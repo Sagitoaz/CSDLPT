@@ -3,7 +3,7 @@
 Du an mon CSDL phan tan cho nhom 6 thanh vien.
 
 ## Kien truc nhanh
-- Frontend: React + Vite
+- Frontend: React + Vite trong thu muc `fe`
 - Backend: Node.js + Express + TypeScript
 - Database: MongoDB Replica Set (3 node)
 - Ket noi lien may: Tailscale
@@ -13,7 +13,7 @@ Du an mon CSDL phan tan cho nhom 6 thanh vien.
 2. Cai dependencies root: `npm install`
 3. Cai dependencies cho tung package: `npm run setup`
 4. Chay backend + frontend: `npm run dev`
-4. Mo trinh duyet tai: `http://localhost:5173`
+5. Mo trinh duyet tai: `http://localhost:5174`
 
 ## Tai lieu huong dan chi tiet
 Xem thu muc `huong-dan/`.

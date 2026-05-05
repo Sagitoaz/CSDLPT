@@ -31,7 +31,12 @@ Neu lenh copy khong hoat dong trong shell hien tai, tao file .env thu cong.
 ### B2: Noi dung .env
 
 ```env
-VITE_API_BASE=http://localhost:8080/api
+VITE_API_BASE=/api
+VITE_BACKEND_ORIGIN=http://100.105.34.84:8080
+VITE_USE_MOCK=false
+VITE_AUTH_EMAIL=superadmin@charity.local
+VITE_AUTH_PASSWORD=Demo@123
+VITE_DEFAULT_BRANCH_ID=660000000000000000000002
 ```
 
 ## 4. Chay FE o che do development
@@ -43,6 +48,7 @@ npm run dev
 Mac dinh FE chay o:
 
 - http://localhost:5174
+- http://100.105.34.84:5174
 
 ## 5. Build FE production
 
@@ -66,9 +72,11 @@ Mac dinh preview o:
 
 ## 7. Luu y quan trong
 
-- FE chi la giao dien, can backend dang chay de lay/ghi du lieu.
+- FE chi la giao dien, can backend dang chay de lay/ghi du lieu MongoDB that.
+- Khi `VITE_USE_MOCK=false`, FE tu dong login user demo va gui JWT Bearer token cho backend.
 - Neu bi loi CORS, backend can cho phep origin cua FE (http://localhost:5174).
-- Neu backend chay cong khac, cap nhat lai VITE_API_BASE trong .env.
+- Neu backend chay cong khac, cap nhat lai VITE_BACKEND_ORIGIN trong .env.
+- Khi chay dev, FE goi `/api` cung origin va Vite se proxy sang backend, nen tranh duoc loi CORS khi mo bang IP khac nhau.
 
 ## 8. Quy trinh nhanh
 

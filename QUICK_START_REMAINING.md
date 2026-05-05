@@ -65,7 +65,7 @@ mongosh < infrastructure/mongodb/mongodb-setup-users.js
 
 ### Bước 2: Frontend Auth UI (Nếu có thời gian)
 
-**File cần tạo:** `apps/frontend/src/pages/LoginPage.tsx`
+**File cần tạo:** `fe/src/pages/LoginPage.tsx`
 
 ```typescript
 import { useState } from 'react';
@@ -131,7 +131,7 @@ export default function LoginPage() {
 
 ```bash
 npm --prefix apps/backend run build
-npm --prefix apps/frontend run build
+npm --prefix fe run build
 ```
 
 #### 4.2 Security checklist

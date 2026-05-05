@@ -11,4 +11,5 @@ coverage/
 .env
 .DS_Store
 *.tsbuildinfo
-fe/.env.example
+apps/backend/logs/
+dev-server*.log
