@@ -1,9 +1,11 @@
 import { createApp } from "./app/create-app";
 import { config } from "./config/env";
 import { connectMongo } from "./infrastructure/database/mongo";
+import { triggerDemo } from "./trigger/trigger";
 
 async function bootstrap(): Promise<void> {
   await connectMongo();
+  await triggerDemo();
   const app = createApp();
 
   app.listen(config.port, () => {

@@ -12,13 +12,13 @@ function parseCorsOrigins(rawValue: string | undefined): string[] | "*" {
     return "*";
   }
 
-  return origins.length > 0 ? origins : ["http://localhost:5174"];
+  return origins.length > 0 ? origins : ["http://100.105.34.84:5174:5174"];
 }
 
 export const config = {
   port: Number(process.env.PORT || 8080),
   mongoUri: process.env.MONGODB_URI || "",
-  corsOrigin: parseCorsOrigins(process.env.CORS_ORIGIN)
+  corsOrigin: parseCorsOrigins(process.env.CORS_ORIGIN),
 };
 
 if (!config.mongoUri) {
